@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0a7c6e"/>
+<title>Cyrabell Dental Management System</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --t:#0a7c6e;--tl:#12a090;--tp:#e8f5f3;
+  --go:#c9a84c;--gl:#f0d990;
+  --cr:#faf8f4;--dk:#1a2332;--md:#4a6275;--lt:#8fa8b8;
+  --bd:#dde8ec;--re:#e05252;--gr:#3aa876;--bl:#3a7bd5;--or:#e8943a;
+  --sh:0 2px 16px rgba(10,124,110,.08);--shl:0 8px 40px rgba(10,124,110,.15);
+  --sb:240px;--tbh:60px;--bnh:62px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--cr);color:var(--dk);min-height:100vh}
+/* ── LAYOUT ── */
+#app{display:flex;height:100vh;overflow:hidden}
+/* ── SIDEBAR ── */
+.sb{width:var(--sb);background:var(--dk);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:relative;overflow:hidden;transition:transform .25s;z-index:150}
+.sb::before{content:'';position:absolute;bottom:-80px;right:-80px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(10,124,110,.3)0%,transparent 70%);pointer-events:none}
+.sb-logo{padding:22px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--t),var(--tl));border-radius:11px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.sb-name{font-family:'Playfair Display',serif;font-size:17px;font-weight:700}
+.sb-sub{font-size:9px;color:var(--lt);letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+.sb-nav{flex:1;padding:12px 0;overflow-y:auto}
+.nav-sec{padding:8px 20px 3px;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.3)}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.65);transition:all .18s;margin:1px 9px;border-radius:9px;user-select:none}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:linear-gradient(135deg,var(--t),var(--tl));color:#fff;box-shadow:0 4px 12px rgba(10,124,110,.4)}
+.nav-badge{margin-left:auto;background:var(--go);color:var(--dk);font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;min-width:18px;text-align:center}
+.sb-footer{padding:12px 9px;border-top:1px solid rgba(255,255,255,.08)}
+.user-card{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;cursor:pointer}
+.user-card:hover{background:rgba(255,255,255,.07)}
+.user-av{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--go),#e8b84d);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:var(--dk);flex-shrink:0}
+.user-nm{font-size:12px;font-weight:600}.user-role{font-size:10px;color:rgba(255,255,255,.4)}
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:149}
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{background:#fff;padding:0 20px;height:var(--tbh);display:flex;align-items:center;border-bottom:1px solid var(--bd);gap:10px;flex-shrink:0}
+.hamburger{display:none;width:36px;height:36px;border-radius:9px;border:1px solid var(--bd);background:#fff;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0}
+.topbar-title{font-family:'Playfair Display',serif;font-size:19px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-search{display:flex;align-items:center;gap:7px;background:var(--cr);border:1px solid var(--bd);border-radius:9px;padding:7px 12px;width:200px;flex-shrink:0}
+.topbar-search input{border:none;background:none;outline:none;font-family:inherit;font-size:13px;color:var(--dk);width:100%}
+.topbar-btn{width:36px;height:36px;border-radius:9px;border:1px solid var(--bd);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;transition:all .18s}
+.topbar-btn:hover{background:var(--tp);border-color:var(--t)}
+.notif-dot{position:absolute;top:6px;right:6px;width:7px;height:7px;background:var(--re);border-radius:50%;border:2px solid #fff}
+.content{flex:1;overflow-y:auto;padding:20px;-webkit-overflow-scrolling:touch}
+/* ── BOTTOM NAV ── */
+.bot-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--bd);z-index:100;height:var(--bnh)}
+.bot-nav-wrap{display:flex;height:100%}
+.bot-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:var(--lt);border:none;background:none;font-family:inherit;padding:4px 2px;position:relative;transition:color .18s;font-size:9px;font-weight:600}
+.bot-item.active{color:var(--t)}
+.bot-item-ic{width:34px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:all .18s}
+.bot-item.active .bot-item-ic{background:var(--tp)}
+.bot-badge{position:absolute;top:3px;right:calc(50% - 20px);background:var(--re);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px}
+/* ── CARDS ── */
+.card{background:#fff;border-radius:14px;box-shadow:var(--sh);border:1px solid var(--bd);margin-bottom:16px}
+.card-head{padding:16px 18px 0;display:flex;align-items:center;justify-content:space-between}
+.card-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:600}
+.card-body{padding:16px 18px}
+/* ── STAT GRIDS ── */
+.sg{display:grid;gap:12px;margin-bottom:18px}
+.sg4{grid-template-columns:repeat(4,1fr)}
+.sg3{grid-template-columns:repeat(3,1fr)}
+.stat-card{background:#fff;border-radius:14px;padding:16px;border:1px solid var(--bd);box-shadow:var(--sh);display:flex;align-items:center;gap:12px}
+.stat-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.stat-val{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;line-height:1}
+.stat-lbl{font-size:11px;color:var(--md);margin-top:3px}
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:9px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;transition:all .18s;white-space:nowrap;text-decoration:none}
+.btn:active{transform:scale(.97)}
+.btn-p{background:linear-gradient(135deg,var(--t),var(--tl));color:#fff;box-shadow:0 3px 10px rgba(10,124,110,.3)}
+.btn-p:hover{opacity:.9}
+.btn-p:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-s{background:var(--tp);color:var(--t);border:1px solid rgba(10,124,110,.2)}
+.btn-s:hover{background:var(--t);color:#fff}
+.btn-d{background:#fdeaea;color:var(--re);border:1px solid rgba(224,82,82,.2)}
+.btn-d:hover{background:var(--re);color:#fff}
+.btn-g{background:linear-gradient(135deg,var(--go),#e8b84d);color:var(--dk)}
+.btn-gh{background:none;border:1px solid var(--bd);color:var(--md)}
+.btn-gh:hover{background:var(--cr)}
+.btn-sm{padding:6px 11px;font-size:12px}
+.btn-full{width:100%}
+/* ── TABLE ── */
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;min-width:480px}
+th{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--lt);font-weight:600;padding:8px 13px;text-align:left;background:var(--cr);white-space:nowrap}
+th:first-child{border-radius:9px 0 0 9px}th:last-child{border-radius:0 9px 9px 0}
+td{padding:12px 13px;font-size:13px;border-bottom:1px solid var(--bd);vertical-align:middle}
+tr:hover td{background:#f8fbfb}tr:last-child td{border-bottom:none}
+.dt{}
+.ml{display:none;flex-direction:column;gap:10px}
+/* ── MOBILE CARD ── */
+.mc{background:#fff;border:1px solid var(--bd);border-radius:13px;padding:14px;box-shadow:var(--sh)}
+.mc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px;gap:8px}
+.mc-name{font-weight:600;font-size:14px}.mc-sub{font-size:12px;color:var(--md);margin-top:2px}
+.mc-row{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:4px 0;border-bottom:1px solid #f5f5f5}
+.mc-lbl{color:var(--lt)}.mc-val{font-weight:500;text-align:right}
+.mc-actions{display:flex;gap:8px;margin-top:10px}
+/* ── BADGE ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.bdot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.b-pending{background:#fff8e6;color:#d4870a}.b-pending .bdot{background:#f0a830}
+.b-confirmed{background:#e6f7f3;color:#1a8a6a}.b-confirmed .bdot{background:var(--gr)}
+.b-cancelled{background:#fdeaea;color:var(--re)}.b-cancelled .bdot{background:var(--re)}
+.b-completed{background:#e8eeff;color:var(--bl)}.b-completed .bdot{background:var(--bl)}
+.b-paid{background:#e6f7f3;color:#1a8a6a}.b-paid .bdot{background:var(--gr)}
+.b-sent{background:#e6f7f3;color:#1a8a6a}.b-sent .bdot{background:var(--gr)}
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(26,35,50,.65);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal-box{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:620px;max-height:92vh;overflow-y:auto;padding-bottom:20px}
+.modal-box.large{max-width:700px}
+.modal-drag{width:36px;height:4px;background:#dde8ec;border-radius:2px;margin:10px auto 0}
+.modal-head{padding:18px 20px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.modal-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:700}
+.modal-sub{font-size:12px;color:var(--md);margin-top:2px}
+.modal-body{padding:16px 20px 8px}
+.modal-foot{display:flex;justify-content:flex-end;gap:10px;padding:8px 20px 0;flex-wrap:wrap}
+.close-x{width:30px;height:30px;border-radius:8px;border:1px solid var(--bd);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;color:var(--md)}
+.close-x:hover{background:var(--cr)}
+/* ── FORM ── */
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.fg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{font-size:11px;font-weight:600;color:var(--md);letter-spacing:.5px;text-transform:uppercase;display:block;margin-bottom:4px}
+input,select,textarea{border:1.5px solid var(--bd);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:14px;outline:none;background:#fff;color:var(--dk);width:100%;-webkit-appearance:none;appearance:none;transition:border .18s}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238fa8b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+input:focus,select:focus,textarea:focus{border-color:var(--t);box-shadow:0 0 0 3px rgba(10,124,110,.1)}
+textarea{resize:vertical;min-height:80px}
+/* ── PAGE HEAD ── */
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:10px;flex-wrap:wrap}
+.page-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:700}
+.page-sub{font-size:12px;color:var(--md);margin-top:3px}
+/* ── FILTERS ── */
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.filter-btn{padding:6px 13px;border-radius:20px;border:1.5px solid var(--bd);background:#fff;font-size:12px;cursor:pointer;font-family:inherit;font-weight:500;color:var(--md);transition:all .18s}
+.filter-btn.active{border-color:var(--t);background:var(--tp);color:var(--t)}
+/* ── TABS ── */
+.tabs{display:flex;gap:3px;background:var(--cr);padding:3px;border-radius:11px;margin-bottom:16px;overflow-x:auto}
+.tab-btn{padding:7px 15px;border-radius:9px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--md);font-family:inherit;white-space:nowrap}
+.tab-btn.active{background:#fff;color:var(--t);box-shadow:0 1px 6px rgba(0,0,0,.1)}
+/* ── TIME SLOTS ── */
+.time-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:6px}
+.time-slot{padding:9px 4px;border-radius:8px;border:1.5px solid var(--bd);background:#fff;cursor:pointer;font-size:12px;text-align:center;font-family:inherit;color:var(--dk);transition:all .18s}
+.time-slot:hover,.time-slot.active{border-color:var(--t);background:var(--tp);color:var(--t)}
+.time-slot.active{background:var(--t);color:#fff}
+/* ── INFO GRID ── */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.info-lbl{font-size:10px;color:var(--lt);text-transform:uppercase;letter-spacing:.5px}
+.info-val{font-size:13px;font-weight:500;margin-top:2px;word-break:break-word}
+/* ── RECEIPT ── */
+.receipt{border:1px dashed var(--bd);border-radius:12px;padding:16px}
+.receipt-head{text-align:center;padding-bottom:13px;border-bottom:1px dashed var(--bd);margin-bottom:13px}
+.receipt-logo{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--t)}
+.receipt-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;gap:12px}
+.receipt-row span:first-child{color:var(--md);flex-shrink:0}
+.receipt-row span:last-child{font-weight:500;text-align:right}
+.receipt-total{font-weight:700;font-size:16px;color:var(--t);border-top:1px solid var(--bd);padding-top:9px;margin-top:4px}
+/* ── SVC GRID ── */
+.svc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:7px}
+.svc-card{border:1.5px solid var(--bd);border-radius:11px;padding:12px 10px;cursor:pointer;transition:all .18s}
+.svc-card:hover,.svc-card.active{border-color:var(--t);background:var(--tp)}
+.svc-name{font-weight:600;font-size:13px}
+.svc-fee{font-size:12px;color:var(--t);font-weight:700;margin-top:2px}
+/* ── NOTIF ── */
+.notif-preview{background:var(--cr);border-radius:10px;padding:13px;font-size:13px;line-height:1.6;color:var(--md);border:1px solid var(--bd);margin-top:7px;white-space:pre-wrap;word-break:break-word}
+.notif-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:13px}
+.notif-type{border:1.5px solid var(--bd);border-radius:11px;padding:12px;cursor:pointer;transition:all .18s}
+.notif-type:hover,.notif-type.active{border-color:var(--t);background:var(--tp)}
+.notif-type-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;font-size:17px}
+/* ── PUBLIC BOOKING ── */
+.pub-wrap{min-height:100vh;background:linear-gradient(150deg,#0a2a24,#1a3d35 50%,#0d3028);display:flex;flex-direction:column;align-items:center;padding:28px 16px 80px;position:relative;overflow-x:hidden}
+.pub-head{text-align:center;margin-bottom:22px;position:relative;z-index:1}
+.pub-logo-wrap{display:inline-flex;align-items:center;gap:12px;margin-bottom:10px}
+.pub-logo-icon{width:50px;height:50px;background:linear-gradient(135deg,var(--t),var(--tl));border-radius:14px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(10,124,110,.4);font-size:22px}
+.pub-name{font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:#fff}
+.pub-tagline{font-size:12px;color:rgba(255,255,255,.5);letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+.pub-card{background:#fff;border-radius:18px;padding:24px 20px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative;z-index:1}
+.pub-steps{display:flex;align-items:center;gap:4px;margin-bottom:20px;overflow-x:auto}
+.pub-step{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.pub-step.done{background:var(--tp);color:var(--t)}
+.pub-step.curr{background:var(--t);color:#fff}
+.pub-step.todo{background:var(--cr);color:var(--lt)}
+.pub-step-line{flex:1;height:1px;background:var(--bd);min-width:10px}
+/* ── TOAST ── */
+.toast-wrap{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:999;display:flex;flex-direction:column;gap:7px;width:calc(100% - 28px);max-width:370px;pointer-events:none}
+.toast{background:#fff;border-radius:12px;padding:12px 15px;box-shadow:var(--shl);border-left:4px solid var(--t);display:flex;align-items:center;gap:10px;font-size:13px;pointer-events:all;cursor:pointer;animation:toastIn .3s ease}
+.toast.ok{border-left-color:var(--gr)}.toast.err{border-left-color:var(--re)}
+@keyframes toastIn{from{transform:translateY(-8px);opacity:0}to{transform:translateY(0);opacity:1}}
+/* ── MISC ── */
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.empty{text-align:center;padding:32px 20px;color:var(--lt);font-size:13px}
+.tag{display:inline-flex;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.dash-grid{display:grid;grid-template-columns:3fr 2fr;gap:14px}
+.timeline{display:flex;flex-direction:column;gap:12px}
+.tl-item{display:flex;gap:11px;align-items:flex-start}
+.tl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.tl-name{font-size:13px;font-weight:500}.tl-sub{font-size:11px;color:var(--lt);margin-top:2px}
+.bar-row{margin-bottom:11px}
+.bar-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.bar-track{height:6px;background:var(--cr);border-radius:10px;overflow:hidden}
+.bar-fill{height:100%;border-radius:10px}
+.exp-row{margin-bottom:15px}
+.exp-btns{display:flex;gap:7px;margin-top:7px}
+.exp-btns .btn{flex:1;font-size:12px;padding:7px 8px}
+.search-box{display:flex;align-items:center;gap:7px;background:var(--cr);border:1px solid var(--bd);border-radius:9px;padding:7px 12px;width:100%;max-width:320px;margin-bottom:14px}
+.search-box input{border:none;background:none;outline:none;font-family:inherit;font-size:13px;color:var(--dk);flex:1}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px}
+/* ── RESPONSIVE ── */
+@media(max-width:900px){.topbar-search{display:none}.dash-grid{grid-template-columns:1fr}.sg4{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){
+  #app{flex-direction:column}
+  .sb{position:fixed;top:0;left:0;bottom:0;width:268px;transform:translateX(-100%)}
+  .sb.open{transform:translateX(0)}
+  .sb-overlay.show{display:block}
+  .hamburger{display:flex}
+  .topbar{padding:0 12px;height:54px}
+  .topbar-title{font-size:17px}
+  .main{padding-bottom:var(--bnh)}
+  .content{padding:14px}
+  .bot-nav{display:block}
+  .sg4,.sg3{grid-template-columns:1fr 1fr}
+  .dt{display:none}
+  .ml{display:flex}
+  .fg-grid{grid-template-columns:1fr}
+  .page-head{flex-direction:column}
+  .n-grid,.e-grid,.a-grid{grid-template-columns:1fr!important}
+  .svc-grid{grid-template-columns:1fr 1fr}
+  .time-grid{grid-template-columns:repeat(3,1fr)}
+  .dash-grid{grid-template-columns:1fr}
+  .modal-overlay{align-items:flex-end}
+  .modal-box{border-radius:20px 20px 0 0;max-height:90vh}
+}
+@media(max-width:380px){.sg4,.sg3{grid-template-columns:1fr}.svc-grid{grid-template-columns:1fr}.notif-type-grid{grid-template-columns:1fr}.info-grid{grid-template-columns:1fr}}
+@media print{.sb,.topbar,.bot-nav{display:none!important}}
+</style>
+</head>
+<body>
+<div class="toast-wrap" id="toasts"></div>
+<div id="app"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CYRABELL DENTAL MANAGEMENT SYSTEM
+//  Pure Vanilla JS — Zero Dependencies — Works Offline
+// ═══════════════════════════════════════════════════════
+
+// ── STATE ──────────────────────────────────────────────
+const STATE = {
+  view: 'admin', // 'admin' | 'booking'
+  page: 'dashboard',
+  sideOpen: false,
+  patients: [
+    {id:'P001',name:'Maria Santos',dob:'1985-03-12',phone:'09171234567',email:'maria@email.com',address:'123 Rizal St, Iligan City',bloodType:'O+',allergies:'Penicillin',lastVisit:'2025-12-10',balance:2500},
+    {id:'P002',name:'Juan dela Cruz',dob:'1990-07-22',phone:'09281234567',email:'juan@email.com',address:'456 Bonifacio Ave, Iligan City',bloodType:'A+',allergies:'None',lastVisit:'2026-01-15',balance:0},
+    {id:'P003',name:'Ana Reyes',dob:'1995-05-18',phone:'09351234567',email:'ana@email.com',address:'789 Mabini St, Iligan City',bloodType:'B+',allergies:'None',lastVisit:'2026-02-20',balance:0},
+  ],
+  appointments: [
+    {id:'A001',patientId:'P001',patientName:'Maria Santos',service:'Teeth Cleaning',date:'2026-05-10',time:'09:00',status:'pending',notes:'Regular cleaning',fee:800,dentist:'Dr. Reyes',phone:'09171234567',email:'maria@email.com'},
+    {id:'A002',patientId:'P002',patientName:'Juan dela Cruz',service:'Tooth Extraction',date:'2026-05-11',time:'14:00',status:'confirmed',notes:'Lower molar',fee:1500,dentist:'Dr. Reyes',phone:'09281234567',email:'juan@email.com'},
+    {id:'A003',patientId:'P003',patientName:'Ana Reyes',service:'Teeth Whitening',date:'2026-05-13',time:'10:00',status:'completed',notes:'',fee:3500,dentist:'Dr. Santos',phone:'09351234567',email:'ana@email.com'},
+  ],
+  payments: [
+    {id:'PAY001',patientId:'P001',patientName:'Maria Santos',amount:800,method:'Cash',service:'Teeth Cleaning',date:'2025-12-10',status:'paid',ref:'REF-12345'},
+    {id:'PAY002',patientId:'P002',patientName:'Juan dela Cruz',amount:1500,method:'GCash',service:'Tooth Extraction',date:'2026-01-15',status:'paid',ref:'REF-67890'},
+  ],
+  notifications: [
+    {id:'N001',type:'sms',recipient:'Maria Santos',phone:'09171234567',email:'maria@email.com',message:'Hi Maria! Your Teeth Cleaning on May 10 at 9:00 AM is CONFIRMED. See you at Cyrabell Dental!',sentAt:'2026-04-30 08:00',status:'sent'},
+  ],
+  apptFilter:'all', apptSearch:'',
+  patSearch:'',
+  payFilter:'all',
+  notifTab:'send', notifType:'sms', notifApptId:'', notifTemplate:'confirmation', notifCustom:'',
+  analyticsTab:'revenue',
+  modal: null, // {type, data}
+  pubStep:1, pubForm:{name:'',dob:'',phone:'',email:'',address:'',bloodType:'O+',service:'',date:'',time:'09:00',notes:'',dentist:'Dr. Reyes'},
+  pubDone:null,
+};
+
+const SVCS=[
+  {name:'Teeth Cleaning',fee:800},{name:'Tooth Extraction',fee:1500},{name:'Dental Filling',fee:1200},
+  {name:'Root Canal',fee:5000},{name:'Dental Crown',fee:8000},{name:'Teeth Whitening',fee:3500},
+  {name:'Braces Consult',fee:500},{name:'X-Ray',fee:600},{name:'Dentures',fee:12000},{name:'Dental Implant',fee:25000},
+];
+const BLOOD=['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+const METHODS=['Cash','GCash','Maya','Bank Transfer','Credit Card','Debit Card','PhilHealth'];
+const TIMES=['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
+const DENTISTS=['Dr. Reyes','Dr. Santos','Dr. Villanueva'];
+const NAV=[
+  {id:'dashboard',label:'Dashboard',icon:'dashboard',sec:'OVERVIEW'},
+  {id:'appointments',label:'Appointments',icon:'calendar',sec:'MANAGE'},
+  {id:'patients',label:'Patients',icon:'users'},
+  {id:'payments',label:'Payments',icon:'credit'},
+  {id:'notifications',label:'Notifications',icon:'bell',sec:'TOOLS'},
+  {id:'export',label:'Export',icon:'download'},
+  {id:'analytics',label:'Analytics',icon:'chart'},
+];
+const BOT=[
+  {id:'dashboard',label:'Home',icon:'dashboard'},
+  {id:'appointments',label:'Visits',icon:'calendar'},
+  {id:'patients',label:'Patients',icon:'users'},
+  {id:'payments',label:'Payments',icon:'credit'},
+  {id:'notifications',label:'Alerts',icon:'bell'},
+];
+
+// ── UTILITIES ───────────────────────────────────────────
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const p$ = n => Number(n||0).toLocaleString();
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const pending = () => STATE.appointments.filter(a=>a.status==='pending').length;
+
+function toast(msg, type='info'){
+  const id = uid();
+  const el = document.createElement('div');
+  el.className = `toast ${type==='success'?'ok':type==='error'?'err':''}`;
+  el.innerHTML = `<span style="font-size:15px;flex-shrink:0">${type==='success'?'✓':type==='error'?'✕':'ℹ'}</span><span>${esc(msg)}</span>`;
+  el.onclick = ()=>el.remove();
+  $('#toasts').appendChild(el);
+  setTimeout(()=>el.remove(), 3500);
+}
+
+// ── SVG ICONS ───────────────────────────────────────────
+const ICONS = {
+  tooth: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.5 2 5 4.5 5 8c0 2 .5 3.5 1 5 .5 1.5 1 3 1 5 0 1.5.5 2 1 2h8c.5 0 1-.5 1-2 0-2 .5-3.5 1-5 .5-1.5 1-3 1-5 0-3.5-3.5-6-7-6z"/></svg>`,
+  dashboard: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>`,
+  calendar: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18v18H3zM16 2v4M8 2v4M3 10h18"/></svg>`,
+  users: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  credit: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4h22v16H1zM1 10h22"/></svg>`,
+  bell: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+  download: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>`,
+  chart: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>`,
+  globe: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+  shield: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+  menu: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>`,
+  search: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8fa8b8" stroke-width="2"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35"/></svg>`,
+  plus: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>`,
+  x: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>`,
+  eye: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12S5 4 12 4s11 8 11 8-4 8-11 8S1 12 1 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>`,
+  edit: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+  send: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>`,
+  check: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>`,
+  file: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6"/></svg>`,
+  clock: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2"/></svg>`,
+};
+function icon(name, cls=''){
+  return (ICONS[name]||'').replace('<svg ','<svg class="'+cls+'" ');
+}
+
+// ── BADGE ───────────────────────────────────────────────
+function badge(status){
+  const m={pending:'b-pending',confirmed:'b-confirmed',cancelled:'b-cancelled',completed:'b-completed',paid:'b-paid',unpaid:'b-cancelled',sent:'b-sent',failed:'b-cancelled'};
+  return `<span class="badge ${m[status]||'b-pending'}"><span class="bdot"></span>${esc(status)}</span>`;
+}
+
+// ── MODAL ───────────────────────────────────────────────
+function openModal(html, large=false){
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.innerHTML = `<div class="modal-box${large?' large':''}"><div class="modal-drag"></div>${html}</div>`;
+  ov.addEventListener('click', e=>{ if(e.target===ov) closeModal(); });
+  document.body.appendChild(ov);
+}
+function closeModal(){
+  const m = $('.modal-overlay');
+  if(m) m.remove();
+}
+
+// ── EXPORT HELPERS ──────────────────────────────────────
+function expCSV(data,fn){
+  if(!data.length)return;
+  const k=Object.keys(data[0]);
+  const c=[k.join(','),...data.map(r=>k.map(k2=>`"${String(r[k2]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:'text/csv'}));a.download=fn;a.click();
+}
+function expJSON(data,fn){
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download=fn;a.click();
+}
+function printDoc(content,title){
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>${title}</title><style>body{font-family:Segoe UI,sans-serif;padding:28px;color:#1a2332;max-width:880px;margin:0 auto}h1{color:#0a7c6e;font-size:22px;margin-bottom:4px}h2{font-size:15px;margin:20px 0 9px}.meta{font-size:12px;color:#8fa8b8;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#e8f5f3;padding:8px 10px;text-align:left;font-size:11px;color:#4a6275;text-transform:uppercase;letter-spacing:1px}td{padding:8px 10px;border-bottom:1px solid #dde8ec;font-size:12px}</style></head><body><h1>🦷 Cyrabell Dental</h1><div class="meta">Generated: ${new Date().toLocaleString()}</div>${content}<script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.close();
+}
+
+// ════════════════════════════════════════════════════════
+//  PAGE RENDERERS
+// ════════════════════════════════════════════════════════
+
+// ── DASHBOARD ───────────────────────────────────────────
+function renderDashboard(){
+  const pend = pending();
+  const rev = STATE.payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
+  const recent = [...STATE.appointments].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
+  const stats = [
+    {l:'Patients',v:STATE.patients.length,bg:'#e8f5f3',ic:'#0a7c6e',icon:'users'},
+    {l:'Appointments',v:STATE.appointments.length,bg:'#e8eeff',ic:'#3a7bd5',icon:'calendar'},
+    {l:'Pending',v:pend,bg:'#fff8e6',ic:'#d4870a',icon:'clock'},
+    {l:'Revenue',v:'₱'+p$(rev),bg:'#f0f8f0',ic:'#3aa876',icon:'credit'},
+  ];
+  return `
+    <div>
+      <div style="margin-bottom:18px">
+        <div class="page-title">Good morning, Admin 👋</div>
+        <div class="page-sub">Welcome to Cyrabell Dental Management System</div>
+      </div>
+      <div class="sg sg4">
+        ${stats.map(s=>`<div class="stat-card">
+          <div class="stat-icon" style="background:${s.bg}">${icon(s.icon).replace('stroke="currentColor"','stroke="'+s.ic+'"')}</div>
+          <div><div class="stat-val">${esc(String(s.v))}</div><div class="stat-lbl">${s.l}</div></div>
+        </div>`).join('')}
+      </div>
+      <div class="dash-grid">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Recent Appointments</div></div>
+          <div class="card-body">
+            <div class="dt"><div class="tw"><table>
+              <thead><tr><th>Patient</th><th>Service</th><th>Date</th><th>Status</th></tr></thead>
+              <tbody>${recent.map(a=>`<tr>
+                <td><strong>${esc(a.patientName)}</strong></td>
+                <td>${esc(a.service)}</td>
+                <td style="white-space:nowrap">${esc(a.date)}</td>
+                <td>${badge(a.status)}</td>
+              </tr>`).join('')}</tbody>
+            </table></div></div>
+            <div class="ml">${recent.map(a=>`<div class="mc">
+              <div class="mc-top"><div><div class="mc-name">${esc(a.patientName)}</div><div class="mc-sub">${esc(a.service)}</div></div>${badge(a.status)}</div>
+              <div class="mc-row"><span class="mc-lbl">Date & Time</span><span class="mc-val">${esc(a.date)} · ${esc(a.time)}</span></div>
+            </div>`).join('')}</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Activity</div></div>
+          <div class="card-body"><div class="timeline">
+            ${recent.slice(0,5).map(a=>`<div class="tl-item">
+              <div class="tl-dot" style="background:${a.status==='confirmed'?'var(--gr)':a.status==='pending'?'var(--go)':a.status==='completed'?'var(--bl)':'var(--re)'}"></div>
+              <div><div class="tl-name">${esc(a.patientName)}</div><div class="tl-sub">${esc(a.service)} · ${esc(a.date)}</div></div>
+            </div>`).join('')}
+          </div></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── APPOINTMENTS ─────────────────────────────────────────
+function renderAppointments(){
+  const filtered = STATE.appointments
+    .filter(a=>STATE.apptFilter==='all'||a.status===STATE.apptFilter)
+    .filter(a=>!STATE.apptSearch||a.patientName.toLowerCase().includes(STATE.apptSearch.toLowerCase())||a.service.toLowerCase().includes(STATE.apptSearch.toLowerCase()));
+  return `
+    <div>
+      <div class="page-head">
+        <div><div class="page-title">Appointments</div><div class="page-sub">Manage and confirm patient visits</div></div>
+        <div><button class="btn btn-p" onclick="openNewAppt()">${icon('plus')} New</button></div>
+      </div>
+      <div class="filters">
+        ${['all','pending','confirmed','completed','cancelled'].map(f=>`<button class="filter-btn${STATE.apptFilter===f?' active':''}" onclick="setApptFilter('${f}')">${f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join('')}
+      </div>
+      <div class="search-box">${icon('search')}<input placeholder="Search by patient or service…" value="${esc(STATE.apptSearch)}" oninput="STATE.apptSearch=this.value;render()"/></div>
+      <div class="card dt"><div class="tw"><table>
+        <thead><tr><th>Patient</th><th>Service</th><th>Date & Time</th><th>Fee</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${filtered.length===0?`<tr><td colspan="6"><div class="empty">No appointments found</div></td></tr>`:
+          filtered.map(a=>`<tr>
+            <td><strong>${esc(a.patientName)}</strong><div style="font-size:11px;color:var(--lt)">${esc(a.dentist)}</div></td>
+            <td>${esc(a.service)}</td>
+            <td style="white-space:nowrap">${esc(a.date)} · ${esc(a.time)}</td>
+            <td>₱${p$(a.fee)}</td>
+            <td>${badge(a.status)}</td>
+            <td><div class="row">
+              <button class="btn btn-gh btn-sm" onclick="viewAppt('${a.id}')" title="View">${icon('eye')}</button>
+              ${a.status==='pending'?`<button class="btn btn-s btn-sm" onclick="apptAction('${a.id}','confirmed')">Confirm</button>`:''}
+              ${a.status==='confirmed'?`<button class="btn btn-p btn-sm" onclick="apptAction('${a.id}','completed')">Complete</button>`:''}
+              ${(a.status==='pending'||a.status==='confirmed')?`<button class="btn btn-d btn-sm" onclick="apptAction('${a.id}','cancelled')">Cancel</button>`:''}
+            </div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div></div>
+      <div class="ml">${filtered.length===0?'<div class="empty">No appointments found</div>':
+        filtered.map(a=>`<div class="mc">
+          <div class="mc-top"><div><div class="mc-name">${esc(a.patientName)}</div><div class="mc-sub">${esc(a.service)} · ${esc(a.dentist)}</div></div>${badge(a.status)}</div>
+          <div class="mc-row"><span class="mc-lbl">Date & Time</span><span class="mc-val">${esc(a.date)} · ${esc(a.time)}</span></div>
+          <div class="mc-row"><span class="mc-lbl">Fee</span><span class="mc-val" style="color:var(--t);font-weight:700">₱${p$(a.fee)}</span></div>
+          <div class="mc-actions">
+            <button class="btn btn-gh btn-sm" style="flex:1" onclick="viewAppt('${a.id}')">View</button>
+            ${a.status==='pending'?`<button class="btn btn-s btn-sm" style="flex:2" onclick="apptAction('${a.id}','confirmed')">✓ Confirm</button>`:''}
+            ${a.status==='confirmed'?`<button class="btn btn-p btn-sm" style="flex:2" onclick="apptAction('${a.id}','completed')">Complete</button>`:''}
+            ${(a.status==='pending'||a.status==='confirmed')?`<button class="btn btn-d btn-sm" style="flex:1" onclick="apptAction('${a.id}','cancelled')">Cancel</button>`:''}
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ── PATIENTS ─────────────────────────────────────────────
+function renderPatients(){
+  const filtered = STATE.patients.filter(p=>!STATE.patSearch||p.name.toLowerCase().includes(STATE.patSearch.toLowerCase())||p.id.includes(STATE.patSearch));
+  return `
+    <div>
+      <div class="page-head">
+        <div><div class="page-title">Patient Records</div><div class="page-sub">Complete patient information and history</div></div>
+        <div><button class="btn btn-p" onclick="openAddPatient()">${icon('plus')} Add</button></div>
+      </div>
+      <div class="search-box">${icon('search')}<input placeholder="Search patients…" value="${esc(STATE.patSearch)}" oninput="STATE.patSearch=this.value;render()"/></div>
+      <div class="card dt"><div class="tw"><table>
+        <thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Blood</th><th>Last Visit</th><th>Balance</th><th></th></tr></thead>
+        <tbody>${filtered.length===0?`<tr><td colspan="7"><div class="empty">No patients found</div></td></tr>`:
+          filtered.map(p=>`<tr>
+            <td><code style="font-size:11px;background:var(--cr);padding:2px 6px;border-radius:5px">${esc(p.id)}</code></td>
+            <td><strong>${esc(p.name)}</strong><div style="font-size:11px;color:var(--lt)">${esc(p.email)}</div></td>
+            <td>${esc(p.phone)}</td>
+            <td><span class="tag" style="background:#f0e8ff;color:#7c3aed">${esc(p.bloodType)}</span></td>
+            <td>${esc(p.lastVisit)}</td>
+            <td style="color:${p.balance>0?'var(--re)':'var(--gr)'};font-weight:600">${p.balance>0?'₱'+p$(p.balance):'Settled'}</td>
+            <td><div class="row">
+              <button class="btn btn-gh btn-sm" onclick="viewPatient('${p.id}')">${icon('eye')}</button>
+              <button class="btn btn-gh btn-sm" onclick="editPatient('${p.id}')">${icon('edit')}</button>
+            </div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div></div>
+      <div class="ml">${filtered.length===0?'<div class="empty">No patients found</div>':
+        filtered.map(p=>`<div class="mc">
+          <div class="mc-top">
+            <div><div class="mc-name">${esc(p.name)}</div><div class="mc-sub">${esc(p.id)} · ${esc(p.phone)}</div></div>
+            <span class="tag" style="background:#f0e8ff;color:#7c3aed">${esc(p.bloodType)}</span>
+          </div>
+          <div class="mc-row"><span class="mc-lbl">Email</span><span class="mc-val">${esc(p.email||'—')}</span></div>
+          <div class="mc-row"><span class="mc-lbl">Balance</span><span class="mc-val" style="color:${p.balance>0?'var(--re)':'var(--gr)'};font-weight:600">${p.balance>0?'₱'+p$(p.balance):'Settled'}</span></div>
+          <div class="mc-actions">
+            <button class="btn btn-gh btn-sm" style="flex:1" onclick="viewPatient('${p.id}')">Profile</button>
+            <button class="btn btn-s btn-sm" style="flex:1" onclick="editPatient('${p.id}')">Edit</button>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ── PAYMENTS ─────────────────────────────────────────────
+function renderPayments(){
+  const filtered = STATE.payments.filter(p=>STATE.payFilter==='all'||p.status===STATE.payFilter);
+  const paid = STATE.payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
+  const unpaid = STATE.payments.filter(p=>p.status==='unpaid').reduce((s,p)=>s+p.amount,0);
+  return `
+    <div>
+      <div class="page-head">
+        <div><div class="page-title">Payments</div><div class="page-sub">Track all dental service payments</div></div>
+        <div><button class="btn btn-g" onclick="openRecordPayment()">${icon('plus')} Record</button></div>
+      </div>
+      <div class="sg sg3">
+        ${[['Collected','₱'+p$(paid),'#e6f7f3','#3aa876'],['Outstanding','₱'+p$(unpaid),'#fdeaea','#e05252'],['Total',STATE.payments.length,'#e8eeff','#3a7bd5']].map(([l,v,bg,c])=>`
+          <div class="stat-card"><div class="stat-icon" style="background:${bg}">${icon('credit').replace('stroke="currentColor"','stroke="'+c+'"')}</div>
+          <div><div class="stat-val">${esc(String(v))}</div><div class="stat-lbl">${l}</div></div></div>`).join('')}
+      </div>
+      <div class="filters">
+        ${['all','paid','unpaid'].map(f=>`<button class="filter-btn${STATE.payFilter===f?' active':''}" onclick="setPayFilter('${f}')">${f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join('')}
+      </div>
+      <div class="card dt"><div class="tw"><table>
+        <thead><tr><th>Ref</th><th>Patient</th><th>Service</th><th>Amount</th><th>Method</th><th>Date</th><th>Status</th><th></th></tr></thead>
+        <tbody>${filtered.length===0?`<tr><td colspan="8"><div class="empty">No records</div></td></tr>`:
+          filtered.map(p=>`<tr>
+            <td><code style="font-size:11px;background:var(--cr);padding:2px 6px;border-radius:5px">${esc(p.ref)}</code></td>
+            <td><strong>${esc(p.patientName)}</strong></td>
+            <td>${esc(p.service)}</td>
+            <td style="font-weight:700;color:var(--t)">₱${p$(p.amount)}</td>
+            <td><span class="tag" style="background:#f0f8ff;color:#2563eb">${esc(p.method)}</span></td>
+            <td style="white-space:nowrap">${esc(p.date)}</td>
+            <td>${badge(p.status)}</td>
+            <td><button class="btn btn-gh btn-sm" onclick="viewReceipt('${p.id}')">Receipt</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div></div>
+      <div class="ml">${filtered.length===0?'<div class="empty">No payment records</div>':
+        filtered.map(p=>`<div class="mc">
+          <div class="mc-top">
+            <div><div class="mc-name">${esc(p.patientName)}</div><div class="mc-sub">${esc(p.service)}</div></div>
+            <div style="text-align:right"><div style="font-weight:700;color:var(--t);font-size:16px">₱${p$(p.amount)}</div>${badge(p.status)}</div>
+          </div>
+          <div class="mc-row"><span class="mc-lbl">Method</span><span class="mc-val">${esc(p.method)}</span></div>
+          <div class="mc-row"><span class="mc-lbl">Date</span><span class="mc-val">${esc(p.date)}</span></div>
+          <div class="mc-row"><span class="mc-lbl">Ref</span><span class="mc-val" style="font-size:11px">${esc(p.ref)}</span></div>
+          <div class="mc-actions"><button class="btn btn-gh btn-sm btn-full" onclick="viewReceipt('${p.id}')">View Receipt</button></div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────
+function renderNotifications(){
+  const tmpl = {
+    confirmation: a=>`Hi ${a.patientName}! 😊 Your ${a.service} on ${a.date} at ${a.time} with ${a.dentist} is CONFIRMED.\n\nPlease arrive 10 mins early. See you at Cyrabell Dental! 🦷`,
+    reminder: a=>`📅 REMINDER: Dental appointment tomorrow!\n\nDate: ${a.date} at ${a.time}\nService: ${a.service}\nDentist: ${a.dentist}\n\nCyrabell Dental`,
+    cancellation: a=>`Hi ${a.patientName}, your appointment for ${a.service} on ${a.date} has been CANCELLED.\n\nPlease contact us to reschedule. — Cyrabell Dental`,
+    followup: a=>`Hi ${a.patientName}! 💙 Thank you for your visit.\n\nWe hope your ${a.service} went well! Stay healthy! — Cyrabell Dental`,
+  };
+  const selA = STATE.appointments.find(a=>a.id===STATE.notifApptId);
+  let preview = '';
+  if(selA && STATE.notifTemplate!=='custom') { const fn=tmpl[STATE.notifTemplate]; preview=fn?fn(selA):''; }
+  else if(STATE.notifTemplate==='custom') preview=STATE.notifCustom;
+
+  return `
+    <div>
+      <div class="page-head"><div><div class="page-title">Notifications</div><div class="page-sub">Send SMS & Email alerts to patients</div></div></div>
+      <div class="tabs">
+        ${[['send','✉️ Send'],['log','📋 Log']].map(([v,l])=>`<button class="tab-btn${STATE.notifTab===v?' active':''}" onclick="STATE.notifTab='${v}';render()">${l}</button>`).join('')}
+      </div>
+      ${STATE.notifTab==='send'?`
+      <div class="n-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="card"><div class="card-head"><div class="card-title">Compose</div></div><div class="card-body">
+          <div style="margin-bottom:12px"><label>Type</label>
+            <div class="notif-type-grid">
+              ${[['sms','📱','SMS','To phone'],['email','📧','Email','To inbox']].map(([v,e,n,d])=>`
+                <div class="notif-type${STATE.notifType===v?' active':''}" onclick="STATE.notifType='${v}';render()">
+                  <div class="notif-type-icon" style="background:${v==='sms'?'#e8f5f3':'#e8eeff'}">${e}</div>
+                  <div style="font-weight:600;font-size:13px">${n}</div><div style="font-size:11px;color:var(--md)">${d}</div>
+                </div>`).join('')}
+            </div>
+          </div>
+          <div class="fg"><label>Appointment</label>
+            <select onchange="STATE.notifApptId=this.value;render()">
+              <option value="">Choose appointment…</option>
+              ${STATE.appointments.map(a=>`<option value="${a.id}"${STATE.notifApptId===a.id?' selected':''}>${esc(a.patientName)} — ${esc(a.service)} (${a.date})</option>`).join('')}
+            </select>
+          </div>
+          <div style="margin-bottom:12px"><label>Template</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+              ${[['confirmation','✓ Confirm'],['reminder','⏰ Remind'],['cancellation','✕ Cancel'],['followup','💬 Follow-up'],['custom','✏️ Custom']].map(([v,l])=>`
+                <button class="filter-btn${STATE.notifTemplate===v?' active':''}" style="text-align:left;font-size:12px" onclick="STATE.notifTemplate='${v}';render()">${l}</button>`).join('')}
+            </div>
+          </div>
+          ${STATE.notifTemplate==='custom'?`<div class="fg"><label>Message</label><textarea oninput="STATE.notifCustom=this.value;render()" placeholder="Type your message…">${esc(STATE.notifCustom)}</textarea></div>`:''}
+          <button class="btn btn-p btn-full" onclick="sendNotif()" ${!STATE.notifApptId||!preview?'disabled':''}>
+            ${icon('send')} Send ${STATE.notifType==='sms'?'SMS':'Email'}
+          </button>
+        </div></div>
+        <div class="card"><div class="card-head"><div class="card-title">Preview</div></div><div class="card-body">
+          ${preview?`
+            <div style="font-size:11px;color:var(--md);margin-bottom:7px">${STATE.notifType==='sms'?'📱':'📧'} ${selA?'→ '+(STATE.notifType==='sms'?selA.phone:selA.email):''}</div>
+            <div class="notif-preview">${esc(preview)}</div>
+            <div style="font-size:11px;color:var(--lt);margin-top:7px">${preview.length} chars · ~${Math.ceil(preview.length/160)} SMS segment(s)</div>
+          `:`<div class="empty">💬<br>Select an appointment and template to preview</div>`}
+        </div></div>
+      </div>
+      `:`
+      <div>
+        <div class="card dt"><div class="tw"><table>
+          <thead><tr><th>Type</th><th>Recipient</th><th>Contact</th><th>Message</th><th>Sent At</th><th>Status</th></tr></thead>
+          <tbody>${STATE.notifications.length===0?`<tr><td colspan="6"><div class="empty">No notifications sent yet</div></td></tr>`:
+            STATE.notifications.map(n=>`<tr>
+              <td><span class="tag" style="background:${n.type==='sms'?'#e8f5f3':'#e8eeff'};color:${n.type==='sms'?'var(--t)':'var(--bl)'}">${n.type==='sms'?'📱 SMS':'📧 Email'}</span></td>
+              <td><strong>${esc(n.recipient)}</strong></td>
+              <td style="font-size:12px;color:var(--md)">${esc(n.type==='sms'?n.phone:n.email)}</td>
+              <td style="max-width:200px;font-size:12px;color:var(--md);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.message)}</td>
+              <td style="font-size:12px;white-space:nowrap">${esc(n.sentAt)}</td>
+              <td>${badge(n.status)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table></div></div>
+        <div class="ml">${STATE.notifications.length===0?'<div class="empty">No notifications sent yet</div>':
+          STATE.notifications.map(n=>`<div class="mc">
+            <div class="mc-top"><div><div class="mc-name">${esc(n.recipient)}</div><div class="mc-sub">${esc(n.sentAt)}</div></div>
+              <span class="tag" style="background:${n.type==='sms'?'#e8f5f3':'#e8eeff'};color:${n.type==='sms'?'var(--t)':'var(--bl)'}">${n.type==='sms'?'📱':'📧'}</span>
+            </div>
+            <div style="font-size:12px;color:var(--md);margin-top:6px;line-height:1.5">${esc(n.message.slice(0,100))}${n.message.length>100?'…':''}</div>
+            <div style="margin-top:8px">${badge(n.status)}</div>
+          </div>`).join('')}
+        </div>
+      </div>`}
+    </div>`;
+}
+
+// ── EXPORT ────────────────────────────────────────────────
+function renderExport(){
+  const tot = STATE.payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
+  const snapshot = [
+    ['Patients',STATE.patients.length,'var(--t)'],
+    ['Appointments',STATE.appointments.length,'var(--bl)'],
+    ['Pending',STATE.appointments.filter(a=>a.status==='pending').length,'var(--or)'],
+    ['Confirmed',STATE.appointments.filter(a=>a.status==='confirmed').length,'var(--gr)'],
+    ['Revenue','₱'+p$(tot),'var(--go)'],
+    ['Outstanding','₱'+p$(STATE.patients.reduce((s,p)=>s+p.balance,0)),'var(--re)'],
+  ];
+  return `
+    <div>
+      <div class="page-head"><div><div class="page-title">Export & Reports</div><div class="page-sub">Download data in multiple formats</div></div></div>
+      <div class="e-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="card"><div class="card-head"><div class="card-title">Export Data</div></div><div class="card-body">
+          ${[['📅 Appointments',STATE.appointments.length+' records','appointments'],['👤 Patients',STATE.patients.length+' records','patients'],['💳 Payments',STATE.payments.length+' records','payments']].map(([label,desc,type])=>`
+            <div class="exp-row">
+              <div style="font-weight:600;font-size:13px">${label} <span style="font-weight:400;font-size:12px;color:var(--md)">${desc}</span></div>
+              <div class="exp-btns">
+                <button class="btn btn-gh" onclick="doExport('${type}','csv')">📄 CSV</button>
+                <button class="btn btn-gh" onclick="doExport('${type}','json')">{ } JSON</button>
+                <button class="btn btn-gh" onclick="doExport('${type}','print')">🖨️ Print</button>
+              </div>
+            </div>`).join('')}
+          <div style="border-top:1px solid var(--bd);padding-top:16px;margin-top:4px">
+            <button class="btn btn-p btn-full" onclick="doExport('full','print')">${icon('file')} Full PDF Report</button>
+          </div>
+        </div></div>
+        <div class="card"><div class="card-head"><div class="card-title">Live Snapshot</div></div><div class="card-body">
+          ${snapshot.map(([l,v,c])=>`<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bd);font-size:13px">
+            <span style="color:var(--md)">${l}</span><span style="font-weight:700;color:${c}">${v}</span>
+          </div>`).join('')}
+        </div></div>
+      </div>
+    </div>`;
+}
+
+// ── ANALYTICS ─────────────────────────────────────────────
+function renderAnalytics(){
+  const bm={};STATE.payments.filter(p=>p.status==='paid').forEach(p=>{const m=(p.date||'').slice(0,7)||'?';bm[m]=(bm[m]||0)+p.amount;});
+  const bs={};STATE.payments.forEach(p=>{bs[p.service]=(bs[p.service]||0)+p.amount;});
+  const top=Object.entries(bs).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxR=Math.max(...Object.values(bm),1);
+  return `
+    <div>
+      <div class="page-head"><div><div class="page-title">Analytics</div><div class="page-sub">Performance insights and statistics</div></div></div>
+      <div class="a-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="card"><div class="card-head"><div class="card-title">Revenue by Month</div></div><div class="card-body">
+          ${Object.keys(bm).length===0?'<div class="empty">No data yet</div>':Object.entries(bm).map(([m,v])=>`
+            <div class="bar-row"><div class="bar-top"><span>${m}</span><span style="font-weight:700;color:var(--t)">₱${p$(v)}</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.round((v/maxR)*100)}%;background:linear-gradient(90deg,var(--t),var(--tl))"></div></div></div>`).join('')}
+        </div></div>
+        <div class="card"><div class="card-head"><div class="card-title">Top Services</div></div><div class="card-body">
+          ${top.length===0?'<div class="empty">No data yet</div>':top.map(([n,a])=>`
+            <div class="bar-row"><div class="bar-top"><span style="max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block">${esc(n)}</span><span style="font-weight:700;color:var(--go)">₱${p$(a)}</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.round((a/(top[0]?top[0][1]:1))*100)}%;background:linear-gradient(90deg,var(--go),var(--gl))"></div></div></div>`).join('')}
+        </div></div>
+        <div class="card"><div class="card-head"><div class="card-title">Appointment Status</div></div><div class="card-body">
+          ${['pending','confirmed','completed','cancelled'].map(st=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--bd)">
+              ${badge(st)}<span style="font-weight:700;font-size:18px">${STATE.appointments.filter(a=>a.status===st).length}</span>
+            </div>`).join('')}
+        </div></div>
+        <div class="card"><div class="card-head"><div class="card-title">Quick Stats</div></div><div class="card-body">
+          ${[['Patients',STATE.patients.length],['Appointments',STATE.appointments.length],['Payments',STATE.payments.length],['Revenue','₱'+p$(STATE.payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0))]].map(([l,v])=>`
+            <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bd);font-size:13px"><span style="color:var(--md)">${l}</span><span style="font-weight:700">${v}</span></div>`).join('')}
+        </div></div>
+      </div>
+    </div>`;
+}
+
+// ── PUBLIC BOOKING ─────────────────────────────────────────
+function renderBooking(){
+  const form = STATE.pubForm;
+  const adminBtn = `<div style="position:fixed;top:14px;right:14px;z-index:10"><button class="btn btn-p" onclick="STATE.view='admin';render()" style="font-size:12px;padding:7px 12px;box-shadow:0 4px 16px rgba(0,0,0,.3)">🔒 Admin</button></div>`;
+  const logo = `<div class="pub-head"><div class="pub-logo-wrap"><div class="pub-logo-icon">🦷</div><div class="pub-name">Cyrabell Dental</div></div><div class="pub-tagline">Your Smile, Our Passion</div></div>`;
+  if(STATE.pubDone){
+    const d = STATE.pubDone;
+    return `<div class="pub-wrap">${adminBtn}${logo}<div class="pub-card">
+      <div style="text-align:center;padding:12px 0">
+        <div style="width:64px;height:64px;background:linear-gradient(135deg,var(--t),var(--tl));border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">${icon('check')}</div>
+        <h2 style="font-family:'Playfair Display',serif;font-size:20px;margin-bottom:8px">Appointment Booked!</h2>
+        <p style="color:var(--md);font-size:13px;margin-bottom:18px;line-height:1.6">Our team will confirm your request shortly via SMS or email.</p>
+        <div class="receipt" style="text-align:left;margin-bottom:16px">
+          <div class="receipt-head"><div class="receipt-logo">🦷 Cyrabell Dental</div></div>
+          ${[['Patient',d.name],['Service',d.service],['Date',d.date],['Time',d.time],['Dentist',d.dentist],['Est. Fee','₱'+p$(d.fee)]].map(([l,v])=>`
+            <div class="receipt-row"><span>${l}</span><span>${esc(v)}</span></div>`).join('')}
+        </div>
+        <p style="font-size:12px;color:var(--lt);margin-bottom:16px">📱 Confirmation will be sent once approved.</p>
+        <button class="btn btn-s btn-full" onclick="STATE.pubDone=null;STATE.pubStep=1;STATE.pubForm={name:'',dob:'',phone:'',email:'',address:'',bloodType:'O+',service:'',date:'',time:'09:00',notes:'',dentist:'Dr. Reyes'};render()">Book Another</button>
+      </div>
+    </div></div>`;
+  }
+  const steps = ['Personal','Service','Review'];
+  const stepsHtml = steps.map((s,i)=>`
+    <span class="pub-step ${STATE.pubStep>i+1?'done':STATE.pubStep===i+1?'curr':'todo'}">${STATE.pubStep>i+1?'✓':i+1} ${s}</span>
+    ${i<2?'<div class="pub-step-line"></div>':''}`).join('');
+  let stepContent = '';
+  if(STATE.pubStep===1){
+    stepContent=`
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;margin-bottom:16px">Personal Information</div>
+        <div class="fg"><label>Full Name *</label><input value="${esc(form.name)}" oninput="STATE.pubForm.name=this.value" placeholder="Juan dela Cruz"/></div>
+        <div class="fg-grid">
+          <div class="fg"><label>Date of Birth</label><input type="date" value="${esc(form.dob)}" oninput="STATE.pubForm.dob=this.value"/></div>
+          <div class="fg"><label>Blood Type</label><select onchange="STATE.pubForm.bloodType=this.value">${BLOOD.map(b=>`<option${b===form.bloodType?' selected':''}>${b}</option>`).join('')}</select></div>
+        </div>
+        <div class="fg-grid">
+          <div class="fg"><label>Phone *</label><input type="tel" value="${esc(form.phone)}" oninput="STATE.pubForm.phone=this.value" placeholder="09XXXXXXXXX"/></div>
+          <div class="fg"><label>Email</label><input type="email" value="${esc(form.email)}" oninput="STATE.pubForm.email=this.value" placeholder="email@example.com"/></div>
+        </div>
+        <div class="fg"><label>Address</label><input value="${esc(form.address)}" oninput="STATE.pubForm.address=this.value" placeholder="Street, City"/></div>
+        <button class="btn btn-p btn-full" style="margin-top:16px" onclick="if(STATE.pubForm.name&&STATE.pubForm.phone){STATE.pubStep=2;render()}" ${!form.name||!form.phone?'disabled':''}>Next: Choose Service →</button>
+      </div>`;
+  } else if(STATE.pubStep===2){
+    stepContent=`
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;margin-bottom:16px">Service & Schedule</div>
+        <div style="margin-bottom:12px"><label>Select Service *</label>
+          <div class="svc-grid">${SVCS.map(sv=>`<div class="svc-card${form.service===sv.name?' active':''}" onclick="STATE.pubForm.service='${sv.name}';render()">
+            <div class="svc-name">${esc(sv.name)}</div><div class="svc-fee">₱${p$(sv.fee)}</div>
+          </div>`).join('')}</div>
+        </div>
+        <div class="fg-grid">
+          <div class="fg"><label>Date *</label><input type="date" value="${esc(form.date)}" oninput="STATE.pubForm.date=this.value" min="${new Date().toISOString().split('T')[0]}"/></div>
+          <div class="fg"><label>Dentist</label><select onchange="STATE.pubForm.dentist=this.value">${DENTISTS.map(d=>`<option${d===form.dentist?' selected':''}>${d}</option>`).join('')}</select></div>
+        </div>
+        <div style="margin-bottom:12px"><label>Time</label>
+          <div class="time-grid">${TIMES.map(t=>`<button class="time-slot${form.time===t?' active':''}" onclick="STATE.pubForm.time='${t}';render()">${t}</button>`).join('')}</div>
+        </div>
+        <div class="fg"><label>Notes</label><textarea oninput="STATE.pubForm.notes=this.value" placeholder="Concerns or requests…">${esc(form.notes)}</textarea></div>
+        <div style="display:flex;gap:10px;margin-top:16px">
+          <button class="btn btn-gh" style="flex:1" onclick="STATE.pubStep=1;render()">← Back</button>
+          <button class="btn btn-p" style="flex:2" onclick="if(STATE.pubForm.service&&STATE.pubForm.date){STATE.pubStep=3;render()}" ${!form.service||!form.date?'disabled':''}>Review →</button>
+        </div>
+      </div>`;
+  } else {
+    const svc = SVCS.find(x=>x.name===form.service);
+    stepContent=`
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;margin-bottom:16px">Confirm Booking</div>
+        <div class="receipt" style="margin-bottom:16px">
+          <div class="receipt-head"><div class="receipt-logo">🦷 Cyrabell Dental</div></div>
+          ${[['Patient',form.name],['Phone',form.phone],['Email',form.email||'—'],['Service',form.service],['Date',form.date],['Time',form.time],['Dentist',form.dentist],['Est. Fee','₱'+p$(svc?svc.fee:0)]].map(([l,v])=>`
+            <div class="receipt-row"><span>${l}</span><span>${esc(v)}</span></div>`).join('')}
+        </div>
+        <p style="font-size:12px;color:var(--md);margin-bottom:16px;line-height:1.6">By confirming, you agree to our clinic's appointment policy.</p>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-gh" style="flex:1" onclick="STATE.pubStep=2;render()">← Back</button>
+          <button class="btn btn-p" style="flex:2" onclick="confirmBooking()">✓ Confirm</button>
+        </div>
+      </div>`;
+  }
+  return `<div class="pub-wrap">${adminBtn}${logo}<div class="pub-card">
+    <div class="pub-steps">${stepsHtml}</div>
+    ${stepContent}
+  </div></div>`;
+}
+
+// ── MAIN RENDER ────────────────────────────────────────────
+const TITLES = {dashboard:'Dashboard',appointments:'Appointments',patients:'Patients',payments:'Payments',notifications:'Notifications',export:'Export',analytics:'Analytics'};
+
+function render(){
+  if(STATE.view==='booking'){
+    document.getElementById('app').innerHTML = renderBooking();
+    return;
+  }
+  const pend = pending();
+  let lastSec = null;
+  const navItems = NAV.map(item=>{
+    const showSec = item.sec && item.sec!==lastSec;
+    if(showSec) lastSec=item.sec;
+    return `${showSec?`<div class="nav-sec">${item.sec}</div>`:''}
+      <div class="nav-item${STATE.page===item.id?' active':''}" onclick="navigate('${item.id}')">
+        ${icon(item.icon)} <span>${item.label}</span>
+        ${item.id==='appointments'&&pend>0?`<span class="nav-badge">${pend}</span>`:''}
+      </div>`;
+  }).join('');
+
+  const botItems = BOT.map(item=>`
+    <button class="bot-item${STATE.page===item.id?' active':''}" onclick="navigate('${item.id}')">
+      ${item.id==='appointments'&&pend>0?`<span class="bot-badge">${pend}</span>`:''}
+      <div class="bot-item-ic">${icon(item.icon)}</div>
+      <span>${item.label}</span>
+    </button>`).join('')+`
+    <button class="bot-item" onclick="toggleSidebar()">
+      <div class="bot-item-ic">${icon('menu')}</div><span>More</span>
+    </button>`;
+
+  let pageContent = '';
+  if(STATE.page==='dashboard') pageContent=renderDashboard();
+  else if(STATE.page==='appointments') pageContent=renderAppointments();
+  else if(STATE.page==='patients') pageContent=renderPatients();
+  else if(STATE.page==='payments') pageContent=renderPayments();
+  else if(STATE.page==='notifications') pageContent=renderNotifications();
+  else if(STATE.page==='export') pageContent=renderExport();
+  else if(STATE.page==='analytics') pageContent=renderAnalytics();
+
+  document.getElementById('app').innerHTML = `
+    <div class="sb-overlay${STATE.sideOpen?' show':''}" onclick="toggleSidebar()"></div>
+    <div id="app" style="display:flex;height:100vh;overflow:hidden;flex-direction:row">
+      <div class="sb${STATE.sideOpen?' open':''}">
+        <div class="sb-logo">
+          <div class="sb-icon">${ICONS.tooth}</div>
+          <div class="sb-name">Cyrabell Dental</div>
+          <div class="sb-sub">Management System</div>
+        </div>
+        <nav class="sb-nav">${navItems}</nav>
+        <div class="sb-footer">
+          <div style="margin-bottom:8px">
+            <button class="btn btn-s btn-full" style="font-size:12px;padding:7px 12px" onclick="STATE.view='booking';STATE.sideOpen=false;render()">
+              ${icon('globe')} Patient Booking Portal
+            </button>
+          </div>
+          <div class="user-card">
+            <div class="user-av">A</div>
+            <div><div class="user-nm">Admin</div><div class="user-role">Administrator</div></div>
+            ${icon('shield')}
+          </div>
+        </div>
+      </div>
+      <div class="main">
+        <div class="topbar">
+          <button class="hamburger" onclick="toggleSidebar()">${icon('menu')}</button>
+          <div class="topbar-title">${TITLES[STATE.page]||'Cyrabell'}</div>
+          <div class="topbar-search">${icon('search')}<input placeholder="Search…"/></div>
+          <button class="topbar-btn" onclick="STATE.view='booking';render()" title="Patient Booking">${icon('globe').replace('stroke="currentColor"','stroke="var(--t)"')}</button>
+          <button class="topbar-btn">
+            ${icon('bell')}${pend>0?'<span class="notif-dot"></span>':''}
+          </button>
+        </div>
+        <div class="content">${pageContent}</div>
+        <div class="bot-nav"><div class="bot-nav-wrap">${botItems}</div></div>
+      </div>
+    </div>`;
+}
+
+// ── ACTIONS ─────────────────────────────────────────────────
+function navigate(id){ STATE.page=id; STATE.sideOpen=false; render(); }
+function toggleSidebar(){ STATE.sideOpen=!STATE.sideOpen; render(); }
+function setApptFilter(f){ STATE.apptFilter=f; render(); }
+function setPayFilter(f){ STATE.payFilter=f; render(); }
+
+function apptAction(id, status){
+  const a = STATE.appointments.find(x=>x.id===id);
+  STATE.appointments = STATE.appointments.map(x=>x.id===id?{...x,status}:x);
+  const msgs={confirmed:'Confirmed! Auto-SMS sent.',completed:'Marked complete.',cancelled:'Appointment cancelled.'};
+  toast(msgs[status]||'Updated.', status==='cancelled'?'error':'success');
+  if(status==='confirmed'&&a){
+    STATE.notifications.unshift({id:'N'+uid(),type:'sms',recipient:a.patientName,phone:a.phone||'—',email:a.email||'—',message:`Hi ${a.patientName}! Your ${a.service} on ${a.date} at ${a.time} is CONFIRMED. See you at Cyrabell Dental! 🦷`,sentAt:new Date().toLocaleString(),status:'sent'});
+  }
+  render();
+}
+
+function viewAppt(id){
+  const a = STATE.appointments.find(x=>x.id===id);
+  if(!a) return;
+  openModal(`
+    <div class="modal-head"><div style="flex:1"><div class="modal-title">Appointment Details</div><div class="modal-sub">#${esc(a.id)}</div></div><button class="close-x" onclick="closeModal()">${icon('x')}</button></div>
+    <div class="modal-body"><div class="info-grid">
+      ${[['Patient',a.patientName],['Service',a.service],['Dentist',a.dentist],['Date',a.date],['Time',a.time],['Fee','₱'+p$(a.fee)],['Phone',a.phone||'—'],['Email',a.email||'—'],['Notes',a.notes||'—']].map(([l,v])=>`<div><div class="info-lbl">${l}</div><div class="info-val">${esc(v)}</div></div>`).join('')}
+      <div><div class="info-lbl">Status</div><div class="info-val" style="margin-top:2px">${badge(a.status)}</div></div>
+    </div></div>
+    <div class="modal-foot"><button class="btn btn-gh" onclick="closeModal()">Close</button></div>`);
+}
+
+function openNewAppt(){
+  openModal(`
+    <div class="modal-head"><div style="flex:1"><div class="modal-title">Book Appointment</div></div><button class="close-x" onclick="closeModal()">${icon('x')}</button></div>
+    <div class="modal-body">
+      <div class="fg"><label>Patient *</label><select id="appt-pat"><option value="">Select patient…</option>${STATE.patients.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>
+      <div class="fg-grid">
+        <div class="fg"><label>Service *</label><select id="appt-svc" onchange="document.getElementById('appt-fee').value=({${SVCS.map(s=>`'${s.name}':${s.fee}`).join(',')}})[this.value]||''"><option value="">Select…</option>${SVCS.map(s=>`<option value="${s.name}">${esc(s.name)} — ₱${p$(s.fee)}</option>`).join('')}</select></div>
+        <div class="fg"><label>Fee (₱)</label><input type="number" id="appt-fee"/></div>
+      </div>
+      <div class="fg-grid">
+        <div class="fg"><label>Date *</label><input type="date" id="appt-date" min="${new Date().toISOString().split('T')[0]}"/></div>
+        <div class="fg"><label>Dentist</label><select id="appt-dent">${DENTISTS.map(d=>`<option>${d}</option>`).join('')}</select></div>
+      </div>
+      <div class="fg"><label>Time</label><div class="time-grid">${TIMES.map(t=>`<button class="time-slot" onclick="this.closest('.time-grid').querySelectorAll('.time-slot').forEach(x=>x.classList.remove('active'));this.classList.add('active');this.dataset.val='${t}'" data-val="${t}">${t}</button>`).join('')}</div></div>
+      <div class="fg"><label>Notes</label><textarea id="appt-notes" placeholder="Notes…"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-gh" onclick="closeModal()">Cancel</button><button class="btn btn-p" onclick="saveNewAppt()">Book</button></div>`);
+  // Set default time
+  setTimeout(()=>{
+    const slots = document.querySelectorAll('.time-slot');
+    if(slots[1]) slots[1].classList.add('active');
+  },0);
+}
+
+function saveNewAppt(){
+  const patId = document.getElementById('appt-pat').value;
+  const svc = document.getElementById('appt-svc').value;
+  const date = document.getElementById('appt-date').value;
+  const pat = STATE.patients.find(p=>p.id===patId);
+  if(!patId||!svc||!date){toast('Please fill required fields.','error');return;}
+  const activeSlot = document.querySelector('.time-slot.active');
+  const time = activeSlot?activeSlot.dataset.val:'09:00';
+  const fee = +document.getElementById('appt-fee').value||SVCS.find(x=>x.name===svc)?.fee||0;
+  const dent = document.getElementById('appt-dent').value;
+  const notes = document.getElementById('appt-notes').value;
+  STATE.appointments.unshift({id:'A'+uid(),patientId:patId,patientName:pat?pat.name:'',service:svc,date,time,status:'pending',notes,fee,dentist:dent,phone:pat?pat.phone:'',email:pat?pat.email:''});
+  closeModal(); toast('Appointment booked!','success'); render();
+}
+
+function viewPatient(id){
+  const p = STATE.patients.find(x=>x.id===id);
+  if(!p) return;
+  const appts = STATE.appointments.filter(a=>a.patientId===id);
+  const pays = STATE.payments.filter(py=>py.patientId===id);
+  const ini = p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  openModal(`
+    <div class="modal-head">
+      <div style="display:flex;align-items:center;gap:12px;flex:1">
+        <div style="width:50px;height:50px;border-radius:13px;background:linear-gradient(135deg,var(--t),var(--tl));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;font-family:'Playfair Display',serif;flex-shrink:0">${ini}</div>
+        <div><div class="modal-title">${esc(p.name)}</div><div class="modal-sub">${esc(p.id)} · ${esc(p.phone)}</div></div>
+      </div>
+      <button class="close-x" onclick="closeModal()">${icon('x')}</button>
+    </div>
+    <div class="modal-body">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchPatTab(this,'pat-info')">Info</button>
+        <button class="tab-btn" onclick="switchPatTab(this,'pat-appts')">Appointments</button>
+        <button class="tab-btn" onclick="switchPatTab(this,'pat-pays')">Payments</button>
+      </div>
+      <div id="pat-info"><div class="info-grid">
+        ${[['DOB',p.dob||'—'],['Blood Type',p.bloodType],['Phone',p.phone],['Email',p.email||'—'],['Address',p.address||'—'],['Allergies',p.allergies||'—'],['Last Visit',p.lastVisit],['Balance',p.balance>0?'₱'+p$(p.balance)+' (Due)':'Settled']].map(([l,v])=>`<div><div class="info-lbl">${l}</div><div class="info-val">${esc(v)}</div></div>`).join('')}
+      </div></div>
+      <div id="pat-appts" style="display:none"><div style="display:flex;flex-direction:column;gap:10px">
+        ${appts.length===0?'<div class="empty">No appointments</div>':appts.map(a=>`<div class="mc"><div class="mc-top"><div class="mc-name">${esc(a.service)}</div>${badge(a.status)}</div><div class="mc-row"><span class="mc-lbl">Date</span><span class="mc-val">${esc(a.date)}</span></div><div class="mc-row"><span class="mc-lbl">Dentist</span><span class="mc-val">${esc(a.dentist)}</span></div></div>`).join('')}
+      </div></div>
+      <div id="pat-pays" style="display:none"><div style="display:flex;flex-direction:column;gap:10px">
+        ${pays.length===0?'<div class="empty">No payments</div>':pays.map(py=>`<div class="mc"><div class="mc-top"><div class="mc-name">${esc(py.service)}</div>${badge(py.status)}</div><div class="mc-row"><span class="mc-lbl">Amount</span><span class="mc-val" style="color:var(--t);font-weight:700">₱${p$(py.amount)}</span></div><div class="mc-row"><span class="mc-lbl">Method</span><span class="mc-val">${esc(py.method)}</span></div></div>`).join('')}
+      </div></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-gh" onclick="closeModal()">Close</button></div>`,true);
+}
+function switchPatTab(btn, showId){
+  btn.closest('.tabs').querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['pat-info','pat-appts','pat-pays'].forEach(id=>{ const el=document.getElementById(id);if(el)el.style.display='none'; });
+  const el = document.getElementById(showId); if(el) el.style.display='block';
+}
+
+function editPatient(id){
+  const p = STATE.patients.find(x=>x.id===id)||{name:'',dob:'',phone:'',email:'',address:'',bloodType:'O+',allergies:''};
+  const isNew = !id;
+  openModal(`
+    <div class="modal-head"><div style="flex:1"><div class="modal-title">${id?'Edit Patient':'Add Patient'}</div></div><button class="close-x" onclick="closeModal()">${icon('x')}</button></div>
+    <div class="modal-body">
+      <div class="fg"><label>Full Name *</label><input id="p-name" value="${esc(p.name)}" placeholder="Full Name"/></div>
+      <div class="fg-grid">
+        <div class="fg"><label>Date of Birth</label><input type="date" id="p-dob" value="${esc(p.dob)}"/></div>
+        <div class="fg"><label>Blood Type</label><select id="p-blood">${BLOOD.map(b=>`<option${b===p.bloodType?' selected':''}>${b}</option>`).join('')}</select></div>
+      </div>
+      <div class="fg-grid">
+        <div class="fg"><label>Phone *</label><input type="tel" id="p-phone" value="${esc(p.phone)}" placeholder="09XXXXXXXXX"/></div>
+        <div class="fg"><label>Email</label><input type="email" id="p-email" value="${esc(p.email)}" placeholder="email@example.com"/></div>
+      </div>
+      <div class="fg"><label>Address</label><input id="p-addr" value="${esc(p.address)}" placeholder="Street, City"/></div>
+      <div class="fg"><label>Allergies / Medical Notes</label><textarea id="p-allergy" placeholder="Known allergies…">${esc(p.allergies)}</textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-gh" onclick="closeModal()">Cancel</button><button class="btn btn-p" onclick="savePatient('${id||''}')">${id?'Update':'Add Patient'}</button></div>`);
+}
+function openAddPatient(){ editPatient(''); }
+function savePatient(id){
+  const name=document.getElementById('p-name').value;
+  const phone=document.getElementById('p-phone').value;
+  if(!name||!phone){toast('Name and phone are required.','error');return;}
+  const data={name,dob:document.getElementById('p-dob').value,bloodType:document.getElementById('p-blood').value,phone,email:document.getElementById('p-email').value,address:document.getElementById('p-addr').value,allergies:document.getElementById('p-allergy').value};
+  if(id){
+    STATE.patients=STATE.patients.map(p=>p.id===id?{...p,...data}:p);
+    toast('Record updated!','success');
+  } else {
+    STATE.patients.unshift({...data,id:'P'+String(Date.now()).slice(-4),balance:0,lastVisit:'—'});
+    toast('Patient added!','success');
+  }
+  closeModal(); render();
+}
+
+function openRecordPayment(){
+  openModal(`
+    <div class="modal-head"><div style="flex:1"><div class="modal-title">Record Payment</div></div><button class="close-x" onclick="closeModal()">${icon('x')}</button></div>
+    <div class="modal-body">
+      <div class="fg"><label>Patient *</label><select id="pay-pat"><option value="">Select patient…</option>${STATE.patients.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>
+      <div class="fg"><label>Service *</label><select id="pay-svc" onchange="document.getElementById('pay-amt').value=({${SVCS.map(s=>`'${s.name}':${s.fee}`).join(',')}})[this.value]||''"><option value="">Select service…</option>${SVCS.map(s=>`<option value="${s.name}">${esc(s.name)} — ₱${p$(s.fee)}</option>`).join('')}</select></div>
+      <div class="fg-grid">
+        <div class="fg"><label>Amount (₱)</label><input type="number" id="pay-amt" placeholder="0"/></div>
+        <div class="fg"><label>Method</label><select id="pay-method">${METHODS.map(m=>`<option>${m}</option>`).join('')}</select></div>
+      </div>
+      <div class="fg"><label>Date</label><input type="date" id="pay-date" value="${new Date().toISOString().split('T')[0]}"/></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-gh" onclick="closeModal()">Cancel</button><button class="btn btn-g" onclick="savePayment()">Record</button></div>`);
+}
+function savePayment(){
+  const patId=document.getElementById('pay-pat').value;
+  const svc=document.getElementById('pay-svc').value;
+  const amt=+document.getElementById('pay-amt').value;
+  const pat=STATE.patients.find(p=>p.id===patId);
+  if(!patId||!svc||!amt){toast('Please fill required fields.','error');return;}
+  const ref='REF-'+Math.random().toString(36).substr(2,6).toUpperCase();
+  const pay={id:'PAY'+uid(),patientId:patId,patientName:pat?pat.name:'',amount:amt,method:document.getElementById('pay-method').value,service:svc,date:document.getElementById('pay-date').value,status:'paid',ref};
+  STATE.payments.unshift(pay);
+  closeModal(); toast('₱'+p$(amt)+' payment recorded!','success'); viewReceipt(pay.id); render();
+}
+function viewReceipt(id){
+  const pay=STATE.payments.find(x=>x.id===id);if(!pay)return;
+  openModal(`
+    <div class="modal-head"><div style="flex:1"><div class="modal-title">Payment Receipt</div></div><button class="close-x" onclick="closeModal()">${icon('x')}</button></div>
+    <div class="modal-body">
+      <div class="receipt">
+        <div class="receipt-head"><div class="receipt-logo">🦷 Cyrabell Dental</div><div style="font-size:11px;color:var(--md);margin-top:3px">Official Payment Receipt</div></div>
+        ${[['Receipt No.',pay.ref],['Patient',pay.patientName],['Service',pay.service],['Method',pay.method],['Date',pay.date]].map(([l,v])=>`<div class="receipt-row"><span>${l}</span><span>${esc(v)}</span></div>`).join('')}
+        <div class="receipt-row receipt-total"><span>Total Paid</span><span>₱${p$(pay.amount)}</span></div>
+        <div style="text-align:center;margin-top:14px;font-size:12px;color:var(--lt)">Thank you for choosing Cyrabell Dental! 🙏</div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-gh" onclick="closeModal()">Close</button><button class="btn btn-p" onclick="window.print()">🖨️ Print</button></div>`);
+}
+
+function sendNotif(){
+  const tmpl={
+    confirmation:a=>`Hi ${a.patientName}! 😊 Your ${a.service} on ${a.date} at ${a.time} with ${a.dentist} is CONFIRMED.\n\nPlease arrive 10 mins early. See you at Cyrabell Dental! 🦷`,
+    reminder:a=>`📅 REMINDER: Dental appointment tomorrow!\n\nDate: ${a.date} at ${a.time}\nService: ${a.service}\nDentist: ${a.dentist}\n\nCyrabell Dental`,
+    cancellation:a=>`Hi ${a.patientName}, your appointment for ${a.service} on ${a.date} has been CANCELLED.\n\nPlease contact us to reschedule. — Cyrabell Dental`,
+    followup:a=>`Hi ${a.patientName}! 💙 Thank you for your visit. Stay healthy! — Cyrabell Dental`,
+  };
+  const a=STATE.appointments.find(x=>x.id===STATE.notifApptId);
+  if(!a)return;
+  const fn=tmpl[STATE.notifTemplate];
+  const msg=STATE.notifTemplate==='custom'?STATE.notifCustom:(fn?fn(a):'');
+  if(!msg)return;
+  STATE.notifications.unshift({id:'N'+uid(),type:STATE.notifType,recipient:a.patientName,phone:a.phone||'—',email:a.email||'—',message:msg,sentAt:new Date().toLocaleString(),status:'sent'});
+  toast(STATE.notifType.toUpperCase()+' sent to '+a.patientName+'!','success');
+  STATE.notifApptId=''; render();
+}
+
+function doExport(type,fmt){
+  const rh=k=>`<tr>${k.map(x=>`<th>${x}</th>`).join('')}</tr>`;
+  const rb=(d,k)=>d.map(r=>`<tr>${k.map(x=>`<td>${r[x]||''}</td>`).join('')}</tr>`).join('');
+  if(type==='appointments'){
+    const d=STATE.appointments.map(a=>({ID:a.id,Patient:a.patientName,Service:a.service,Date:a.date,Time:a.time,Dentist:a.dentist,Status:a.status,Fee:'₱'+a.fee,Phone:a.phone||'',Email:a.email||''}));
+    const k=Object.keys(d[0]);
+    if(fmt==='csv')expCSV(d,'appointments.csv');
+    else if(fmt==='json')expJSON(d,'appointments.json');
+    else printDoc(`<h2>📅 Appointments</h2><table>${rh(k)}${rb(d,k)}</table>`,'Appointments');
+  } else if(type==='patients'){
+    const d=STATE.patients.map(p=>({ID:p.id,Name:p.name,DOB:p.dob,Phone:p.phone,Email:p.email,Blood:p.bloodType,Allergies:p.allergies,LastVisit:p.lastVisit,Balance:'₱'+p.balance}));
+    const k=Object.keys(d[0]);
+    if(fmt==='csv')expCSV(d,'patients.csv');
+    else if(fmt==='json')expJSON(d,'patients.json');
+    else printDoc(`<h2>👤 Patients</h2><table>${rh(k)}${rb(d,k)}</table>`,'Patients');
+  } else if(type==='payments'){
+    const d=STATE.payments.map(p=>({Ref:p.ref,Patient:p.patientName,Service:p.service,Amount:'₱'+p.amount,Method:p.method,Date:p.date,Status:p.status}));
+    const k=Object.keys(d[0]);
+    const tot=STATE.payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
+    if(fmt==='csv')expCSV(d,'payments.csv');
+    else if(fmt==='json')expJSON(d,'payments.json');
+    else printDoc(`<h2>💳 Payments</h2><table>${rh(k)}${rb(d,k)}</table><p><strong>Total: ₱${p$(tot)}</strong></p>`,'Payments');
+  } else if(type==='full'){
+    const tot=STATE.payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
+    printDoc(`<h2>Summary</h2><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Patients</td><td>${STATE.patients.length}</td></tr><tr><td>Appointments</td><td>${STATE.appointments.length}</td></tr><tr><td>Pending</td><td>${STATE.appointments.filter(a=>a.status==='pending').length}</td></tr><tr><td>Revenue</td><td>₱${p$(tot)}</td></tr></table>`,'Full Report');
+  }
+}
+
+function confirmBooking(){
+  const form=STATE.pubForm;
+  const svc=SVCS.find(x=>x.name===form.service);
+  const appt={id:'A'+uid(),patientId:'P'+uid(),patientName:form.name,status:'pending',...form,fee:svc?svc.fee:0};
+  STATE.appointments.unshift(appt);
+  if(!STATE.patients.find(p=>p.phone===form.phone)){
+    STATE.patients.unshift({id:appt.patientId,name:form.name,dob:form.dob||'',phone:form.phone,email:form.email||'',address:form.address||'',bloodType:form.bloodType||'O+',allergies:'',lastVisit:'—',balance:0});
+  }
+  STATE.pubDone=appt;
+  toast('Booking received from '+form.name+'!','success');
+  render();
+}
+
+// ── INIT ──────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
