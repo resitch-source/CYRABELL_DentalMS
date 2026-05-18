@@ -1013,10 +1013,10 @@ const INIT_P=[
 const todayStr = new Date().toISOString().split('T')[0];
 
 const INIT_A=[
-  {id:'A001',patientId:'P001',patientName:'Maria Santos',service:'Teeth Cleaning',date:todayStr,time:'09:00',status:'confirmed',notes:'Regular cleaning',fee:800,dentist:'Dr. Reyes',phone:'09171234567',email:'maria@email.com',arrived:false},
-  {id:'A002',patientId:'P002',patientName:'Juan dela Cruz',service:'Tooth Extraction',date:todayStr,time:'14:00',status:'confirmed',notes:'Lower molar',fee:1500,dentist:'Dr. Reyes',phone:'09281234567',email:'juan@email.com',arrived:false},
-  {id:'A003',patientId:'P003',patientName:'Ana Reyes',service:'Teeth Whitening',date:'2026-05-13',time:'10:00',status:'completed',notes:'',fee:3500,dentist:'Dr. Santos',phone:'09351234567',email:'ana@email.com',arrived:false},
-  {id:'A004',patientId:'P001',patientName:'Maria Santos',service:'X-Ray',date:'2026-06-01',time:'11:00',status:'pending',notes:'',fee:600,dentist:'Dr. Reyes',phone:'09171234567',email:'maria@email.com',arrived:false},
+  {id:'A001',patientId:'P001',patientName:'Maria Santos',service:'Teeth Cleaning',date:todayStr,time:'09:00',status:'confirmed',notes:'Regular cleaning',fee:800,dentist:'Dr. Colao',phone:'09171234567',email:'maria@email.com',arrived:false},
+  {id:'A002',patientId:'P002',patientName:'Juan dela Cruz',service:'Tooth Extraction',date:todayStr,time:'14:00',status:'confirmed',notes:'Lower molar',fee:1500,dentist:'Dr. Colao',phone:'09281234567',email:'juan@email.com',arrived:false},
+  {id:'A003',patientId:'P003',patientName:'Ana Reyes',service:'Teeth Whitening',date:'2026-05-13',time:'10:00',status:'completed',notes:'',fee:3500,dentist:'Dr. Siitchon',phone:'09351234567',email:'ana@email.com',arrived:false},
+  {id:'A004',patientId:'P001',patientName:'Maria Santos',service:'X-Ray',date:'2026-06-01',time:'11:00',status:'pending',notes:'',fee:600,dentist:'Dr. Colao',phone:'09171234567',email:'maria@email.com',arrived:false},
 ];
 const INIT_PAY=[
   {id:'PAY001',patientId:'P001',patientName:'Maria Santos',amount:800,method:'Cash',service:'Teeth Cleaning',date:'2025-12-10',status:'paid',ref:'REF-12345'},
@@ -1137,7 +1137,7 @@ const SVCS=[
 const BLOOD=['A+','A-','B+','B-','AB+','AB-','O+','O-'];
 const METHODS=['Cash','GCash','Maya','Bank Transfer','Credit Card','Debit Card','PhilHealth'];
 const TIMES=['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
-const DENTISTS=['Dr. Reyes','Dr. Santos','Dr. Villanueva'];
+const DENTISTS=['Dr. Colao','Dr. Siitchon','Dr. Lacida'];
 
 // ─── ADMIN CREDENTIALS ──────────────────────────────────────────────────────
 // Default: admin / cyrabell2026
@@ -1825,7 +1825,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
 
 // ─── APPOINTMENTS (with arrived indicator) ────────────────────────────────────
 function ApptForm({patients,onClose,onSave}){
-  const [f,setF]=useState({patientId:'',patientName:'',service:'',date:'',time:'09:00',dentist:'Dr. Reyes',notes:'',fee:'',phone:'',email:''});
+  const [f,setF]=useState({patientId:'',patientName:'',service:'',date:'',time:'09:00',dentist:'Dr. Colao',notes:'',fee:'',phone:'',email:''});
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
   const hp=id=>{const p=patients.find(x=>x.id===id);s('patientId',id);s('patientName',p?p.name:'');s('phone',p?p.phone:'');s('email',p?p.email:'');};
   const hsv=n=>{const sv=SVCS.find(x=>x.name===n);s('service',n);if(sv)s('fee',sv.fee);};
@@ -2687,7 +2687,7 @@ function Analytics({appointments,payments,patients}){
 // ─── PUBLIC BOOKING (unchanged) ───────────────────────────────────────────────
 function PublicBooking({onBook,onBack}){
   const [step,setStep]=useState(1);
-  const [form,setForm]=useState({name:'',dob:'',phone:'',email:'',address:'',bloodType:'O+',service:'',date:'',time:'09:00',notes:'',dentist:'Dr. Reyes'});
+  const [form,setForm]=useState({name:'',dob:'',phone:'',email:'',address:'',bloodType:'O+',service:'',date:'',time:'09:00',notes:'',dentist:'Dr. Colao'});
   const [done,setDone]=useState(null);
   const s=(k,v)=>setForm(f=>({...f,[k]:v}));
   const submit=()=>{
