@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#0a7c6e"/>
-<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
 <title>Cyrabell Dental Management System</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -701,6 +701,55 @@ textarea{resize:vertical;min-height:80px}
   .sync-status-badge span:last-child{display:none}
   .sync-status-badge{padding:6px 8px}
 }
+
+
+/* ── BOOT SCREEN ── */
+.boot-screen{
+  position:fixed;inset:0;
+  background:linear-gradient(150deg,#0a2a24,#1a3d35 50%,#0d3028);
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+.boot-card{
+  background:#fff;border-radius:22px;
+  padding:36px 30px;
+  width:100%;max-width:420px;
+  text-align:center;
+  box-shadow:0 24px 70px rgba(0,0,0,.35);
+}
+.boot-logo{
+  width:72px;height:72px;border-radius:20px;
+  background:linear-gradient(135deg,var(--t),var(--tl));
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-bottom:18px;
+  box-shadow:0 8px 24px rgba(10,124,110,.4);
+}
+.boot-title{
+  font-family:'Playfair Display',serif;
+  font-size:24px;font-weight:700;margin-bottom:18px;
+}
+.boot-spinner{
+  width:42px;height:42px;
+  border:4px solid var(--bd);
+  border-top-color:var(--t);
+  border-radius:50%;
+  animation:bootSpin 1s linear infinite;
+  margin:0 auto 18px;
+}
+@keyframes bootSpin{to{transform:rotate(360deg)}}
+.boot-status{
+  font-size:13.5px;color:var(--md);
+  margin-bottom:8px;font-weight:500;
+}
+.boot-hint{
+  font-size:11.5px;color:var(--lt);
+  line-height:1.5;
+}
+.boot-actions{
+  display:flex;flex-direction:column;gap:8px;
+  margin-top:18px;
+}
+.boot-actions .btn{justify-content:center;padding:12px}
 
 @media(max-width:380px){
   .rmnd-ch-grid{grid-template-columns:1fr}
@@ -4723,23 +4772,114 @@ function App(){
   const [reminderLog,setReminderLog]=useState(INIT_REMINDER_LOG);
   const [toasts,setToasts]=useState([]);
 
-  // ───── AUTO-SYNC: push to Google Sheets on every data change ─────
-  // Tracks the initial mount to avoid pushing INIT_* demo data
-  const isFirstRenderRef = useRef(true);
+  // ───── INITIAL PULL: Google Sheets is the source of truth ─────
+  // bootState: 'pulling' | 'ready' | 'no-sync' | 'pull-failed'
+  const [bootState, setBootState] = useState(()=>{
+    let syncUrl = '';
+    try { syncUrl = localStorage.getItem('cyrabell_sync_url') || ''; } catch (e) {}
+    return syncUrl ? 'pulling' : 'no-sync';
+  });
+  const [bootError, setBootError] = useState('');
+  // Auto-sync is BLOCKED until initial pull completes (or user manually
+  // overrides). This prevents overwriting Sheets with the demo INIT_* data
+  // on every page reload.
+  const autoSyncReadyRef = useRef(false);
+
+  // Run the initial pull ONCE on mount
   useEffect(() => {
-    if (isFirstRenderRef.current) {
-      isFirstRenderRef.current = false;
-      asLog('app:mounted-skip-initial-sync');
+    let syncUrl = '';
+    try { syncUrl = localStorage.getItem('cyrabell_sync_url') || ''; } catch (e) {}
+
+    if (!syncUrl) {
+      asLog('boot:no-sync-url-configured');
+      setBootState('no-sync');
+      // No sync URL → safe to allow local edits; but never auto-push (no URL)
+      autoSyncReadyRef.current = true;
       return;
     }
-    // Skip if user isn't logged in (avoid syncing demo data from login screen)
-    if (!user) return;
+
+    asLog('boot:initial-pull-start', { url: syncUrl.substring(0, 50) + '...' });
+
+    (async () => {
+      try {
+        const sep = syncUrl.includes('?') ? '&' : '?';
+        const res = await fetch(syncUrl + sep + 'action=pull', {
+          method: 'GET', redirect: 'follow'
+        });
+        const text = await res.text();
+        let result;
+        try { result = JSON.parse(text); }
+        catch (e) {
+          throw new Error('Bad response from Apps Script (not JSON). Check deployment.');
+        }
+        if (!result.ok) throw new Error(result.error || 'Pull failed');
+
+        const data = result.data || {};
+        asLog('boot:pull-success', {
+          patients: (data.patients||[]).length,
+          appointments: (data.appointments||[]).length,
+          payments: (data.payments||[]).length,
+          notifications: (data.notifications||[]).length,
+          reminders: (data.reminders||[]).length,
+          reminderLog: (data.reminderLog||[]).length,
+        });
+
+        // Detect first-time-empty: if every table is empty, seed with demo data
+        // by enabling auto-sync to push. Otherwise replace local state.
+        const totalRows = (data.patients||[]).length + (data.appointments||[]).length +
+                          (data.payments||[]).length + (data.notifications||[]).length +
+                          (data.reminders||[]).length + (data.reminderLog||[]).length;
+
+        if (totalRows === 0) {
+          asLog('boot:sheets-empty-keeping-demo-data');
+          // Keep INIT_* demo data, allow auto-sync to seed Sheets
+          autoSyncReadyRef.current = true;
+          setBootState('ready');
+        } else {
+          // Replace local state with sheet data (sheets is source of truth)
+          if (Array.isArray(data.patients))      setPatients(data.patients);
+          if (Array.isArray(data.appointments))  setAppointments(data.appointments);
+          if (Array.isArray(data.payments))      setPayments(data.payments);
+          if (Array.isArray(data.notifications)) setNotifications(data.notifications);
+          if (Array.isArray(data.reminders))     setReminders(data.reminders);
+          if (Array.isArray(data.reminderLog))   setReminderLog(data.reminderLog);
+          asLog('boot:applied-sheet-data');
+          // Unlock auto-sync AFTER React applies the setState
+          setTimeout(() => {
+            autoSyncReadyRef.current = true;
+            asLog('boot:auto-sync-unlocked');
+          }, 500);
+          setBootState('ready');
+        }
+      } catch (err) {
+        asLog('boot:pull-failed', err.message);
+        setBootError(err.message);
+        setBootState('pull-failed');
+        // Keep auto-sync BLOCKED — don't overwrite Sheets with demo data
+        // User must explicitly click "Use local data" or fix the connection
+      }
+    })();
+  }, []);  // empty deps — run exactly once
+
+  // ───── AUTO-SYNC: push to Google Sheets on data changes ─────
+  // Now gated by autoSyncReadyRef which is only set after initial pull succeeds
+  useEffect(() => {
+    if (!autoSyncReadyRef.current) {
+      asLog('app:auto-sync-blocked-until-pull-complete');
+      return;
+    }
+    if (!user) return;  // never sync from login screen
+
     let syncUrl = '';
     try { syncUrl = localStorage.getItem('cyrabell_sync_url') || ''; } catch (e) {}
     let autoEnabled = true;
     try { autoEnabled = localStorage.getItem('cyrabell_auto_sync') !== 'false'; } catch (e) {}
     if (!autoEnabled) {
       asLog('app:auto-disabled');
+      return;
+    }
+    if (!syncUrl) {
+      asLog('app:no-sync-url');
       return;
     }
     asLog('app:data-changed', {
@@ -4777,6 +4917,52 @@ function App(){
     setAppointments(prev=>prev.map(a=>a.id===apptId?{...a,arrived:true}:a));
     addToast('Patient checked in!','success');
   };
+
+  // Boot screen — block UI while pulling from Sheets on startup
+  if (bootState === 'pulling') {
+    return h('div', {className: 'boot-screen'},
+      h('div', {className: 'boot-card'},
+        h('div', {className: 'boot-logo'},
+          h(Svg, {d: IC.tooth, size: 36, color: '#fff'})
+        ),
+        h('div', {className: 'boot-title'}, 'Cyrabell Dental'),
+        h('div', {className: 'boot-spinner'}),
+        h('div', {className: 'boot-status'}, '☁️ Loading data from Google Sheets…'),
+        h('div', {className: 'boot-hint'}, 'Google Sheets is the source of truth')
+      )
+    );
+  }
+
+  if (bootState === 'pull-failed') {
+    return h('div', {className: 'boot-screen'},
+      h('div', {className: 'boot-card'},
+        h('div', {className: 'boot-logo', style: {background: '#fdeaea'}},
+          h('span', {style: {fontSize: 36}}, '⚠')
+        ),
+        h('div', {className: 'boot-title'}, 'Cannot reach Google Sheets'),
+        h('div', {className: 'boot-status', style: {color: '#e05252'}}, bootError || 'Network error'),
+        h('div', {className: 'boot-hint'},
+          'The app cannot start with stale data — that would risk overwriting your real records.'
+        ),
+        h('div', {className: 'boot-actions'},
+          h('button', {
+            className: 'btn bp',
+            onClick: () => window.location.reload()
+          }, '🔄 Retry'),
+          h('button', {
+            className: 'btn bgh',
+            onClick: () => {
+              if (!confirm('Continue with LOCAL demo data only? Auto-sync to Sheets will stay disabled until you fix the connection. Your edits will NOT be saved to Google Sheets.')) return;
+              autoSyncReadyRef.current = false;  // keep blocked
+              setBootState('no-sync');
+            }
+          }, 'Use local data (offline mode)')
+        )
+      )
+    );
+  }
+
+  // bootState === 'ready' or 'no-sync' — continue to normal flow
 
   if(view==='login') return h(Fragment,null,
     h(LoginScreen,{
