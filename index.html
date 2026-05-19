@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#0a7c6e"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <title>Cyrabell Dental Management System</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -1511,26 +1511,64 @@ function nlog(stage, detail) {
 }
 
 // ─── EMAIL: Apps Script real send ──────────────────────────────────────────
+// Wrap fetch with a timeout (Apps Script email can take 5-15s)
+async function fetchWithTimeout(url, opts, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs || 30000);
+  try {
+    const res = await fetch(url, Object.assign({}, opts, { signal: controller.signal }));
+    clearTimeout(timeoutId);
+    return res;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out after ' + (timeoutMs/1000) + 's. Apps Script may be slow — check deployment.');
+    }
+    throw err;
+  }
+}
+
 async function sendEmailNotification(syncUrl, to, subject, message) {
   nlog('email:start', { to, subject });
   if (!syncUrl) throw new Error('No Sync URL. Configure ☁️ Sync to enable emails.');
   if (!to) throw new Error('No email address');
-  const res = await fetch(syncUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      action: 'sendEmail',
-      to, subject: subject || 'Cyrabell Dental Notification',
-      message
-    }),
-    redirect: 'follow'
-  });
-  const text = await res.text();
+  let res;
+  try {
+    res = await fetchWithTimeout(syncUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'sendEmail',
+        to: to,
+        subject: subject || 'Cyrabell Dental Notification',
+        message: message
+      }),
+      redirect: 'follow'
+    }, 30000);
+    nlog('email:response-received', { status: res.status, ok: res.ok });
+  } catch (netErr) {
+    nlog('email:network-error', netErr.message);
+    throw new Error('Network error: ' + netErr.message);
+  }
+  let text;
+  try {
+    text = await res.text();
+    nlog('email:response-text', { length: text.length, preview: text.substring(0, 200) });
+  } catch (e) {
+    nlog('email:read-text-error', e.message);
+    throw new Error('Could not read response body');
+  }
   let data;
   try { data = JSON.parse(text); }
-  catch (e) { throw new Error('Bad response from Apps Script'); }
-  if (!data.ok) throw new Error(data.error || 'Email send failed');
-  nlog('email:sent', { remaining: data.remainingToday });
+  catch (e) {
+    nlog('email:parse-error', { preview: text.substring(0, 200) });
+    throw new Error('Apps Script returned non-JSON. Likely the deployment is outdated — redeploy as "New version". Response: ' + text.substring(0, 100));
+  }
+  if (!data.ok) {
+    nlog('email:server-error', data.error);
+    throw new Error(data.error || 'Email send failed');
+  }
+  nlog('email:sent', { remaining: data.remainingToday, sentTo: data.sentTo });
   return data;
 }
 
@@ -1539,25 +1577,33 @@ async function sendSmsNotification(syncUrl, phone, message, carrier) {
   nlog('sms:start', { phone, carrier });
   if (!phone) throw new Error('No phone number');
   if (!syncUrl) {
-    // Fallback: open device SMS app
     const p = normalizePhone(phone);
     const uri = 'sms:+' + p + '?body=' + encodeURIComponent(message);
     nlog('sms:fallback-tel', { uri });
     window.open(uri, '_blank');
     return { ok: true, method: 'manual', telUri: uri };
   }
-  const res = await fetch(syncUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'sendSms', phone, message, carrier: carrier || '' }),
-    redirect: 'follow'
-  });
+  let res;
+  try {
+    res = await fetchWithTimeout(syncUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'sendSms', phone: phone, message: message, carrier: carrier || '' }),
+      redirect: 'follow'
+    }, 30000);
+    nlog('sms:response-received', { status: res.status });
+  } catch (netErr) {
+    nlog('sms:network-error', netErr.message);
+    throw new Error('Network error: ' + netErr.message);
+  }
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); }
-  catch (e) { throw new Error('Bad response from Apps Script'); }
+  catch (e) {
+    nlog('sms:parse-error', { preview: text.substring(0, 200) });
+    throw new Error('Apps Script returned non-JSON. Likely the deployment is outdated — redeploy as "New version".');
+  }
   if (!data.ok) throw new Error(data.error || 'SMS send failed');
-  // If carrier wasn't set, server returns a telUri to launch
   if (data.method === 'manual' && data.telUri) {
     nlog('sms:opening-tel', { telUri: data.telUri });
     window.open(data.telUri, '_blank');
