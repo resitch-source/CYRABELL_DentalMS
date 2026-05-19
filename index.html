@@ -751,6 +751,92 @@ textarea{resize:vertical;min-height:80px}
 }
 .boot-actions .btn{justify-content:center;padding:12px}
 
+
+/* ── AI ASSISTANT ── */
+.ai-suggestions{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.ai-slot{
+  display:flex;align-items:center;gap:12px;
+  border:1px solid var(--bd);border-radius:11px;
+  padding:12px 14px;background:#fff;
+  transition:all .15s;
+}
+.ai-slot:hover{border-color:var(--t);background:var(--tp)}
+.ai-slot-rank{
+  width:32px;height:32px;border-radius:50%;
+  background:linear-gradient(135deg,var(--go),#e8b84d);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:12px;color:var(--dk);
+  flex-shrink:0;
+}
+.ai-slot-date{font-weight:600;font-size:13.5px}
+.ai-slot-time{font-size:12px;color:var(--md);margin-top:2px}
+.ai-slot-score{
+  background:var(--tp);color:var(--t);
+  padding:4px 10px;border-radius:14px;
+  font-size:12px;font-weight:600;
+}
+.ai-tip{
+  background:var(--cr);border-radius:9px;
+  padding:10px 12px;font-size:11.5px;
+  color:var(--md);line-height:1.5;
+  margin-top:12px;
+}
+
+.ai-overall{
+  display:flex;align-items:center;gap:14px;
+  padding:16px;border-radius:12px;
+  margin-bottom:14px;
+  border:1.5px solid var(--bd);
+}
+.ai-overall-excellent{background:#e6f7f3;border-color:var(--gr)}
+.ai-overall-good{background:#e6f7f3;border-color:var(--gr)}
+.ai-overall-maintenance{background:#fff7e6;border-color:#d97706}
+.ai-overall-attention{background:#fff7e6;border-color:#d97706}
+.ai-overall-urgent{background:#fdeaea;border-color:var(--re)}
+.ai-overall-emoji{font-size:32px;flex-shrink:0}
+.ai-overall-title{font-weight:700;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--md)}
+.ai-overall-summary{font-size:13.5px;line-height:1.5;margin-top:3px}
+
+.ai-section{margin-bottom:14px}
+.ai-section-title{font-weight:700;font-size:13.5px;margin-bottom:8px}
+.ai-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.ai-list li{
+  padding:8px 11px;background:var(--cr);
+  border-left:3px solid var(--bd);
+  border-radius:6px;font-size:12.5px;line-height:1.5;
+}
+
+.ai-urgency{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:11px 13px;border-radius:10px;
+  border-left:4px solid var(--bd);
+  margin-bottom:8px;background:#fff;border:1px solid var(--bd);
+}
+.ai-urgency-high{border-left-color:var(--re);background:#fef2f2}
+.ai-urgency-medium{border-left-color:#d97706;background:#fffbeb}
+.ai-urgency-low{border-left-color:var(--gr);background:#f0fdf4}
+.ai-urgency-badge{font-size:10px;font-weight:700;letter-spacing:1px;flex-shrink:0}
+.ai-urgency-title{font-weight:600;font-size:13px;line-height:1.4}
+.ai-urgency-action{font-size:12px;color:var(--md);margin-top:3px;line-height:1.4}
+.ai-urgency-teeth{font-size:11px;color:var(--lt);margin-top:3px;font-family:monospace}
+
+.ai-insights-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ai-insight{
+  background:#fff;border:1px solid var(--bd);
+  border-left:4px solid var(--bd);
+  border-radius:10px;padding:12px 14px;
+}
+.ai-insight-info{border-left-color:var(--bl)}
+.ai-insight-warn{border-left-color:#d97706;background:#fffbeb}
+.ai-insight-opportunity{border-left-color:var(--gr);background:#f0fdf4}
+.ai-insight-title{font-size:11px;color:var(--md);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.ai-insight-value{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;margin-top:3px}
+.ai-insight-detail{font-size:11.5px;color:var(--md);margin-top:3px;line-height:1.4}
+
+@media(max-width:640px){
+  .ai-insights-grid{grid-template-columns:1fr}
+}
+
 @media(max-width:380px){
   .rmnd-ch-grid{grid-template-columns:1fr}
 }
@@ -1279,10 +1365,10 @@ const INIT_P=[
 const todayStr = new Date().toISOString().split('T')[0];
 
 const INIT_A=[
-  {id:'A001',patientId:'P001',patientName:'Maria Santos',service:'Teeth Cleaning',date:todayStr,time:'09:00',status:'confirmed',notes:'Regular cleaning',fee:800,dentist:'Dr. Reyes',phone:'09171234567',email:'maria@email.com',arrived:false},
-  {id:'A002',patientId:'P002',patientName:'Juan dela Cruz',service:'Tooth Extraction',date:todayStr,time:'14:00',status:'confirmed',notes:'Lower molar',fee:1500,dentist:'Dr. Reyes',phone:'09281234567',email:'juan@email.com',arrived:false},
-  {id:'A003',patientId:'P003',patientName:'Ana Reyes',service:'Teeth Whitening',date:'2026-05-13',time:'10:00',status:'completed',notes:'',fee:3500,dentist:'Dr. Santos',phone:'09351234567',email:'ana@email.com',arrived:false},
-  {id:'A004',patientId:'P001',patientName:'Maria Santos',service:'X-Ray',date:'2026-06-01',time:'11:00',status:'pending',notes:'',fee:600,dentist:'Dr. Reyes',phone:'09171234567',email:'maria@email.com',arrived:false},
+  {id:'A001',patientId:'P001',patientName:'Maria Santos',service:'Teeth Cleaning',date:todayStr,time:'09:00',status:'confirmed',notes:'Regular cleaning',fee:800,dentist:'Dr. Arnold Colao',phone:'09171234567',email:'maria@email.com',arrived:false},
+  {id:'A002',patientId:'P002',patientName:'Juan dela Cruz',service:'Tooth Extraction',date:todayStr,time:'14:00',status:'confirmed',notes:'Lower molar',fee:1500,dentist:'Dr. Arnold Colao',phone:'09281234567',email:'juan@email.com',arrived:false},
+  {id:'A003',patientId:'P003',patientName:'Ana Reyes',service:'Teeth Whitening',date:'2026-05-13',time:'10:00',status:'completed',notes:'',fee:3500,dentist:'Dr. Arnold Colao',phone:'09351234567',email:'ana@email.com',arrived:false},
+  {id:'A004',patientId:'P001',patientName:'Maria Santos',service:'X-Ray',date:'2026-06-01',time:'11:00',status:'pending',notes:'',fee:600,dentist:'Dr. Arnold Colao',phone:'09171234567',email:'maria@email.com',arrived:false},
 ];
 const INIT_PAY=[
   {id:'PAY001',patientId:'P001',patientName:'Maria Santos',amount:800,method:'Cash',service:'Teeth Cleaning',date:'2025-12-10',status:'paid',ref:'REF-12345'},
@@ -1403,7 +1489,7 @@ const SVCS=[
 const BLOOD=['A+','A-','B+','B-','AB+','AB-','O+','O-'];
 const METHODS=['Cash','GCash','Maya','Bank Transfer','Credit Card','Debit Card','PhilHealth'];
 const TIMES=['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
-const DENTISTS=['Dr. Reyes','Dr. Santos','Dr. Villanueva'];
+const DENTISTS=['Dr. Arnold Colao'];
 
 // ─── ADMIN CREDENTIALS ──────────────────────────────────────────────────────
 // Default: admin / cyrabell2026
@@ -1727,6 +1813,377 @@ async function sendNotification(channel, patient, message, syncUrl) {
   if (channel === 'viber')     return sendViberNotification(patient.phone, message);
   if (channel === 'messenger') return sendMessengerNotification(patient.messengerId || '', message);
   throw new Error('Unknown channel: ' + channel);
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🤖 AI ASSISTANT — Rule-based scheduling + dental case analysis
+// ═══════════════════════════════════════════════════════════════════════════
+// Uses on-device logic (no API keys needed, no data leaves your browser).
+// For free-form chat, optionally configure a Gemini/OpenAI API key in
+// localStorage as 'cyrabell_ai_key' + 'cyrabell_ai_provider' ('gemini'|'openai').
+
+// ─── SCHEDULING AI ─────────────────────────────────────────────────────────
+// Given appointments + a target date range, suggests optimal slots based on:
+//   - Existing bookings (no conflicts)
+//   - Clinic hours (08:00–17:00)
+//   - Even distribution (don't bunch all morning)
+//   - Service duration estimates
+const SERVICE_DURATIONS = {
+  'Teeth Cleaning': 45,
+  'Tooth Extraction': 60,
+  'Dental Filling': 45,
+  'Root Canal': 90,
+  'Dental Crown': 60,
+  'Teeth Whitening': 60,
+  'Braces Consult': 30,
+  'X-Ray': 20,
+  'Dentures': 90,
+  'Dental Implant': 120,
+};
+const SLOT_TIMES = ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
+
+function aiSuggestSlots(appointments, service, fromDate, daysAhead) {
+  daysAhead = daysAhead || 7;
+  const duration = SERVICE_DURATIONS[service] || 45;
+  const startDate = new Date(fromDate || new Date());
+  const suggestions = [];
+
+  for (let dayOffset = 0; dayOffset < daysAhead && suggestions.length < 8; dayOffset++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + dayOffset);
+    if (d.getDay() === 0) continue; // skip Sundays
+    const dateStr = d.toISOString().split('T')[0];
+
+    const busy = appointments.filter(a =>
+      a.date === dateStr &&
+      a.status !== 'cancelled' && a.status !== 'completed'
+    ).map(a => a.time);
+
+    for (const t of SLOT_TIMES) {
+      if (busy.includes(t)) continue;
+      // Score: prefer mornings, but spread across days
+      const hour = parseInt(t.split(':')[0]);
+      const morningBonus = hour < 12 ? 2 : 0;
+      const dayPenalty = dayOffset; // earlier days better
+      const score = 100 + morningBonus - dayPenalty - busy.length;
+      suggestions.push({ date: dateStr, time: t, score, dayOffset, duration });
+    }
+  }
+
+  suggestions.sort((a, b) => b.score - a.score);
+  return suggestions.slice(0, 6);
+}
+
+function aiCheckConflicts(appointments, date, time, excludeId) {
+  return appointments.filter(a =>
+    a.date === date &&
+    a.time === time &&
+    a.id !== excludeId &&
+    a.status !== 'cancelled' &&
+    a.status !== 'completed'
+  );
+}
+
+function aiScheduleInsights(appointments) {
+  const today = new Date().toISOString().split('T')[0];
+  const insights = [];
+
+  // Today's load
+  const todayAppts = appointments.filter(a => a.date === today && a.status !== 'cancelled');
+  insights.push({
+    type: 'info',
+    title: "Today's load",
+    value: todayAppts.length + ' appointment' + (todayAppts.length!==1?'s':'') + ' scheduled',
+    detail: todayAppts.filter(a => a.arrived).length + ' have arrived'
+  });
+
+  // Tomorrow forecast
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const tomStr = tomorrow.toISOString().split('T')[0];
+  const tomAppts = appointments.filter(a => a.date === tomStr && a.status !== 'cancelled');
+  insights.push({
+    type: 'info',
+    title: 'Tomorrow',
+    value: tomAppts.length + ' appointment' + (tomAppts.length!==1?'s':''),
+    detail: tomAppts.length > 6 ? '⚠ Heavy day' : tomAppts.length < 2 ? '✨ Light day' : 'Normal load'
+  });
+
+  // Pending confirmations
+  const pending = appointments.filter(a => a.status === 'pending').length;
+  if (pending > 0) {
+    insights.push({
+      type: 'warn',
+      title: 'Pending confirmation',
+      value: pending + ' appointment' + (pending!==1?'s':'') + ' need attention',
+      detail: 'Confirm or cancel to free up slots'
+    });
+  }
+
+  // Most common service this month
+  const thisMonth = appointments.filter(a => a.date && a.date.startsWith(today.substring(0,7)));
+  const svcCount = {};
+  thisMonth.forEach(a => { svcCount[a.service] = (svcCount[a.service]||0) + 1; });
+  const topService = Object.entries(svcCount).sort((a,b)=>b[1]-a[1])[0];
+  if (topService) {
+    insights.push({
+      type: 'info',
+      title: 'Top service this month',
+      value: topService[0],
+      detail: topService[1] + ' booking' + (topService[1]!==1?'s':'')
+    });
+  }
+
+  // Empty days warning
+  const next7Days = [];
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(); d.setDate(d.getDate()+i);
+    if (d.getDay() === 0) continue;
+    const ds = d.toISOString().split('T')[0];
+    const cnt = appointments.filter(a => a.date === ds && a.status !== 'cancelled').length;
+    if (cnt === 0) next7Days.push(ds);
+  }
+  if (next7Days.length > 0) {
+    insights.push({
+      type: 'opportunity',
+      title: 'Empty days next week',
+      value: next7Days.length + ' open day' + (next7Days.length!==1?'s':''),
+      detail: 'Consider proactive bookings'
+    });
+  }
+
+  return insights;
+}
+
+// ─── DENTAL CASE ANALYZER ──────────────────────────────────────────────────
+// Reviews patient.teeth (FDI dict) and recommends:
+//   - Priority treatments
+//   - Risk flags
+//   - Preventive recommendations
+function aiAnalyzePatientDental(patient) {
+  const teeth = patient && patient.teeth || {};
+  const conditions = Object.entries(teeth).filter(([,v]) => v && v !== 'healthy');
+  const stats = { cavity:0, filling:0, crown:0, root_canal:0, missing:0, implant:0, bridge:0, veneer:0, sealant:0 };
+  conditions.forEach(([fdi, cond]) => { if (stats[cond] !== undefined) stats[cond]++; });
+
+  const findings = [];
+  const recommendations = [];
+  const urgency = []; // priority list
+
+  // Cavity analysis
+  if (stats.cavity > 0) {
+    urgency.push({
+      level: stats.cavity > 3 ? 'high' : 'medium',
+      title: stats.cavity + ' active cavit' + (stats.cavity===1?'y':'ies') + ' detected',
+      action: 'Schedule filling appointment within 2-4 weeks',
+      teeth: conditions.filter(([,v])=>v==='cavity').map(([k])=>k)
+    });
+    findings.push('Active decay present — pulpal involvement risk if left untreated');
+  }
+
+  // Root canal candidates (deep cavities or pain)
+  if (stats.cavity >= 2) {
+    recommendations.push('Take periapical X-rays to rule out pulpitis');
+  }
+
+  // Missing teeth
+  if (stats.missing > 0) {
+    const level = stats.missing >= 3 ? 'medium' : 'low';
+    urgency.push({
+      level: level,
+      title: stats.missing + ' missing tooth/teeth',
+      action: 'Discuss prosthetic options: implant, bridge, or denture',
+      teeth: conditions.filter(([,v])=>v==='missing').map(([k])=>k)
+    });
+    if (stats.missing >= 2) {
+      findings.push('Multiple missing teeth — risk of bite collapse and adjacent tooth drift');
+    }
+  }
+
+  // Crown/restoration tracking
+  if (stats.crown > 0 || stats.filling > 0) {
+    recommendations.push('Annual radiographic check on restored teeth (#' +
+      [...conditions.filter(([,v])=>v==='crown'||v==='filling').map(([k])=>k)].join(', #') + ')');
+  }
+
+  // Root canal long-term watch
+  if (stats.root_canal > 0) {
+    recommendations.push('6-month follow-up on root-canal-treated tooth/teeth (#' +
+      conditions.filter(([,v])=>v==='root_canal').map(([k])=>k).join(', #') + ') — check for re-infection');
+  }
+
+  // Bridges nearby
+  if (stats.bridge > 0) {
+    recommendations.push('Bridge maintenance: floss threader use, abutment health check');
+  }
+
+  // Preventive
+  if (stats.sealant === 0 && conditions.length === 0) {
+    recommendations.push('No issues found — consider preventive sealants on molars for cavity prevention');
+  } else {
+    recommendations.push('6-month cleaning + fluoride treatment');
+  }
+
+  // Allergy flag
+  if (patient.allergies && patient.allergies.toLowerCase() !== 'none' && patient.allergies !== '') {
+    findings.push('⚠ Patient allergic to: ' + patient.allergies + ' — verify medications before any procedure');
+  }
+
+  // Outstanding balance flag
+  if (patient.balance > 0) {
+    findings.push('💰 Outstanding balance of ₱' + patient.balance.toLocaleString() + ' — discuss payment plan');
+  }
+
+  // Overall assessment
+  let overall;
+  if (conditions.length === 0) {
+    overall = { status: 'excellent', summary: 'Excellent oral health. Maintain 6-month cleanings.', emoji: '🌟' };
+  } else if (stats.cavity > 3 || stats.missing > 3) {
+    overall = { status: 'urgent', summary: 'Multiple active issues require comprehensive treatment plan.', emoji: '🚨' };
+  } else if (stats.cavity > 0) {
+    overall = { status: 'attention', summary: 'Active decay — needs prompt attention.', emoji: '⚠️' };
+  } else if (stats.missing > 0 || stats.root_canal > 0) {
+    overall = { status: 'maintenance', summary: 'Stable but requires ongoing maintenance.', emoji: '🔧' };
+  } else {
+    overall = { status: 'good', summary: 'Generally good condition with minor restorative work.', emoji: '✓' };
+  }
+
+  return { overall, urgency, findings, recommendations, stats, conditionsCount: conditions.length };
+}
+
+// ─── AI ASSISTANT PANEL COMPONENT ─────────────────────────────────────────
+function AIAssistant({appointments, patients, payments, addToast, onClose, defaultTab}) {
+  const [tab, setTab] = useState(defaultTab || 'schedule');
+  const [pickedPatient, setPickedPatient] = useState(null);
+  const [pickedService, setPickedService] = useState('Teeth Cleaning');
+
+  const insights = aiScheduleInsights(appointments);
+  const suggestions = aiSuggestSlots(appointments, pickedService);
+  const analysis = pickedPatient ? aiAnalyzePatientDental(pickedPatient) : null;
+
+  return h(Modal, {
+    title: '🤖 AI Assistant',
+    sub: 'Smart insights powered by on-device analysis',
+    xl: true,
+    onClose,
+    footer: h('button', {className: 'btn bgh', onClick: onClose}, 'Close')
+  },
+    h('div', {className: 'tabs'},
+      [
+        ['schedule', '📅 Scheduling'],
+        ['analyze', '🦷 Case Analysis'],
+        ['insights', '📊 Insights']
+      ].map(([v,l]) =>
+        h('button', {key: v, className: 'tab'+(tab===v?' act':''), onClick: ()=>setTab(v)}, l)
+      )
+    ),
+
+    // ─── SCHEDULING TAB ──────────────────────────────────────────────
+    tab === 'schedule' && h('div', null,
+      h('div', {style: {marginBottom: 14}},
+        h('div', {style: {fontWeight: 600, fontSize: 14, marginBottom: 6}}, 'Suggest optimal slots for:'),
+        h('select', {
+          value: pickedService,
+          onChange: e => setPickedService(e.target.value)
+        }, SVCS.map(sv => h('option', {key: sv.name, value: sv.name}, sv.name + ' (~' + (SERVICE_DURATIONS[sv.name]||45) + ' min)')))
+      ),
+      h('div', {className: 'ai-suggestions'},
+        suggestions.length === 0
+          ? h('div', {className: 'empty'}, 'No slots found in the next 7 days')
+          : suggestions.map((s, i) =>
+              h('div', {key: i, className: 'ai-slot'},
+                h('div', {className: 'ai-slot-rank'}, '#' + (i+1)),
+                h('div', {style: {flex: 1}},
+                  h('div', {className: 'ai-slot-date'}, new Date(s.date).toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric'})),
+                  h('div', {className: 'ai-slot-time'}, s.time + ' · ' + s.duration + ' min slot')
+                ),
+                h('div', {className: 'ai-slot-score', title: 'Recommendation score'}, '⭐ ' + s.score)
+              )
+            )
+      ),
+      h('div', {className: 'ai-tip'},
+        '💡 Slots are ranked by morning preference, even distribution across days, and avoiding overbooked days.'
+      )
+    ),
+
+    // ─── ANALYSIS TAB ────────────────────────────────────────────────
+    tab === 'analyze' && h('div', null,
+      h('div', {style: {marginBottom: 14}},
+        h('div', {style: {fontWeight: 600, fontSize: 14, marginBottom: 6}}, 'Pick a patient to analyze:'),
+        h('select', {
+          value: pickedPatient ? pickedPatient.id : '',
+          onChange: e => setPickedPatient(patients.find(p => p.id === e.target.value))
+        },
+          h('option', {value: ''}, 'Select patient…'),
+          patients.map(p => h('option', {key: p.id, value: p.id},
+            p.name + (Object.keys(p.teeth||{}).length>0 ? ' ('+Object.keys(p.teeth||{}).length+' findings)' : '')
+          ))
+        )
+      ),
+      analysis ? h('div', null,
+        // Overall card
+        h('div', {className: 'ai-overall ai-overall-' + analysis.overall.status},
+          h('div', {className: 'ai-overall-emoji'}, analysis.overall.emoji),
+          h('div', {style: {flex: 1}},
+            h('div', {className: 'ai-overall-title'}, analysis.overall.status.toUpperCase()),
+            h('div', {className: 'ai-overall-summary'}, analysis.overall.summary)
+          )
+        ),
+
+        // Findings
+        analysis.findings.length > 0 && h('div', {className: 'ai-section'},
+          h('div', {className: 'ai-section-title'}, '⚕️ Clinical Findings'),
+          h('ul', {className: 'ai-list'},
+            analysis.findings.map((f, i) => h('li', {key: i}, f))
+          )
+        ),
+
+        // Urgency / priority treatments
+        analysis.urgency.length > 0 && h('div', {className: 'ai-section'},
+          h('div', {className: 'ai-section-title'}, '🎯 Priority Treatments'),
+          analysis.urgency.map((u, i) =>
+            h('div', {key: i, className: 'ai-urgency ai-urgency-' + u.level},
+              h('div', {className: 'ai-urgency-badge'}, u.level === 'high' ? '🔴 HIGH' : u.level === 'medium' ? '🟡 MEDIUM' : '🟢 LOW'),
+              h('div', {style: {flex: 1}},
+                h('div', {className: 'ai-urgency-title'}, u.title),
+                h('div', {className: 'ai-urgency-action'}, '→ ' + u.action),
+                u.teeth.length > 0 && h('div', {className: 'ai-urgency-teeth'}, 'Teeth: #' + u.teeth.join(', #'))
+              )
+            )
+          )
+        ),
+
+        // Recommendations
+        analysis.recommendations.length > 0 && h('div', {className: 'ai-section'},
+          h('div', {className: 'ai-section-title'}, '💡 Recommendations'),
+          h('ul', {className: 'ai-list'},
+            analysis.recommendations.map((r, i) => h('li', {key: i}, r))
+          )
+        ),
+
+        h('div', {className: 'ai-tip'},
+          '⚠ AI analysis is a clinical aid only. Always verify with your professional judgment and patient examination.'
+        )
+      ) : h('div', {className: 'empty'}, 'Pick a patient to see analysis')
+    ),
+
+    // ─── INSIGHTS TAB ────────────────────────────────────────────────
+    tab === 'insights' && h('div', null,
+      h('div', {style: {fontWeight: 600, fontSize: 14, marginBottom: 12}}, 'Practice insights'),
+      h('div', {className: 'ai-insights-grid'},
+        insights.map((ins, i) =>
+          h('div', {key: i, className: 'ai-insight ai-insight-' + ins.type},
+            h('div', {className: 'ai-insight-title'}, ins.title),
+            h('div', {className: 'ai-insight-value'}, ins.value),
+            h('div', {className: 'ai-insight-detail'}, ins.detail)
+          )
+        )
+      ),
+      h('div', {className: 'ai-tip'},
+        '🤖 Insights regenerate every time you open this panel.'
+      )
+    )
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2219,6 +2676,8 @@ function DentalChart3D({teethData,onToothEdit}){
 
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
 function Dashboard({appointments,patients,payments,onGoKiosk}){
+  const [showAI, setShowAI] = useState(false);
+  const addToast2 = (m,t) => {}; // dashboard doesn't need toasts here
   const pending=appointments.filter(a=>a.status==='pending').length;
   const rev=payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
   const today = new Date().toISOString().split('T')[0];
@@ -2238,6 +2697,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
         h('div',{className:'psl'},'Welcome to Cyrabell Dental Management System')
       ),
       h('div',{className:'ph-act'},
+        h('button',{className:'btn bg2',onClick:()=>setShowAI(true),title:'AI assistant for scheduling and case analysis'},'🤖 AI Assistant'),
         h('button',{className:'btn bs',onClick:onGoKiosk,title:'Switch this screen to kiosk mode'},'🏥 Open Kiosk')
       )
     ),
@@ -2291,13 +2751,14 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
           )))
         )
       )
-    )
+    ),
+    showAI && h(AIAssistant,{appointments,patients,payments,addToast:addToast2,onClose:()=>setShowAI(false),defaultTab:'insights'})
   );
 }
 
 // ─── APPOINTMENTS (with arrived indicator) ────────────────────────────────────
 function ApptForm({patients,onClose,onSave}){
-  const [f,setF]=useState({patientId:'',patientName:'',service:'',date:'',time:'09:00',dentist:'Dr. Reyes',notes:'',fee:'',phone:'',email:''});
+  const [f,setF]=useState({patientId:'',patientName:'',service:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:'',fee:'',phone:'',email:''});
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
   const hp=id=>{const p=patients.find(x=>x.id===id);s('patientId',id);s('patientName',p?p.name:'');s('phone',p?p.phone:'');s('email',p?p.email:'');};
   const hsv=n=>{const sv=SVCS.find(x=>x.name===n);s('service',n);if(sv)s('fee',sv.fee);};
@@ -3106,6 +3567,7 @@ function PatForm({patient,onClose,onSave,syncUrl,addToast}){
   );
 }
 function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl}){
+  const [showAIAnalysis, setShowAIAnalysis] = useState(false);
   const [tab,setTab]=useState('info');
   const ini=patient.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const infoRows=[['DOB',patient.dob||'—'],['Blood Type',patient.bloodType],['Phone',patient.phone],['Email',patient.email||'—'],['Address',patient.address||'—'],['Allergies',patient.allergies||'—'],['Last Visit',patient.lastVisit],['Balance',patient.balance>0?'₱'+p$(patient.balance)+' (Due)':'Settled']];
@@ -3118,7 +3580,10 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
     onUpdateTeeth(patient.id, newTeeth);
     addToast('Tooth '+fdi+' marked as '+CONDITIONS[condition].label, 'success');
   };
-  return h(Modal,{title:patient.name,sub:patient.id+' · '+patient.phone,xl:true,onClose,footer:h('button',{className:'btn bgh',onClick:onClose},'Close')},
+  return h(Modal,{title:patient.name,sub:patient.id+' · '+patient.phone,xl:true,onClose,footer:h(Fragment,null,
+    h('button',{className:'btn bg2',onClick:()=>setShowAIAnalysis(true),style:{marginRight:'auto'}},'🤖 AI Analysis'),
+    h('button',{className:'btn bgh',onClick:onClose},'Close')
+  )},
     h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:16}},
       h(PatientPhoto,{patient,size:64,syncUrl}),
       h('div',null,
@@ -3149,7 +3614,8 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Method'),h('span',{className:'mc-val'},p.method)),
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Date'),h('span',{className:'mc-val'},p.date))
       )))
-    )
+    ),
+    showAIAnalysis && h(AIAssistant,{appointments:appts,patients:[patient],payments:pays,addToast,onClose:()=>setShowAIAnalysis(false),defaultTab:'analyze'})
   );
 }
 function Patients({patients,setPatients,appointments,payments,addToast,syncUrl}){
@@ -3577,13 +4043,18 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
     setModal(false);setEdit(null);
   };
 
-  const sendNow = async (reminder)=>{
+  const sendNow = async (reminder, isTest)=>{
     const patient = patients.find(p=>p.id===reminder.patientId);
     if(!patient){addToast('Patient not found','error');return;}
     const type = REMINDER_TYPES[reminder.type];
     if(!type)return;
-    const message = type.template(patient);
+    let message = type.template(patient);
+    if(isTest) message = '🧪 [TEST] ' + message;
     const syncUrl = (function(){try{return localStorage.getItem('cyrabell_sync_url')||'';}catch(e){return '';}})();
+
+    if(isTest){
+      addToast('🧪 Test send started for '+reminder.patientName+' on '+reminder.channels.length+' channel'+(reminder.channels.length>1?'s':'')+'…','info');
+    }
 
     // Fire each channel and capture status
     const results = await Promise.all(reminder.channels.map(async (ch)=>{
@@ -3602,27 +4073,30 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
         type:reminder.type,
         channel:ch,
         message:message+(errMsg?'\n[ERROR: '+errMsg+']':''),
-        sentAt:new Date().toLocaleString(),
+        sentAt:new Date().toLocaleString()+(isTest?' (test)':''),
         status:status
       };
     }));
     setReminderLog(prev=>[...results,...prev]);
 
-    // Update next due date
-    const newLastSent = today;
-    const d=new Date(newLastSent);
-    d.setDate(d.getDate()+(+reminder.frequency||90));
-    const newNextDue = d.toISOString().split('T')[0];
-    setReminders(prev=>prev.map(r=>r.id===reminder.id?{...r,lastSent:newLastSent,nextDue:newNextDue}:r));
+    // Update next-due date ONLY for real sends (tests don't shift the schedule)
+    if(!isTest){
+      const newLastSent = today;
+      const d=new Date(newLastSent);
+      d.setDate(d.getDate()+(+reminder.frequency||90));
+      const newNextDue = d.toISOString().split('T')[0];
+      setReminders(prev=>prev.map(r=>r.id===reminder.id?{...r,lastSent:newLastSent,nextDue:newNextDue}:r));
+    }
 
     const successCount = results.filter(r=>r.status==='sent').length;
     const failCount = results.length-successCount;
+    const prefix = isTest ? '🧪 TEST: ' : '';
     if(failCount===0){
-      addToast('✓ Sent via '+successCount+' channel'+(successCount>1?'s':'')+' to '+reminder.patientName,'success');
+      addToast(prefix+'✓ Sent via '+successCount+' channel'+(successCount>1?'s':'')+' to '+reminder.patientName,'success');
     } else if(successCount===0){
-      addToast('✕ All '+failCount+' channels failed for '+reminder.patientName,'error');
+      addToast(prefix+'✕ All '+failCount+' channels failed: see Sent Log for details','error');
     } else {
-      addToast(successCount+' sent, '+failCount+' failed for '+reminder.patientName,'info');
+      addToast(prefix+successCount+' sent, '+failCount+' failed (see log)','info');
     }
   };
 
@@ -3679,6 +4153,7 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
             ),
             h('td',null,h('div',{className:'gap8'},
               isDue&&r.active&&h('button',{className:'btn bp bsm',onClick:()=>sendNow(r)},'📤 Send'),
+              h('button',{className:'btn bg2 bsm',onClick:()=>sendNow(r,true),title:'Test send — forces send NOW regardless of schedule, does NOT update next due date'},'🧪 Test'),
               h('button',{className:'btn bgh bsm',onClick:()=>{setEdit(r);setModal(true);}},h(Svg,{d:IC.edit,size:13})),
               h('button',{className:'btn bgh bsm',onClick:()=>toggleActive(r.id),title:r.active?'Pause':'Activate'},r.active?'⏸':'▶'),
               h('button',{className:'btn bd2 bsm',onClick:()=>{if(confirm('Delete this reminder?'))deleteReminder(r.id);}},h(Svg,{d:IC.x,size:13}))
@@ -3713,6 +4188,7 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
           h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Next due'),h('span',{className:'mc-val',style:{color:isDue?'var(--or)':'var(--md)',fontWeight:isDue?700:500}},r.nextDue+(isDue?' ⏰':''))),
           h('div',{className:'mc-act'},
             isDue&&r.active&&h('button',{className:'btn bp bsm',style:{flex:2},onClick:()=>sendNow(r)},'📤 Send Now'),
+            h('button',{className:'btn bg2 bsm',style:{flex:1},onClick:()=>sendNow(r,true),title:'Test send'},'🧪 Test'),
             h('button',{className:'btn bgh bsm',style:{flex:1},onClick:()=>{setEdit(r);setModal(true);}},'Edit'),
             h('button',{className:'btn bgh bsm',style:{flex:1},onClick:()=>toggleActive(r.id)},r.active?'⏸':'▶')
           )
@@ -4279,7 +4755,7 @@ function Analytics({appointments,payments,patients}){
 // ─── PUBLIC BOOKING (unchanged) ───────────────────────────────────────────────
 function PublicBooking({onBook,onBack}){
   const [step,setStep]=useState(1);
-  const [form,setForm]=useState({name:'',dob:'',phone:'',email:'',address:'',bloodType:'O+',service:'',date:'',time:'09:00',notes:'',dentist:'Dr. Reyes'});
+  const [form,setForm]=useState({name:'',dob:'',phone:'',email:'',address:'',bloodType:'O+',service:'',date:'',time:'09:00',notes:'',dentist:'Dr. Arnold Colao'});
   const [done,setDone]=useState(null);
   const s=(k,v)=>setForm(f=>({...f,[k]:v}));
   const submit=()=>{
