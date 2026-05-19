@@ -1360,8 +1360,8 @@ function Modal({title,sub,onClose,children,footer,large,xl}){
   let maxW = 620;
   if(large) maxW = 700;
   if(xl) maxW = 920;
-  return h('div',{className:'ov',onClick:e=>{if(e.target.className==='ov')onClose();}},
-    h('div',{className:'modal',style:{maxWidth:maxW}},
+  return h('div',{className:'ov',onClick:e=>{if(e.target===e.currentTarget)onClose();}},
+    h('div',{className:'modal',style:{maxWidth:maxW},onClick:e=>e.stopPropagation()},
       h('div',{className:'mdrag'}),
       h('div',{className:'mh'},
         h('div',{style:{flex:1,minWidth:0}},
@@ -2300,18 +2300,20 @@ function PhotoCaptureWidget({patient, photoDataUrl, onPhotoChange, syncUrl, addT
         ),
         preview && h('button',{
           type:'button',className:'photo-remove-btn',
-          onClick:removePhoto,title:'Remove photo'
+          onClick:e=>{e.stopPropagation();removePhoto();},title:'Remove photo'
         },'✕')
       ),
       // Action buttons
       h('div', {className:'photo-actions'},
-        h('button',{type:'button',className:'btn bp',onClick:()=>openCamera('user'),disabled:busy},
+        h('button',{type:'button',className:'btn bp',onClick:e=>{e.stopPropagation();openCamera('user');},disabled:busy},
           '📷 Camera'),
-        h('button',{type:'button',className:'btn bs',onClick:()=>fileInputRef.current&&fileInputRef.current.click(),disabled:busy},
+        h('button',{type:'button',className:'btn bs',onClick:e=>{e.stopPropagation();fileInputRef.current&&fileInputRef.current.click();},disabled:busy},
           '🖼️ Upload'),
         h('input',{
           type:'file',accept:'image/*',ref:fileInputRef,
-          onChange:handleFile,style:{display:'none'}
+          onChange:handleFile,
+          onClick:e=>e.stopPropagation(),
+          style:{display:'none'}
         }),
         h('div',{style:{fontSize:11,color:'var(--md)',marginTop:8,lineHeight:1.45}},
           syncUrl
@@ -2322,18 +2324,26 @@ function PhotoCaptureWidget({patient, photoDataUrl, onPhotoChange, syncUrl, addT
     ),
 
     // Camera modal
-    cameraOpen && h('div',{className:'ov',style:{zIndex:300}},
-      h('div',{className:'modal',style:{maxWidth:520,padding:0,maxHeight:'95vh'}},
+    cameraOpen && h('div',{
+      className:'ov',
+      style:{zIndex:300},
+      onClick:e=>{if(e.target===e.currentTarget)stopCamera();}
+    },
+      h('div',{
+        className:'modal',
+        style:{maxWidth:520,padding:0,maxHeight:'95vh'},
+        onClick:e=>e.stopPropagation()
+      },
         h('div',{className:'camera-container'},
           h('video',{ref:videoRef,playsInline:true,autoPlay:true,muted:true,
             style:{width:'100%',height:'auto',maxHeight:'60vh',background:'#000',display:'block'}}),
           h('canvas',{ref:canvasRef,style:{display:'none'}}),
           h('div',{className:'camera-controls'},
-            h('button',{className:'camera-btn',onClick:stopCamera,title:'Cancel'},'✕'),
-            h('button',{className:'camera-btn-snap',onClick:snapPhoto,title:'Capture'},
+            h('button',{type:'button',className:'camera-btn',onClick:e=>{e.stopPropagation();stopCamera();},title:'Cancel'},'✕'),
+            h('button',{type:'button',className:'camera-btn-snap',onClick:e=>{e.stopPropagation();snapPhoto();},title:'Capture'},
               h('div',{className:'snap-inner'})
             ),
-            h('button',{className:'camera-btn',onClick:flipCamera,title:'Flip camera'},'🔄')
+            h('button',{type:'button',className:'camera-btn',onClick:e=>{e.stopPropagation();flipCamera();},title:'Flip camera'},'🔄')
           )
         )
       )
