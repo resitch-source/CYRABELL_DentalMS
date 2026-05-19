@@ -2178,191 +2178,179 @@ function PatientPhoto({patient, size, syncUrl}){
 }
 
 // The capture/upload widget shown inside PatForm
-// ─── 📷 PATIENT PHOTO — FIXED VERSION ────────────────────────────────────────
 function PhotoCaptureWidget({patient, photoDataUrl, onPhotoChange, syncUrl, addToast}){
-    const fileInputRef = useRef(null);
-    const videoRef = useRef(null);
-    const canvasRef = useRef(null);
-    const streamRef = useRef(null);
-    const [cameraOpen, setCameraOpen] = useState(false);
-    const [busy, setBusy] = useState(false);
-    const [preview, setPreview] = useState(null);
-    const [facingMode, setFacingMode] = useState('user'); // 'user' | 'environment'
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
 
-    // Load existing photo into preview on mount
-    useEffect(()=>{
-        if (photoDataUrl) { setPreview(photoDataUrl); return; }
-        if (patient && patient.photoFileId && syncUrl) {
-            fetchPhotoFromDrive(syncUrl, patient.photoFileId).then(url => {
-                if (url) setPreview(url);
-            });
-        }
-    }, []);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [facingMode, setFacingMode] = useState('user'); // 'user' | 'environment'
 
-    const stopCamera = ()=>{
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(t => t.stop());
-            streamRef.current = null;
-        }
-        setCameraOpen(false);
-    };
+  // Load existing photo into preview on mount
+  useEffect(()=>{
+    if (photoDataUrl) { setPreview(photoDataUrl); return; }
+    if (patient && patient.photoFileId && syncUrl) {
+      fetchPhotoFromDrive(syncUrl, patient.photoFileId).then(url => {
+        if (url) setPreview(url);
+      });
+    }
+  }, []);
 
-    // 🔑 CRITICAL: Consumes stray clicks that fire when OS dialogs (permission/file picker) close
-    const preventStrayClicks = () => {
-        const handler = (e) => { e.stopPropagation(); e.stopImmediatePropagation(); };
-        window.addEventListener('click', handler, { capture: true, once: true });
-        window.addEventListener('mousedown', handler, { capture: true, once: true });
-        window.addEventListener('pointerdown', handler, { capture: true, once: true });
-    };
+  const stopCamera = ()=>{
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setCameraOpen(false);
+  };
 
-    const openCamera = async (mode)=>{
-        const useMode = mode || facingMode;
-        setFacingMode(useMode);
-        preventStrayClicks(); // Blocks stray event after permission dialog closes
-        setCameraOpen(true);
-        await new Promise(r => setTimeout(r, 50)); // Wait for DOM
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: useMode, width: {ideal:1280}, height: {ideal:1280} },
-                audio: false
-            });
-            streamRef.current = stream;
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.play();
-            }
-        } catch (err) {
-            setCameraOpen(false);
-            addToast('Camera access denied or unavailable: ' + err.message, 'error');
-        }
-    };
+  const openCamera = async (mode)=>{
+    const useMode = mode || facingMode;
+    setFacingMode(useMode);
+    setCameraOpen(true);
+    // Allow DOM to render the <video> before binding stream
+    await new Promise(r => setTimeout(r, 50));
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: useMode, width: {ideal:1280}, height: {ideal:1280} },
+        audio: false
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err) {
+      setCameraOpen(false);
+      addToast('Camera access denied or unavailable: ' + err.message, 'error');
+    }
+  };
 
-    const flipCamera = async ()=>{
-        stopCamera();
-        await openCamera(facingMode === 'user' ? 'environment' : 'user');
-    };
+  const flipCamera = async ()=>{
+    stopCamera();
+    await openCamera(facingMode === 'user' ? 'environment' : 'user');
+  };
 
-    const snapPhoto = async ()=>{
-        if (!videoRef.current) return;
-        const v = videoRef.current;
-        const canvas = canvasRef.current || document.createElement('canvas');
-        canvas.width = v.videoWidth || 640;
-        canvas.height = v.videoHeight || 480;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-        const rawUrl = canvas.toDataURL('image/jpeg', 0.92);
-        stopCamera();
-        setBusy(true);
-        try {
-            const compressed = await compressImage(rawUrl, 800, 0.8);
-            setPreview(compressed);
-            onPhotoChange(compressed);
-            addToast('Photo captured! Will upload on save.', 'success');
-        } catch (e) {
-            addToast('Failed to process photo', 'error');
-        } finally {
-            setBusy(false);
-        }
-    };
+  const snapPhoto = async ()=>{
+    if (!videoRef.current) return;
+    const v = videoRef.current;
+    const canvas = canvasRef.current || document.createElement('canvas');
+    canvas.width = v.videoWidth || 640;
+    canvas.height = v.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+    const rawUrl = canvas.toDataURL('image/jpeg', 0.92);
+    stopCamera();
+    setBusy(true);
+    try {
+      const compressed = await compressImage(rawUrl, 800, 0.8);
+      setPreview(compressed);
+      onPhotoChange(compressed);
+      addToast('Photo captured! Will upload on save.', 'success');
+    } catch (e) {
+      addToast('Failed to process photo', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
 
-    const handleFile = async (e)=>{
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        if (!file.type.startsWith('image/')) {
-            addToast('Please pick an image file', 'error');
-            e.target.value = '';
-            return;
-        }
-        setBusy(true);
-        try {
-            const compressed = await compressImage(file, 800, 0.8);
-            setPreview(compressed);
-            onPhotoChange(compressed);
-            addToast('Photo loaded! Will upload on save.', 'success');
-        } catch (err) {
-            addToast('Failed to load image: ' + err.message, 'error');
-        } finally {
-            setBusy(false);
-            e.target.value = '';
-        }
-    };
+  const handleFile = async (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      addToast('Please pick an image file', 'error');
+      e.target.value = '';
+      return;
+    }
+    setBusy(true);
+    try {
+      const compressed = await compressImage(file, 800, 0.8);
+      setPreview(compressed);
+      onPhotoChange(compressed);
+      addToast('Photo loaded! Will upload on save.', 'success');
+    } catch (err) {
+      addToast('Failed to load image: ' + err.message, 'error');
+    } finally {
+      setBusy(false);
+      e.target.value = '';
+    }
+  };
 
-    // 🔑 CRITICAL: Blocks stray event after file picker closes
-    const triggerUpload = (e)=>{
-        e.preventDefault();
-        e.stopPropagation();
-        preventStrayClicks();
-        if(fileInputRef.current) fileInputRef.current.click();
-    };
+  const removePhoto = ()=>{
+    if (!confirm('Remove this photo? It will be deleted from Drive when you save.')) return;
+    setPreview(null);
+    onPhotoChange('REMOVE'); // sentinel
+  };
 
-    const removePhoto = ()=>{
-        if (!confirm('Remove this photo? It will be deleted from Drive when you save.')) return;
-        setPreview(null);
-        onPhotoChange('REMOVE');
-    };
-
-    return h('div', {className:'photo-widget'},
-        h('label', null, '📷 Patient Photo'),
-        h('div', {className:'photo-widget-body'},
-            h('div', {className:'photo-preview'},
-                preview ? h('div',{
-                    className:'photo-preview-img',
-                    style:{backgroundImage:'url('+preview+')'}
-                }) : h('div',{className:'photo-preview-empty'},
-                    h('span',{style:{fontSize:36}},'👤'),
-                    h('div',{style:{fontSize:11,color:'var(--md)',marginTop:6}},'No photo')
-                ),
-                preview && h('button',{
-                    type:'button',className:'photo-remove-btn',
-                    onClick:e=>{e.stopPropagation();removePhoto();},title:'Remove photo'
-                },'✕')
-            ),
-            h('div', {className:'photo-actions'},
-                h('button',{type:'button',className:'btn bp',onClick:e=>{e.preventDefault();e.stopPropagation();openCamera('user');},disabled:busy},
-                    '📷 Camera'),
-                h('button',{type:'button',className:'btn bs',onClick:triggerUpload,disabled:busy},
-                    '🖼️ Upload'),
-                h('input',{
-                    type:'file',accept:'image/*',ref:fileInputRef,
-                    onChange:handleFile,
-                    onClick:e=>e.stopPropagation(),
-                    style:{display:'none'}
-                }),
-                h('div',{style:{fontSize:11,color:'var(--md)',marginTop:8,lineHeight:1.45}},
-                    syncUrl
-                        ? '✅ Photo will be uploaded securely to Google Drive on save.'
-                        : '⚠ Configure Sync URL (☁️ Sync page) to enable photo upload.'
-                )
-            )
+  return h('div', {className:'photo-widget'},
+    h('label', null, '📷 Patient Photo'),
+    h('div', {className:'photo-widget-body'},
+      // Preview
+      h('div', {className:'photo-preview'},
+        preview ? h('div',{
+          className:'photo-preview-img',
+          style:{backgroundImage:'url('+preview+')'}
+        }) : h('div',{className:'photo-preview-empty'},
+          h('span',{style:{fontSize:36}},'👤'),
+          h('div',{style:{fontSize:11,color:'var(--md)',marginTop:6}},'No photo')
         ),
-        cameraOpen && h('div',{
-            className:'ov',
-            style:{zIndex:300},
-            onPointerDown:e=>{if(e.target===e.currentTarget)stopCamera();},
-            onTouchEnd:e=>{if(e.target===e.currentTarget)stopCamera();}
-        },
-        h('div',{
-            className:'modal',
-            style:{maxWidth:520,padding:0,maxHeight:'95vh'},
-            onClick:e=>e.stopPropagation(),
-            onTouchEnd:e=>e.stopPropagation()
-        },
+        preview && h('button',{
+          type:'button',className:'photo-remove-btn',
+          onClick:e=>{e.stopPropagation();removePhoto();},title:'Remove photo'
+        },'✕')
+      ),
+      // Action buttons
+      h('div', {className:'photo-actions'},
+        h('button',{type:'button',className:'btn bp',onClick:e=>{e.stopPropagation();openCamera('user');},disabled:busy},
+          '📷 Camera'),
+        h('button',{type:'button',className:'btn bs',onClick:e=>{e.stopPropagation();fileInputRef.current&&fileInputRef.current.click();},disabled:busy},
+          '🖼️ Upload'),
+        h('input',{
+          type:'file',accept:'image/*',ref:fileInputRef,
+          onChange:handleFile,
+          onClick:e=>e.stopPropagation(),
+          style:{display:'none'}
+        }),
+        h('div',{style:{fontSize:11,color:'var(--md)',marginTop:8,lineHeight:1.45}},
+          syncUrl
+            ? '✅ Photo will be uploaded securely to Google Drive on save.'
+            : '⚠ Configure Sync URL (☁️ Sync page) to enable photo upload.'
+        )
+      )
+    ),
+
+    // Camera modal
+    cameraOpen && h('div',{
+      className:'ov',
+      style:{zIndex:300},
+      onClick:e=>{if(e.target===e.currentTarget)stopCamera();}
+    },
+      h('div',{
+        className:'modal',
+        style:{maxWidth:520,padding:0,maxHeight:'95vh'},
+        onClick:e=>e.stopPropagation()
+      },
         h('div',{className:'camera-container'},
-            h('video',{ref:videoRef,playsInline:true,autoPlay:true,muted:true,
-                style:{width:'100%',height:'auto',maxHeight:'60vh',background:'#000',display:'block'}}),
-            h('canvas',{ref:canvasRef,style:{display:'none'}}),
-            h('div',{className:'camera-controls'},
-                h('button',{type:'button',className:'camera-btn',onClick:e=>{e.stopPropagation();stopCamera();},title:'Cancel'},'✕'),
-                h('button',{type:'button',className:'camera-btn-snap',onClick:e=>{e.stopPropagation();snapPhoto();},title:'Capture'},
-                    h('div',{className:'snap-inner'})
-                ),
-                h('button',{type:'button',className:'camera-btn',onClick:e=>{e.stopPropagation();flipCamera();},title:'Flip camera'},'🔄')
-            )
+          h('video',{ref:videoRef,playsInline:true,autoPlay:true,muted:true,
+            style:{width:'100%',height:'auto',maxHeight:'60vh',background:'#000',display:'block'}}),
+          h('canvas',{ref:canvasRef,style:{display:'none'}}),
+          h('div',{className:'camera-controls'},
+            h('button',{type:'button',className:'camera-btn',onClick:e=>{e.stopPropagation();stopCamera();},title:'Cancel'},'✕'),
+            h('button',{type:'button',className:'camera-btn-snap',onClick:e=>{e.stopPropagation();snapPhoto();},title:'Capture'},
+              h('div',{className:'snap-inner'})
+            ),
+            h('button',{type:'button',className:'camera-btn',onClick:e=>{e.stopPropagation();flipCamera();},title:'Flip camera'},'🔄')
+          )
         )
-        )
-        )
-    );
+      )
+    )
+  );
 }
+
 
 // ─── PATIENTS (unchanged from before) ─────────────────────────────────────────
 function PatForm({patient,onClose,onSave,syncUrl,addToast}){
