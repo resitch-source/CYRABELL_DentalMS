@@ -680,6 +680,28 @@ textarea{resize:vertical;min-height:80px}
   .rmnd-type-grid{grid-template-columns:1fr}
   .rmnd-ch-grid{grid-template-columns:1fr 1fr}
 }
+
+/* ── AUTO-SYNC STATUS BADGE ── */
+.sync-status-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 11px;border-radius:20px;
+  font-size:11px;font-weight:600;
+  white-space:nowrap;
+  flex-shrink:0;
+  transition:all .25s ease;
+}
+.sync-spin{
+  display:inline-block;
+  animation:syncSpin 1.2s linear infinite;
+}
+@keyframes syncSpin{
+  to{transform:rotate(360deg)}
+}
+@media(max-width:640px){
+  .sync-status-badge span:last-child{display:none}
+  .sync-status-badge{padding:6px 8px}
+}
+
 @media(max-width:380px){
   .rmnd-ch-grid{grid-template-columns:1fr}
 }
@@ -709,6 +731,81 @@ textarea{resize:vertical;min-height:80px}
 
 
 /* ── PATIENT PHOTO WIDGET ── */
+
+/* ── PHOTO CAPTURE — new chooser/livecam modals ── */
+.photo-chooser-ov{
+  position:fixed;inset:0;z-index:400;
+  background:rgba(26,35,50,.7);
+  display:flex;align-items:center;justify-content:center;
+  padding:14px;
+}
+.photo-chooser-modal{
+  background:#fff;border-radius:18px;
+  width:100%;max-width:420px;
+  max-height:90vh;overflow-y:auto;
+  box-shadow:0 24px 60px rgba(0,0,0,.4);
+}
+.photo-chooser-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:16px 18px;border-bottom:1px solid var(--bd);
+}
+.photo-chooser-body{padding:14px;display:flex;flex-direction:column;gap:8px}
+.photo-opt{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 14px;
+  border:1.5px solid var(--bd);border-radius:12px;
+  background:#fff;cursor:pointer;
+  font-family:inherit;text-align:left;
+  transition:all .15s;width:100%;
+}
+.photo-opt:hover{border-color:var(--t);background:var(--tp)}
+.photo-opt-icon{
+  width:44px;height:44px;border-radius:11px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;flex-shrink:0;
+}
+.photo-opt-text{flex:1;min-width:0}
+.photo-opt-title{font-weight:600;font-size:14px}
+.photo-opt-desc{font-size:11.5px;color:var(--md);margin-top:2px}
+
+.photo-livecam-ov{
+  position:fixed;inset:0;z-index:500;
+  background:rgba(0,0,0,.85);
+  display:flex;align-items:center;justify-content:center;
+  padding:0;
+}
+.photo-livecam-modal{
+  background:#000;
+  width:100%;max-width:640px;
+  max-height:100vh;
+  border-radius:0;
+  display:flex;flex-direction:column;
+}
+.photo-livecam-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 18px;background:#1a1a1a;
+}
+.photo-livecam-controls{
+  display:flex;gap:12px;justify-content:center;
+  padding:14px;background:#1a1a1a;
+}
+
+.photo-spinner{
+  width:30px;height:30px;
+  border:3px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;
+  animation:photoSpin .8s linear infinite;
+  margin:0 auto;
+}
+@keyframes photoSpin{to{transform:rotate(360deg)}}
+
+@media(min-width:641px){
+  .photo-livecam-modal{
+    border-radius:14px;
+    max-height:90vh;
+  }
+}
+
 .photo-widget{margin-bottom:14px}
 .photo-widget>label{display:block;margin-bottom:6px}
 .photo-widget-body{
@@ -1357,29 +1454,26 @@ function printDoc(content,title){
 function Field({label,children}){return h('div',{className:'fg'},h('label',null,label),children);}
 
 function Modal({title,sub,onClose,children,footer,large,xl}){
-    let maxW = 620;
-    if(large) maxW = 700;
-    if(xl) maxW = 920;
-    
-    // Safer overlay click handler for mobile
-    const handleOverlayClick = (e) => {
-        if(e.target === e.currentTarget) onClose();
-    };
-
-    return h('div',{className:'ov', onClick:handleOverlayClick, onTouchEnd:handleOverlayClick},
-        h('div',{className:'modal',style:{maxWidth:maxW}, onClick:e=>e.stopPropagation(), onTouchEnd:e=>e.stopPropagation()},
-            h('div',{className:'mdrag'}),
-            h('div',{className:'mh'},
-                h('div',{style:{flex:1,minWidth:0}},
-                    h('div',{className:'mtl'},title),
-                    sub&&h('div',{className:'msub'},sub)
-                ),
-                h('button',{className:'xcb',onClick:e=>{e.stopPropagation();onClose();}},h(Svg,{d:IC.x,size:14}))
-            ),
-            h('div',{className:'mbody'},children),
-            footer&&h('div',{className:'mfoot'},footer)
-        )
-    );
+  let maxW = 620;
+  if(large) maxW = 700;
+  if(xl) maxW = 920;
+  // Note: We deliberately do NOT close on backdrop click. Users must click ✕ or
+  // Cancel/Save explicitly. This prevents accidental data loss especially when
+  // adding photos, where browser file pickers can cause spurious click events.
+  return h('div',{className:'ov'},
+    h('div',{className:'modal',style:{maxWidth:maxW}},
+      h('div',{className:'mdrag'}),
+      h('div',{className:'mh'},
+        h('div',{style:{flex:1,minWidth:0}},
+          h('div',{className:'mtl'},title),
+          sub&&h('div',{className:'msub'},sub)
+        ),
+        h('button',{className:'xcb',onClick:onClose},h(Svg,{d:IC.x,size:14}))
+      ),
+      h('div',{className:'mbody'},children),
+      footer&&h('div',{className:'mfoot'},footer)
+    )
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2183,194 +2277,507 @@ function PatientPhoto({patient, size, syncUrl}){
   }, ini);
 }
 
-// The capture/upload widget shown inside PatForm
-// ─── 📷 PATIENT PHOTO — FIXED VERSION ────────────────────────────────────────
-function PhotoCaptureWidget({patient, photoDataUrl, onPhotoChange, syncUrl, addToast}){
-    const fileInputRef = useRef(null);
-    const videoRef = useRef(null);
-    const canvasRef = useRef(null);
-    const streamRef = useRef(null);
-    const [cameraOpen, setCameraOpen] = useState(false);
-    const [busy, setBusy] = useState(false);
-    const [preview, setPreview] = useState(null);
-    const [facingMode, setFacingMode] = useState('user'); // 'user' | 'environment'
+// ═══════════════════════════════════════════════════════════════════════════
+// 📸 PHOTO CAPTURE — Clean rewrite with comprehensive logging
+// ═══════════════════════════════════════════════════════════════════════════
 
-    // Load existing photo into preview on mount
-    useEffect(()=>{
-        if (photoDataUrl) { setPreview(photoDataUrl); return; }
-        if (patient && patient.photoFileId && syncUrl) {
-            fetchPhotoFromDrive(syncUrl, patient.photoFileId).then(url => {
-                if (url) setPreview(url);
-            });
-        }
-    }, []);
-
-    const stopCamera = ()=>{
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(t => t.stop());
-            streamRef.current = null;
-        }
-        setCameraOpen(false);
-    };
-
-    // 🔑 CRITICAL: Consumes stray clicks that fire when OS dialogs (permission/file picker) close
-    const preventStrayClicks = () => {
-        const handler = (e) => { e.stopPropagation(); e.stopImmediatePropagation(); };
-        window.addEventListener('click', handler, { capture: true, once: true });
-        window.addEventListener('mousedown', handler, { capture: true, once: true });
-        window.addEventListener('pointerdown', handler, { capture: true, once: true });
-    };
-
-    const openCamera = async (mode)=>{
-        const useMode = mode || facingMode;
-        setFacingMode(useMode);
-        preventStrayClicks(); // Blocks stray event after permission dialog closes
-        setCameraOpen(true);
-        await new Promise(r => setTimeout(r, 50)); // Wait for DOM
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: useMode, width: {ideal:1280}, height: {ideal:1280} },
-                audio: false
-            });
-            streamRef.current = stream;
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.play();
-            }
-        } catch (err) {
-            setCameraOpen(false);
-            addToast('Camera access denied or unavailable: ' + err.message, 'error');
-        }
-    };
-
-    const flipCamera = async ()=>{
-        stopCamera();
-        await openCamera(facingMode === 'user' ? 'environment' : 'user');
-    };
-
-    const snapPhoto = async ()=>{
-        if (!videoRef.current) return;
-        const v = videoRef.current;
-        const canvas = canvasRef.current || document.createElement('canvas');
-        canvas.width = v.videoWidth || 640;
-        canvas.height = v.videoHeight || 480;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-        const rawUrl = canvas.toDataURL('image/jpeg', 0.92);
-        stopCamera();
-        setBusy(true);
-        try {
-            const compressed = await compressImage(rawUrl, 800, 0.8);
-            setPreview(compressed);
-            onPhotoChange(compressed);
-            addToast('Photo captured! Will upload on save.', 'success');
-        } catch (e) {
-            addToast('Failed to process photo', 'error');
-        } finally {
-            setBusy(false);
-        }
-    };
-
-    const handleFile = async (e)=>{
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        if (!file.type.startsWith('image/')) {
-            addToast('Please pick an image file', 'error');
-            e.target.value = '';
-            return;
-        }
-        setBusy(true);
-        try {
-            const compressed = await compressImage(file, 800, 0.8);
-            setPreview(compressed);
-            onPhotoChange(compressed);
-            addToast('Photo loaded! Will upload on save.', 'success');
-        } catch (err) {
-            addToast('Failed to load image: ' + err.message, 'error');
-        } finally {
-            setBusy(false);
-            e.target.value = '';
-        }
-    };
-
-    // 🔑 CRITICAL: Blocks stray event after file picker closes
-    const triggerUpload = (e)=>{
-        e.preventDefault();
-        e.stopPropagation();
-        preventStrayClicks();
-        if(fileInputRef.current) fileInputRef.current.click();
-    };
-
-    const removePhoto = ()=>{
-        if (!confirm('Remove this photo? It will be deleted from Drive when you save.')) return;
-        setPreview(null);
-        onPhotoChange('REMOVE');
-    };
-
-    return h('div', {className:'photo-widget'},
-        h('label', null, '📷 Patient Photo'),
-        h('div', {className:'photo-widget-body'},
-            h('div', {className:'photo-preview'},
-                preview ? h('div',{
-                    className:'photo-preview-img',
-                    style:{backgroundImage:'url('+preview+')'}
-                }) : h('div',{className:'photo-preview-empty'},
-                    h('span',{style:{fontSize:36}},'👤'),
-                    h('div',{style:{fontSize:11,color:'var(--md)',marginTop:6}},'No photo')
-                ),
-                preview && h('button',{
-                    type:'button',className:'photo-remove-btn',
-                    onClick:e=>{e.stopPropagation();removePhoto();},title:'Remove photo'
-                },'✕')
-            ),
-            h('div', {className:'photo-actions'},
-                h('button',{type:'button',className:'btn bp',onClick:e=>{e.preventDefault();e.stopPropagation();openCamera('user');},disabled:busy},
-                    '📷 Camera'),
-                h('button',{type:'button',className:'btn bs',onClick:triggerUpload,disabled:busy},
-                    '🖼️ Upload'),
-                h('input',{
-                    type:'file',accept:'image/*',ref:fileInputRef,
-                    onChange:handleFile,
-                    onClick:e=>e.stopPropagation(),
-                    style:{display:'none'}
-                }),
-                h('div',{style:{fontSize:11,color:'var(--md)',marginTop:8,lineHeight:1.45}},
-                    syncUrl
-                        ? '✅ Photo will be uploaded securely to Google Drive on save.'
-                        : '⚠ Configure Sync URL (☁️ Sync page) to enable photo upload.'
-                )
-            )
-        ),
-        cameraOpen && h('div',{
-            className:'ov',
-            style:{zIndex:300},
-            onPointerDown:e=>{if(e.target===e.currentTarget)stopCamera();},
-            onTouchEnd:e=>{if(e.target===e.currentTarget)stopCamera();}
-        },
-        h('div',{
-            className:'modal',
-            style:{maxWidth:520,padding:0,maxHeight:'95vh'},
-            onClick:e=>e.stopPropagation(),
-            onTouchEnd:e=>e.stopPropagation()
-        },
-        h('div',{className:'camera-container'},
-            h('video',{ref:videoRef,playsInline:true,autoPlay:true,muted:true,
-                style:{width:'100%',height:'auto',maxHeight:'60vh',background:'#000',display:'block'}}),
-            h('canvas',{ref:canvasRef,style:{display:'none'}}),
-            h('div',{className:'camera-controls'},
-                h('button',{type:'button',className:'camera-btn',onClick:e=>{e.stopPropagation();stopCamera();},title:'Cancel'},'✕'),
-                h('button',{type:'button',className:'camera-btn-snap',onClick:e=>{e.stopPropagation();snapPhoto();},title:'Capture'},
-                    h('div',{className:'snap-inner'})
-                ),
-                h('button',{type:'button',className:'camera-btn',onClick:e=>{e.stopPropagation();flipCamera();},title:'Flip camera'},'🔄')
-            )
-        )
-        )
-        )
-    );
+// Logger helper — emits to both console and an in-memory ring buffer
+// the user can see in DevTools or via window.__photoLogs
+if (typeof window !== 'undefined') {
+  window.__photoLogs = window.__photoLogs || [];
+}
+function plog(stage, detail) {
+  const entry = {
+    t: new Date().toISOString().substr(11, 12),
+    stage: stage,
+    detail: detail
+  };
+  if (typeof window !== 'undefined') {
+    window.__photoLogs.push(entry);
+    if (window.__photoLogs.length > 200) window.__photoLogs.shift();
+  }
+  console.log('[📸 photo]', entry.t, stage, detail || '');
 }
 
-// ─── PATIENTS (unchanged from before) ─────────────────────────────────────────
+// Compress image and return as data URL
+function compressImage(source, maxDim, quality) {
+  maxDim = maxDim || 800;
+  quality = quality || 0.8;
+  plog('compress:start', { sourceType: typeof source, maxDim, quality });
+  return new Promise(function(resolve, reject){
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function(){
+      let w = img.naturalWidth, hgt = img.naturalHeight;
+      plog('compress:loaded', { w, h: hgt });
+      if (w > hgt) {
+        if (w > maxDim) { hgt = Math.round(hgt * maxDim / w); w = maxDim; }
+      } else {
+        if (hgt > maxDim) { w = Math.round(w * maxDim / hgt); hgt = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = hgt;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, hgt);
+      try {
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        plog('compress:done', { sizeKB: Math.round(dataUrl.length / 1024) });
+        resolve(dataUrl);
+      } catch (e) {
+        plog('compress:error', e.message);
+        reject(e);
+      }
+    };
+    img.onerror = function(e){
+      plog('compress:image-error', String(e));
+      reject(new Error('Failed to load image into canvas'));
+    };
+    if (typeof source === 'string') {
+      img.src = source;
+    } else {
+      const reader = new FileReader();
+      reader.onload = function(ev){
+        plog('compress:filereader-done', { sizeKB: Math.round(ev.target.result.length / 1024) });
+        img.src = ev.target.result;
+      };
+      reader.onerror = function(){
+        plog('compress:filereader-error');
+        reject(new Error('Failed to read file'));
+      };
+      reader.readAsDataURL(source);
+    }
+  });
+}
+
+// Upload a data URL to Drive via Apps Script. Returns the new fileId.
+async function uploadPhotoToDrive(syncUrl, patientId, dataUrl, oldFileId) {
+  plog('upload:start', { patientId, oldFileId, urlSet: !!syncUrl });
+  if (!syncUrl) {
+    plog('upload:no-sync-url');
+    throw new Error('Sync URL not configured. Open ☁️ Sync page first.');
+  }
+  try {
+    const res = await fetch(syncUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'uploadPhoto', patientId, dataUrl, oldFileId }),
+      redirect: 'follow'
+    });
+    const text = await res.text();
+    plog('upload:response', { status: res.status, len: text.length });
+    let data;
+    try { data = JSON.parse(text); }
+    catch (e) {
+      plog('upload:parse-error', text.substr(0, 100));
+      throw new Error('Bad response from Apps Script');
+    }
+    if (!data.ok) {
+      plog('upload:error', data.error);
+      throw new Error(data.error || 'Upload failed');
+    }
+    plog('upload:success', { fileId: data.fileId });
+    return data.fileId;
+  } catch (err) {
+    plog('upload:exception', err.message);
+    throw err;
+  }
+}
+
+async function fetchPhotoFromDrive(syncUrl, fileId) {
+  if (!syncUrl || !fileId) return null;
+  // In-memory cache
+  if (typeof window !== 'undefined') {
+    window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
+    if (window.__cyrabellPhotoCache[fileId]) return window.__cyrabellPhotoCache[fileId];
+  }
+  try {
+    const sep = syncUrl.includes('?') ? '&' : '?';
+    const res = await fetch(syncUrl + sep + 'action=getPhoto&id=' + encodeURIComponent(fileId), {
+      method: 'GET', redirect: 'follow'
+    });
+    const text = await res.text();
+    const data = JSON.parse(text);
+    if (data.ok && data.dataUrl) {
+      if (typeof window !== 'undefined') window.__cyrabellPhotoCache[fileId] = data.dataUrl;
+      return data.dataUrl;
+    }
+  } catch (e) {
+    plog('fetch:error', e.message);
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CLEAN PHOTO WIDGET
+// ═══════════════════════════════════════════════════════════════════════════
+// Behavior:
+//  - Single "📸 Add/Change Photo" button opens a chooser modal
+//  - Chooser offers: Camera (live), Take Photo (native), From Files
+//  - Photo selected → compress → preview → call onPhotoChange(dataUrl)
+//  - No event bubbling issues: chooser modal is rendered in document.body via
+//    React portal-like approach using an absolute-positioned div
+//  - All buttons are type="button"
+
+function PhotoCaptureWidget({patient, photoDataUrl, onPhotoChange, syncUrl, addToast}){
+  const [preview, setPreview] = useState(photoDataUrl || null);
+  const [showChooser, setShowChooser] = useState(false);
+  const [showLiveCam, setShowLiveCam] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState('');
+
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  // Load existing patient photo from Drive on mount
+  useEffect(() => {
+    plog('widget:mount', { hasPhotoDataUrl: !!photoDataUrl, photoFileId: patient && patient.photoFileId });
+    if (photoDataUrl) {
+      setPreview(photoDataUrl);
+      return;
+    }
+    if (patient && patient.photoFileId && syncUrl) {
+      plog('widget:fetching-existing', patient.photoFileId);
+      fetchPhotoFromDrive(syncUrl, patient.photoFileId).then(url => {
+        if (url) {
+          plog('widget:existing-loaded');
+          setPreview(url);
+        }
+      });
+    }
+    // Cleanup any active stream on unmount
+    return () => {
+      plog('widget:unmount');
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
+
+  // Process a file or data URL (compress + preview + notify parent)
+  const processImage = async (source) => {
+    plog('process:start');
+    setBusy(true);
+    setProgress('Processing image…');
+    try {
+      const compressed = await compressImage(source, 800, 0.8);
+      plog('process:setting-preview');
+      setPreview(compressed);
+      plog('process:notifying-parent');
+      onPhotoChange(compressed);
+      plog('process:done');
+      addToast('Photo ready! It will be saved when you click "Add Patient" or "Update".', 'success');
+    } catch (err) {
+      plog('process:error', err.message);
+      addToast('Failed to process photo: ' + err.message, 'error');
+    } finally {
+      setBusy(false);
+      setProgress('');
+    }
+  };
+
+  // ─── File input handler (used for both gallery and native camera) ────────
+  const handleFileSelected = (e) => {
+    plog('file:onChange', { files: e.target.files && e.target.files.length });
+    // Stop the event from doing anything else
+    if (e && e.stopPropagation) e.stopPropagation();
+
+    const file = e.target.files && e.target.files[0];
+    if (!file) {
+      plog('file:no-file');
+      return;
+    }
+    plog('file:selected', { name: file.name, type: file.type, size: file.size });
+
+    if (!file.type || !file.type.startsWith('image/')) {
+      addToast('Please choose an image file', 'error');
+      e.target.value = '';
+      return;
+    }
+
+    // Close chooser before processing
+    setShowChooser(false);
+
+    // Process asynchronously without blocking the event handler
+    processImage(file).finally(() => {
+      // Reset the input so the same file can be re-selected later
+      try { e.target.value = ''; } catch (err) {}
+    });
+  };
+
+  // ─── Live camera (getUserMedia) ──────────────────────────────────────────
+  const startLiveCamera = async () => {
+    plog('camera:start');
+    setShowChooser(false);
+    setShowLiveCam(true);
+
+    // Allow DOM to render <video> first
+    await new Promise(r => setTimeout(r, 100));
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      plog('camera:not-supported');
+      addToast('Camera API not available in this browser', 'error');
+      setShowLiveCam(false);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } },
+        audio: false
+      });
+      plog('camera:stream-acquired');
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        try {
+          await videoRef.current.play();
+          plog('camera:playing');
+        } catch (e) {
+          plog('camera:play-error', e.message);
+        }
+      }
+    } catch (err) {
+      plog('camera:error', err.message);
+      addToast('Camera access denied: ' + err.message, 'error');
+      setShowLiveCam(false);
+    }
+  };
+
+  const stopLiveCamera = () => {
+    plog('camera:stop');
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setShowLiveCam(false);
+  };
+
+  const snapPhoto = async () => {
+    plog('snap:start');
+    if (!videoRef.current) {
+      plog('snap:no-video-ref');
+      return;
+    }
+    const v = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = v.videoWidth || 640;
+    canvas.height = v.videoHeight || 480;
+    plog('snap:canvas', { w: canvas.width, h: canvas.height });
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+
+    let rawUrl;
+    try {
+      rawUrl = canvas.toDataURL('image/jpeg', 0.92);
+      plog('snap:url-ready', { sizeKB: Math.round(rawUrl.length / 1024) });
+    } catch (e) {
+      plog('snap:toDataURL-error', e.message);
+      addToast('Failed to capture image: ' + e.message, 'error');
+      return;
+    }
+
+    // Stop camera first, THEN process
+    stopLiveCamera();
+    await processImage(rawUrl);
+  };
+
+  // ─── Remove photo ────────────────────────────────────────────────────────
+  const removePhoto = () => {
+    plog('remove:start');
+    if (!confirm('Remove this photo? It will be deleted when you click Save.')) {
+      plog('remove:cancelled');
+      return;
+    }
+    plog('remove:confirmed');
+    setPreview(null);
+    onPhotoChange('REMOVE');
+    addToast('Photo will be removed when you save', 'info');
+  };
+
+  // ─── Open chooser ────────────────────────────────────────────────────────
+  const openChooser = () => {
+    plog('chooser:open');
+    setShowChooser(true);
+  };
+
+  // ─── RENDER ──────────────────────────────────────────────────────────────
+  return h('div', {className: 'photo-widget'},
+    h('label', null, 'Patient Photo'),
+
+    // Preview area
+    h('div', {className: 'photo-widget-body'},
+      h('div', {className: 'photo-preview'},
+        preview
+          ? h('div', {
+              className: 'photo-preview-img',
+              style: { backgroundImage: 'url(' + preview + ')' }
+            })
+          : h('div', {className: 'photo-preview-empty'},
+              h('span', {style: {fontSize: 36}}, '👤'),
+              h('div', {style: {fontSize: 11, color: 'var(--md)', marginTop: 6}}, 'No photo')
+            ),
+        busy && h('div', {className: 'photo-busy'},
+          h('div', {className: 'photo-spinner'}),
+          h('div', {style: {fontSize: 11, marginTop: 8}}, progress || 'Working…')
+        )
+      ),
+
+      // Actions column
+      h('div', {className: 'photo-actions'},
+        h('button', {
+          type: 'button',
+          className: 'btn bp',
+          onClick: openChooser,
+          disabled: busy
+        }, preview ? '📸 Change Photo' : '📸 Add Photo'),
+
+        preview && h('button', {
+          type: 'button',
+          className: 'btn bd2 bsm',
+          onClick: removePhoto,
+          disabled: busy
+        }, '🗑 Remove'),
+
+        h('div', {style: {fontSize: 11, color: 'var(--md)', marginTop: 8, lineHeight: 1.4}},
+          syncUrl
+            ? '✅ Photo will sync to Google Drive when you save.'
+            : '⚠ Set Sync URL in ☁️ Sync to enable Drive backup.'
+        )
+      )
+    ),
+
+    // Hidden file inputs (always rendered, never inside conditional modals)
+    h('input', {
+      ref: fileInputRef,
+      type: 'file',
+      accept: 'image/*',
+      onChange: handleFileSelected,
+      style: { display: 'none' }
+    }),
+    h('input', {
+      ref: cameraInputRef,
+      type: 'file',
+      accept: 'image/*',
+      capture: 'environment',
+      onChange: handleFileSelected,
+      style: { display: 'none' }
+    }),
+
+    // ─── Chooser modal (overlay z-index higher than parent Modal) ──────────
+    showChooser && h('div', {
+      className: 'photo-chooser-ov',
+      // No backdrop close — explicit X button only
+    },
+      h('div', {className: 'photo-chooser-modal'},
+        h('div', {className: 'photo-chooser-header'},
+          h('div', {className: 'mtl'}, '📸 Add Patient Photo'),
+          h('button', {
+            type: 'button',
+            className: 'xcb',
+            onClick: () => { plog('chooser:close'); setShowChooser(false); }
+          }, h(Svg, {d: IC.x, size: 14}))
+        ),
+        h('div', {className: 'photo-chooser-body'},
+
+          // Live Camera (uses webcam + preview)
+          h('button', {
+            type: 'button',
+            className: 'photo-opt',
+            onClick: startLiveCamera
+          },
+            h('div', {className: 'photo-opt-icon', style: {background: '#e8f5f3'}}, '🎥'),
+            h('div', {className: 'photo-opt-text'},
+              h('div', {className: 'photo-opt-title'}, 'Live Camera'),
+              h('div', {className: 'photo-opt-desc'}, 'Use webcam with preview (best on desktop)')
+            )
+          ),
+
+          // Native camera (mobile-style, file input with capture attr)
+          h('button', {
+            type: 'button',
+            className: 'photo-opt',
+            onClick: () => {
+              plog('chooser:native-camera-click');
+              if (cameraInputRef.current) {
+                cameraInputRef.current.click();
+              } else {
+                plog('chooser:no-camera-ref');
+              }
+            }
+          },
+            h('div', {className: 'photo-opt-icon', style: {background: '#e8eeff'}}, '📱'),
+            h('div', {className: 'photo-opt-text'},
+              h('div', {className: 'photo-opt-title'}, 'Device Camera'),
+              h('div', {className: 'photo-opt-desc'}, 'Opens native camera (mobile/tablet)')
+            )
+          ),
+
+          // File picker
+          h('button', {
+            type: 'button',
+            className: 'photo-opt',
+            onClick: () => {
+              plog('chooser:file-click');
+              if (fileInputRef.current) {
+                fileInputRef.current.click();
+              } else {
+                plog('chooser:no-file-ref');
+              }
+            }
+          },
+            h('div', {className: 'photo-opt-icon', style: {background: '#fff7e6'}}, '🖼'),
+            h('div', {className: 'photo-opt-text'},
+              h('div', {className: 'photo-opt-title'}, 'From Gallery / Files'),
+              h('div', {className: 'photo-opt-desc'}, 'Choose an existing image file')
+            )
+          )
+        )
+      )
+    ),
+
+    // ─── Live camera preview modal ─────────────────────────────────────────
+    showLiveCam && h('div', {className: 'photo-livecam-ov'},
+      h('div', {className: 'photo-livecam-modal'},
+        h('div', {className: 'photo-livecam-header'},
+          h('div', {style: {color: '#fff', fontWeight: 600}}, '📸 Position the patient'),
+          h('button', {
+            type: 'button',
+            className: 'xcb',
+            style: {background: 'rgba(255,255,255,.15)', borderColor: 'rgba(255,255,255,.3)', color: '#fff'},
+            onClick: stopLiveCamera
+          }, h(Svg, {d: IC.x, size: 14}))
+        ),
+        h('video', {
+          ref: videoRef,
+          autoPlay: true,
+          playsInline: true,
+          muted: true,
+          style: {width: '100%', display: 'block', maxHeight: '60vh', background: '#000', objectFit: 'cover'}
+        }),
+        h('div', {className: 'photo-livecam-controls'},
+          h('button', {
+            type: 'button',
+            className: 'btn bgh',
+            style: {background: 'rgba(255,255,255,.1)', color: '#fff', borderColor: 'rgba(255,255,255,.2)'},
+            onClick: stopLiveCamera
+          }, 'Cancel'),
+          h('button', {
+            type: 'button',
+            className: 'btn bp',
+            style: {minWidth: 140, fontSize: 14, padding: '12px 20px'},
+            onClick: snapPhoto,
+            disabled: busy
+          }, '📸 Capture')
+        )
+      )
+    )
+  );
+}
+
 function PatForm({patient,onClose,onSave,syncUrl,addToast}){
   const [f,setF]=useState(patient||{name:'',dob:'',phone:'',email:'',address:'',bloodType:'O+',allergies:'',photoFileId:''});
   const [pendingPhoto,setPendingPhoto]=useState(null); // null | dataUrl | 'REMOVE'
@@ -3128,7 +3535,7 @@ function applyDataBlob(blob, setters) {
 
 function SyncPage({patients, appointments, payments, notifications, reminders, reminderLog, setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, addToast}){
   const [url, setUrl] = useState(()=>lsGet('cyrabell_sync_url', ''));
-  const [autoSync, setAutoSync] = useState(()=>lsGet('cyrabell_auto_sync','false')==='true');
+  const [autoSync, setAutoSync] = useState(()=>lsGet('cyrabell_auto_sync','true')!=='false');
   const [lastSync, setLastSync] = useState(()=>lsGet('cyrabell_last_sync',''));
   const [busy, setBusy] = useState(null);
   const [log, setLog] = useState([]);
@@ -3727,6 +4134,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
           h('button',{className:'ham',onClick:()=>setSideOpen(o=>!o)},h(Svg,{d:IC.menu,size:18,color:'var(--md)'})),
           h('div',{className:'tt'},TITLES[page]||'Cyrabell'),
           h('div',{className:'tsr'},h(Svg,{d:IC.search,size:13,color:'var(--lt)'}),h('input',{placeholder:'Search…'})),
+          h(SyncStatusBadge),
           arrivedCount>0&&h('div',{className:'kiosk-arrived-badge',style:{fontSize:11}},'🪑 '+arrivedCount+' in clinic'),
           h('button',{className:'tbb',onClick:onLogout,title:'Log out'},h(Svg,{d:IC.logout,size:15,color:'var(--md)'})),
           h('button',{className:'tbb'},h(Svg,{d:IC.bell,size:15,color:'var(--md)'}),pending>0&&h('span',{className:'nd'}))
@@ -3753,6 +4161,294 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
 // ═══════════════════════════════════════════════════════════════════════════
 // ROOT APP (gates access)
 // ═══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔄 AUTO-SYNC — Debounced auto-push to Google Sheets on data changes
+// ═══════════════════════════════════════════════════════════════════════════
+// Status states: 'idle' | 'pending' | 'syncing' | 'synced' | 'error' | 'offline'
+
+// Global sync state (lives outside React so we can debounce across renders)
+const __autoSync = {
+  timer: null,
+  inFlight: false,
+  lastError: null,
+  listeners: [],
+  // Subscribe to sync status changes
+  subscribe(fn) {
+    this.listeners.push(fn);
+    return () => { this.listeners = this.listeners.filter(f => f !== fn); };
+  },
+  notify(status, extra) {
+    if (typeof window !== 'undefined') {
+      window.__lastSyncStatus = { status, extra, time: Date.now() };
+    }
+    this.listeners.forEach(fn => { try { fn(status, extra); } catch (e) {} });
+  }
+};
+
+function asLog(stage, detail) {
+  if (typeof window !== 'undefined') {
+    window.__autoSyncLogs = window.__autoSyncLogs || [];
+    window.__autoSyncLogs.push({ t: new Date().toISOString().substr(11, 12), stage, detail });
+    if (window.__autoSyncLogs.length > 100) window.__autoSyncLogs.shift();
+  }
+  console.log('[🔄 autosync]', stage, detail || '');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BACKGROUND WORKER: runs sync on a separate thread so UI stays responsive
+// ═══════════════════════════════════════════════════════════════════════════
+// The worker handles:
+//   • JSON serialization (can be slow for large datasets)
+//   • Network I/O (fetch + response parsing)
+//   • Retry logic on transient failures
+//
+// Communication via postMessage: { type, ... }
+// Messages FROM worker: { type: 'status'|'success'|'error', ... }
+// Messages TO worker:   { type: 'sync', syncUrl, data }
+
+const __syncWorkerSource = `
+let inFlight = false;
+let retryCount = 0;
+const MAX_RETRIES = 2;
+
+self.onmessage = async function(e) {
+  const msg = e.data;
+  if (msg.type !== 'sync') return;
+  if (inFlight) {
+    self.postMessage({ type: 'skipped', reason: 'in-flight' });
+    return;
+  }
+  inFlight = true;
+  retryCount = 0;
+  await doSync(msg.syncUrl, msg.data);
+  inFlight = false;
+};
+
+async function doSync(syncUrl, data) {
+  self.postMessage({ type: 'status', status: 'syncing' });
+  try {
+    const body = JSON.stringify({ data: data });
+    const res = await fetch(syncUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: body,
+      redirect: 'follow'
+    });
+    const text = await res.text();
+    let result;
+    try { result = JSON.parse(text); }
+    catch (e) {
+      throw new Error('Bad response (not JSON): ' + text.substring(0, 80));
+    }
+    if (!result.ok) throw new Error(result.error || 'Sync failed');
+    const totalRows = Object.values(result.stats || {}).reduce(function(a,b){return a+b;}, 0);
+    self.postMessage({
+      type: 'success',
+      rows: totalRows,
+      time: new Date().toLocaleTimeString()
+    });
+  } catch (err) {
+    // Retry transient network errors up to 2 times with backoff
+    if (retryCount < MAX_RETRIES && (err.message.indexOf('fetch') !== -1 || err.message.indexOf('network') !== -1 || err.message.indexOf('Failed') !== -1)) {
+      retryCount++;
+      self.postMessage({ type: 'status', status: 'retrying', attempt: retryCount });
+      await new Promise(function(r){ setTimeout(r, 1000 * retryCount); });
+      return doSync(syncUrl, data);
+    }
+    self.postMessage({ type: 'error', message: err.message || String(err) });
+  }
+}
+`;
+
+// Singleton worker — created lazily on first sync
+function getSyncWorker() {
+  if (__autoSync.worker) return __autoSync.worker;
+  try {
+    const blob = new Blob([__syncWorkerSource], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    const worker = new Worker(url);
+    worker.onmessage = function(e) {
+      const m = e.data;
+      if (m.type === 'status') {
+        asLog('worker:status', m.status + (m.attempt ? (' (attempt ' + m.attempt + ')') : ''));
+        __autoSync.notify(m.status, m.attempt ? ('retry ' + m.attempt) : null);
+      } else if (m.type === 'success') {
+        asLog('worker:success', { rows: m.rows });
+        __autoSync.lastError = null;
+        __autoSync.inFlight = false;
+        __autoSync.notify('synced', { rows: m.rows, time: m.time });
+        try { localStorage.setItem('cyrabell_last_sync', new Date().toLocaleString()); } catch (e) {}
+      } else if (m.type === 'error') {
+        asLog('worker:error', m.message);
+        __autoSync.lastError = m.message;
+        __autoSync.inFlight = false;
+        __autoSync.notify('error', m.message);
+      } else if (m.type === 'skipped') {
+        asLog('worker:skipped', m.reason);
+      }
+    };
+    worker.onerror = function(err) {
+      asLog('worker:fatal', err.message || String(err));
+      __autoSync.inFlight = false;
+      __autoSync.notify('error', 'Worker error: ' + (err.message || 'unknown'));
+    };
+    __autoSync.worker = worker;
+    asLog('worker:created');
+    return worker;
+  } catch (err) {
+    asLog('worker:create-failed', err.message);
+    return null;
+  }
+}
+
+// Execute auto-push by posting to the worker (returns immediately)
+function performAutoPush(syncUrl, data) {
+  if (!syncUrl) {
+    asLog('skip:no-url');
+    __autoSync.notify('offline', 'No sync URL configured');
+    return;
+  }
+  if (__autoSync.inFlight) {
+    asLog('skip:in-flight');
+    return;
+  }
+  __autoSync.inFlight = true;
+  asLog('push:dispatch', {
+    patients: data.patients.length,
+    appointments: data.appointments.length,
+    payments: data.payments.length
+  });
+
+  const worker = getSyncWorker();
+  if (!worker) {
+    // Worker unsupported — fallback to main thread fetch
+    asLog('push:fallback-main-thread');
+    return performAutoPushMain(syncUrl, data);
+  }
+  // Post the data to the worker — runs in background thread
+  worker.postMessage({ type: 'sync', syncUrl: syncUrl, data: data });
+}
+
+// Fallback when Workers aren't supported (very old browsers / file:// protocol)
+async function performAutoPushMain(syncUrl, data) {
+  __autoSync.notify('syncing');
+  try {
+    const res = await fetch(syncUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ data: data }),
+      redirect: 'follow'
+    });
+    const text = await res.text();
+    const result = JSON.parse(text);
+    if (!result.ok) throw new Error(result.error || 'Sync failed');
+    const totalRows = Object.values(result.stats || {}).reduce(function(a,b){return a+b;}, 0);
+    __autoSync.notify('synced', { rows: totalRows, time: new Date().toLocaleTimeString() });
+    try { localStorage.setItem('cyrabell_last_sync', new Date().toLocaleString()); } catch (e) {}
+  } catch (err) {
+    asLog('push:error', err.message);
+    __autoSync.lastError = err.message;
+    __autoSync.notify('error', err.message);
+  } finally {
+    __autoSync.inFlight = false;
+  }
+}
+
+// Schedule a debounced auto-push. The debounce stays on the main thread
+// (cheap timer), but the actual sync work happens in the worker.
+function scheduleAutoSync(syncUrl, data, debounceMs) {
+  if (!syncUrl) return;
+  if (__autoSync.timer) clearTimeout(__autoSync.timer);
+  __autoSync.notify('pending');
+  // Stash the latest data so we always sync the most recent version
+  __autoSync.pendingData = data;
+  __autoSync.pendingUrl = syncUrl;
+  __autoSync.timer = setTimeout(function() {
+    __autoSync.timer = null;
+    performAutoPush(__autoSync.pendingUrl, __autoSync.pendingData);
+  }, debounceMs || 2000);
+  asLog('scheduled', { ms: debounceMs || 2000 });
+}
+
+// Flush any pending sync immediately (e.g., before page unload)
+function flushPendingSync() {
+  if (__autoSync.timer && __autoSync.pendingUrl && __autoSync.pendingData) {
+    clearTimeout(__autoSync.timer);
+    __autoSync.timer = null;
+    asLog('flush:forced');
+    performAutoPush(__autoSync.pendingUrl, __autoSync.pendingData);
+  }
+}
+
+// Best-effort flush before the user closes the tab
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', function() {
+    if (__autoSync.pendingUrl && __autoSync.pendingData) {
+      try {
+        // Use sendBeacon for reliable last-chance flush (survives page unload)
+        const blob = new Blob([JSON.stringify({ data: __autoSync.pendingData })], { type: 'text/plain' });
+        navigator.sendBeacon(__autoSync.pendingUrl, blob);
+        asLog('beforeunload:beacon-sent');
+      } catch (e) {}
+    }
+  });
+
+  // Also sync when the tab regains focus, in case anything was missed
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible' && __autoSync.pendingUrl && __autoSync.pendingData && !__autoSync.inFlight) {
+      asLog('visibilitychange:resync');
+      performAutoPush(__autoSync.pendingUrl, __autoSync.pendingData);
+    }
+  });
+}
+
+// React hook to consume sync status
+function useSyncStatus() {
+  const [status, setStatus] = useState('idle');
+  const [extra, setExtra] = useState(null);
+  useEffect(() => {
+    const unsub = __autoSync.subscribe((s, e) => { setStatus(s); setExtra(e); });
+    return unsub;
+  }, []);
+  return { status, extra };
+}
+
+// Status badge component used in topbar
+function SyncStatusBadge() {
+  const { status, extra } = useSyncStatus();
+  const [autoSyncEnabled] = useState(() => {
+    try { return localStorage.getItem('cyrabell_auto_sync') !== 'false'; }
+    catch (e) { return true; }
+  });
+
+  if (!autoSyncEnabled) return null;
+
+  const cfg = {
+    idle:     { icon: '○',  label: 'Idle',        color: '#8fa8b8', bg: '#f0f4f7' },
+    pending:  { icon: '⏳', label: 'Pending…',    color: '#d97706', bg: '#fff7e6' },
+    syncing:  { icon: '↻',  label: 'Syncing…',    color: '#3a7bd5', bg: '#e8eeff' },
+    retrying: { icon: '↻',  label: 'Retrying…',   color: '#d97706', bg: '#fff7e6' },
+    synced:   { icon: '✓',  label: 'Synced',      color: '#0a7c6e', bg: '#e6f7f3' },
+    error:    { icon: '⚠',  label: 'Sync error',  color: '#e05252', bg: '#fdeaea' },
+    offline:  { icon: '⊘',  label: 'Sync off',    color: '#8fa8b8', bg: '#f0f4f7' },
+  };
+  const c = cfg[status] || cfg.idle;
+
+  return h('div', {
+    className: 'sync-status-badge',
+    style: { background: c.bg, color: c.color },
+    title: extra ? (typeof extra === 'string' ? extra : ('Last sync: ' + (extra.time || ''))) : c.label
+  },
+    h('span', {
+      className: status === 'syncing' || status === 'pending' ? 'sync-spin' : '',
+      style: { fontSize: 13, fontWeight: 700 }
+    }, c.icon),
+    h('span', { style: { fontSize: 11, fontWeight: 600 } }, c.label)
+  );
+}
+
+
 function App(){
   // 'login' | 'admin' | 'kiosk' | 'booking'
   const [view,setView]=useState('login');
@@ -3764,6 +4460,34 @@ function App(){
   const [reminders,setReminders]=useState(INIT_REMINDERS);
   const [reminderLog,setReminderLog]=useState(INIT_REMINDER_LOG);
   const [toasts,setToasts]=useState([]);
+
+  // ───── AUTO-SYNC: push to Google Sheets on every data change ─────
+  // Tracks the initial mount to avoid pushing INIT_* demo data
+  const isFirstRenderRef = useRef(true);
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      asLog('app:mounted-skip-initial-sync');
+      return;
+    }
+    // Skip if user isn't logged in (avoid syncing demo data from login screen)
+    if (!user) return;
+    let syncUrl = '';
+    try { syncUrl = localStorage.getItem('cyrabell_sync_url') || ''; } catch (e) {}
+    let autoEnabled = true;
+    try { autoEnabled = localStorage.getItem('cyrabell_auto_sync') !== 'false'; } catch (e) {}
+    if (!autoEnabled) {
+      asLog('app:auto-disabled');
+      return;
+    }
+    asLog('app:data-changed', {
+      p: patients.length, a: appointments.length, pay: payments.length,
+      n: notifications.length, r: reminders.length, rl: reminderLog.length
+    });
+    scheduleAutoSync(syncUrl, {
+      patients, appointments, payments, notifications, reminders, reminderLog
+    }, 2000);
+  }, [patients, appointments, payments, notifications, reminders, reminderLog, user]);
 
   const addToast=(msg,type)=>{
     const id=Date.now()+Math.random();
