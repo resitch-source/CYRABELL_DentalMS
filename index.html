@@ -837,6 +837,247 @@ textarea{resize:vertical;min-height:80px}
   .ai-insights-grid{grid-template-columns:1fr}
 }
 
+
+/* ── VIEW TOGGLE (Table vs Calendar) ── */
+.view-toggle{
+  display:inline-flex;background:var(--cr);
+  border-radius:9px;padding:3px;
+  border:1px solid var(--bd);
+}
+.vt-btn{
+  padding:7px 13px;border:none;background:none;
+  font-family:inherit;font-size:12.5px;font-weight:500;
+  color:var(--md);cursor:pointer;border-radius:7px;
+  transition:all .15s;
+}
+.vt-btn.act{background:#fff;color:var(--t);box-shadow:0 1px 4px rgba(0,0,0,.08);font-weight:600}
+
+/* ── SORT ICONS ── */
+.sort-icon{
+  display:inline-block;margin-left:4px;
+  font-size:11px;opacity:.5;
+  transition:opacity .15s;
+}
+.sort-icon-active{opacity:1;color:var(--t);font-weight:700}
+th:hover .sort-icon{opacity:.9}
+
+/* ── CALENDAR VIEW ── */
+.cal-wrap{
+  background:#fff;border-radius:14px;
+  border:1px solid var(--bd);
+  box-shadow:var(--sh);
+  overflow:hidden;
+}
+.cal-head{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 18px;
+  border-bottom:1px solid var(--bd);
+  background:var(--cr);
+}
+.cal-nav-btn{
+  width:34px;height:34px;border-radius:9px;
+  border:1px solid var(--bd);background:#fff;
+  font-size:18px;font-weight:700;color:var(--t);
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.cal-nav-btn:hover{background:var(--tp)}
+.cal-month-label{
+  font-family:'Playfair Display',serif;
+  font-size:18px;font-weight:700;
+  flex:0 0 auto;
+  min-width:160px;text-align:center;
+}
+.cal-weekdays{
+  display:grid;grid-template-columns:repeat(7,1fr);
+  background:var(--cr);
+  border-bottom:1px solid var(--bd);
+}
+.cal-weekday{
+  padding:9px 6px;
+  font-size:10.5px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;
+  color:var(--md);text-align:center;
+}
+.cal-grid{
+  display:grid;grid-template-columns:repeat(7,1fr);
+}
+.cal-cell{
+  position:relative;
+  min-height:90px;
+  padding:6px 5px;
+  border-right:1px solid var(--bd);
+  border-bottom:1px solid var(--bd);
+  background:#fff;
+  display:flex;flex-direction:column;
+  cursor:default;
+  overflow:hidden;
+}
+.cal-cell:nth-child(7n){border-right:none}
+.cal-cell.cal-blank{background:var(--cr);opacity:0.4}
+.cal-cell.cal-hasappts{cursor:pointer;transition:background .15s}
+.cal-cell.cal-hasappts:hover{background:var(--tp)}
+.cal-cell.cal-today{
+  background:#fff7e6;
+}
+.cal-cell.cal-today.cal-hasappts:hover{background:#ffefcc}
+.cal-day-num{
+  font-size:12.5px;font-weight:600;
+  margin-bottom:3px;color:var(--dk);
+}
+.cal-today .cal-day-num{
+  color:#fff;background:var(--t);
+  width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;
+}
+.cal-appt-list{
+  display:flex;flex-direction:column;gap:2px;
+  font-size:10px;
+}
+.cal-appt-pill{
+  padding:2px 5px;
+  border-radius:4px;
+  font-size:9.5px;font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  line-height:1.3;
+}
+.cal-appt-confirmed{background:#e6f7f3;color:#0a5f54;border-left:2px solid var(--gr)}
+.cal-appt-pending{background:#fff7e6;color:#92400e;border-left:2px solid #d97706}
+.cal-appt-cancelled{background:#fdeaea;color:var(--re);border-left:2px solid var(--re);text-decoration:line-through;opacity:.6}
+.cal-appt-completed{background:#e8eeff;color:#1e40af;border-left:2px solid var(--bl)}
+.cal-appt-arrived{background:linear-gradient(90deg,#fff7e6,#fef3c7);color:#92400e;border-left:2px solid #f59e0b;font-weight:600}
+.cal-appt-more{
+  font-size:9.5px;color:var(--md);
+  font-weight:600;padding:1px 5px;
+}
+.cal-cell-summary{
+  display:flex;gap:3px;
+  position:absolute;top:7px;right:5px;
+}
+.cal-dot{
+  width:6px;height:6px;border-radius:50%;
+  display:inline-block;
+}
+.cal-dot-pending{background:#d97706}
+.cal-dot-arrived{background:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,.3)}
+.cal-legend{
+  display:flex;flex-wrap:wrap;gap:14px;
+  padding:11px 18px;
+  border-top:1px solid var(--bd);
+  background:var(--cr);
+  font-size:11px;color:var(--md);
+}
+.cal-legend > span{display:inline-flex;align-items:center;gap:5px}
+.cal-swatch{
+  display:inline-block;width:12px;height:8px;
+  border-radius:2px;
+}
+
+/* ── DAY DETAIL MODAL ITEM ── */
+.day-detail-item{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 13px;
+  background:#fff;border:1px solid var(--bd);
+  border-radius:11px;
+}
+.day-detail-time{
+  font-family:'Playfair Display',serif;
+  font-size:15px;font-weight:700;
+  color:var(--t);
+  min-width:80px;
+}
+
+@media(max-width:640px){
+  .cal-cell{min-height:60px;padding:4px 3px}
+  .cal-day-num{font-size:11px}
+  .cal-today .cal-day-num{width:18px;height:18px;font-size:10px}
+  .cal-appt-pill{font-size:8.5px;padding:1px 3px}
+  .cal-appt-more{font-size:8.5px}
+  .cal-weekday{font-size:9px;padding:6px 3px}
+  .cal-head{padding:10px 12px}
+  .cal-month-label{font-size:15px;min-width:auto}
+  .view-toggle{order:-1;flex:1}
+  .vt-btn{flex:1;padding:7px 10px;font-size:11.5px}
+  .day-detail-time{min-width:60px;font-size:13px}
+}
+
+
+/* ── AVAILABILITY-AWARE TIME SLOTS ── */
+.tsg{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:6px}
+.tsl{
+  padding:9px 4px;border-radius:8px;
+  border:1.5px solid var(--bd);background:#fff;
+  cursor:pointer;font-size:12px;
+  text-align:center;font-family:inherit;
+  color:var(--dk);transition:all .15s;
+  display:flex;flex-direction:column;gap:2px;
+  align-items:center;justify-content:center;
+  min-height:42px;
+}
+.tsl:hover:not(:disabled){border-color:var(--t);background:var(--tp)}
+.tsl.sel{background:var(--t);color:#fff;border-color:var(--t);font-weight:700}
+.tsl.sel .tsl-mark{color:rgba(255,255,255,.85)}
+.tsl-mark{font-size:9px;font-weight:600;opacity:.85}
+.tsl-ok{color:var(--gr)}
+
+/* Slot states */
+.tsl-available{}
+.tsl-booked{
+  background:#fdeaea;border-color:#fcc;
+  color:#991b1b;cursor:not-allowed;opacity:.75;
+}
+.tsl-booked:hover{background:#fdeaea;border-color:#fcc}
+.tsl-overlap{
+  background:#fff7e6;border-color:#fcd34d;
+  color:#92400e;cursor:not-allowed;opacity:.8;
+}
+.tsl-past{
+  background:var(--cr);border-color:var(--bd);
+  color:var(--lt);cursor:not-allowed;
+  text-decoration:line-through;text-decoration-thickness:1.5px;
+}
+.tsl-closed{
+  background:#f5f5f5;border-color:#e5e5e5;
+  color:var(--lt);cursor:not-allowed;
+}
+.tsl:disabled{pointer-events:none}
+
+/* ── AVAILABILITY BANNER ── */
+.avail-banner{
+  padding:10px 13px;border-radius:9px;
+  border:1px solid var(--bd);
+  margin:8px 0 4px;
+  display:flex;flex-direction:column;
+}
+.avail-info{background:var(--cr);border-color:var(--bd);color:var(--md);font-size:12.5px}
+.avail-ok{background:#e6f7f3;border-color:#86efac;color:#0a5f54}
+.avail-warn{background:#fff7e6;border-color:#fcd34d;color:#92400e}
+.avail-error{background:#fdeaea;border-color:#fcc;color:#991b1b}
+
+/* ── AI SUGGESTED SLOTS in form ── */
+.avail-suggest{
+  background:linear-gradient(135deg,#f0f9ff,#e0f2fe);
+  border:1px solid #bae6fd;border-radius:11px;
+  padding:11px 13px;margin:8px 0;
+}
+.avail-suggest-title{font-size:12px;font-weight:600;color:#0c4a6e;margin-bottom:7px}
+.avail-suggest-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.avail-suggest-btn{
+  border:1px solid #bae6fd;background:#fff;
+  border-radius:8px;padding:7px 9px;cursor:pointer;
+  font-family:inherit;text-align:left;
+  transition:all .15s;
+}
+.avail-suggest-btn:hover{border-color:#0284c7;background:#f0f9ff;transform:translateY(-1px)}
+
+@media(max-width:640px){
+  .avail-suggest-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:380px){
+  .avail-suggest-grid{grid-template-columns:1fr}
+}
+
 @media(max-width:380px){
   .rmnd-ch-grid{grid-template-columns:1fr}
 }
@@ -2720,7 +2961,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
                     h('tbody',null,todayAppts.map(a=>h('tr',{key:a.id},
                       h('td',null,h('strong',null,a.patientName)),
                       h('td',null,a.service),
-                      h('td',{style:{whiteSpace:'nowrap'}},a.time),
+                      h('td',{style:{whiteSpace:'nowrap'}},fmtTime(a.time)),
                       h('td',null,
                         a.arrived
                           ? h('span',{className:'kiosk-arrived-badge'},'✓ In Clinic')
@@ -2734,7 +2975,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
                     h('div',null,h('div',{className:'mc-nm'},a.patientName),h('div',{className:'mc-sb'},a.service)),
                     a.arrived?h('span',{className:'kiosk-arrived-badge'},'✓ In Clinic'):h(SBadge,{status:a.status})
                   ),
-                  h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Time'),h('span',{className:'mc-val'},a.time))
+                  h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Time'),h('span',{className:'mc-val'},fmtTime(a.time)))
                 )))
               )
         )
@@ -2746,7 +2987,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
             h('div',{className:'tld',style:{background:a.arrived?'#f59e0b':a.status==='confirmed'?'var(--gr)':a.status==='pending'?'var(--go)':a.status==='completed'?'var(--bl)':'var(--re)'}}),
             h('div',null,
               h('div',{className:'tlt'},a.patientName + (a.arrived?' 🪑':'')),
-              h('div',{className:'tls'},a.service+' · '+a.date)
+              h('div',{className:'tls'},a.service+' · '+fmtDateWithDay(a.date))
             )
           )))
         )
@@ -2757,29 +2998,164 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
 }
 
 // ─── APPOINTMENTS (with arrived indicator) ────────────────────────────────────
-function ApptForm({patients,onClose,onSave}){
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📅 DATE / TIME FORMATTING HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Parse "YYYY-MM-DD" safely as a LOCAL date (avoids timezone shift)
+function parseLocalDate(s) {
+  if (!s) return null;
+  if (s instanceof Date) return s;
+  const parts = String(s).split('-');
+  if (parts.length !== 3) {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// "May 22, 2026"
+function fmtDateLong(s) {
+  const d = parseLocalDate(s);
+  if (!d) return s || '';
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// "May 22"
+function fmtDateShort(s) {
+  const d = parseLocalDate(s);
+  if (!d) return s || '';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// "Fri, May 22"
+function fmtDateWithDay(s) {
+  const d = parseLocalDate(s);
+  if (!d) return s || '';
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+// "Friday, May 22, 2026"
+function fmtDateFull(s) {
+  const d = parseLocalDate(s);
+  if (!d) return s || '';
+  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+// "9:00 AM" from "09:00"
+function fmtTime(s) {
+  if (!s) return '';
+  const parts = String(s).split(':');
+  if (parts.length < 2) return s;
+  let h = +parts[0];
+  const m = parts[1];
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return h + ':' + m + ' ' + ampm;
+}
+
+// "Today" / "Tomorrow" / "Yesterday" / "Fri, May 22"
+function fmtDateRelative(s) {
+  const d = parseLocalDate(s);
+  if (!d) return s || '';
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const target = new Date(d);
+  target.setHours(0,0,0,0);
+  const diffDays = Math.round((target - today) / 86400000);
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Tomorrow';
+  if (diffDays === -1) return 'Yesterday';
+  if (diffDays > 1 && diffDays < 7) {
+    return 'In ' + diffDays + ' days · ' + d.toLocaleDateString('en-US', { weekday: 'short' });
+  }
+  if (diffDays < 0 && diffDays > -7) {
+    return Math.abs(diffDays) + ' days ago';
+  }
+  return fmtDateWithDay(s);
+}
+
+// Combined sortable timestamp from "YYYY-MM-DD" + "HH:MM"
+function dateTimeValue(date, time) {
+  const d = parseLocalDate(date);
+  if (!d) return 0;
+  if (time) {
+    const [hh, mm] = String(time).split(':');
+    d.setHours(+hh || 0, +mm || 0, 0, 0);
+  }
+  return d.getTime();
+}
+
+function ApptForm({patients,appointments,onClose,onSave}){
   const [f,setF]=useState({patientId:'',patientName:'',service:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:'',fee:'',phone:'',email:''});
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
   const hp=id=>{const p=patients.find(x=>x.id===id);s('patientId',id);s('patientName',p?p.name:'');s('phone',p?p.phone:'');s('email',p?p.email:'');};
   const hsv=n=>{const sv=SVCS.find(x=>x.name===n);s('service',n);if(sv)s('fee',sv.fee);};
-  const ok=f.patientId&&f.service&&f.date;
-  return h(Modal,{title:'Book Appointment',sub:'Schedule a new dental visit',onClose,
-    footer:h(Fragment,null,h('button',{className:'btn bgh',onClick:onClose},'Cancel'),h('button',{className:'btn bp',onClick:()=>ok&&onSave(f),disabled:!ok},'Book'))},
+
+  // ── Availability check ──
+  const check = (f.date && f.time && f.service)
+    ? checkAvailability(appointments || [], f.date, f.time, f.service)
+    : null;
+  const isAvailable = !check || check.available;
+  const ok = f.patientId && f.service && f.date && f.time && isAvailable;
+
+  // AI suggestions for empty/conflicted state
+  const showSuggestions = f.service && f.date && check && !check.available;
+  const suggestions = showSuggestions
+    ? aiSuggestSlots(appointments || [], f.service, f.date, 7).slice(0, 4)
+    : [];
+
+  return h(Modal,{title:'Book Appointment',sub:'Schedule a new dental visit',onClose,large:true,
+    footer:h(Fragment,null,
+      h('button',{className:'btn bgh',onClick:onClose},'Cancel'),
+      h('button',{className:'btn bp',onClick:()=>ok&&onSave(f),disabled:!ok,title:!ok&&check?check.message:''},'Book')
+    )},
     h(Field,{label:'Patient *'},h('select',{value:f.patientId,onChange:e=>hp(e.target.value)},h('option',{value:''},'Select patient…'),patients.map(p=>h('option',{key:p.id,value:p.id},p.name)))),
     h('div',{className:'fg2'},
-      h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>hsv(e.target.value)},h('option',{value:''},'Select…'),SVCS.map(sv=>h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee))))),
+      h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>hsv(e.target.value)},h('option',{value:''},'Select…'),SVCS.map(sv=>h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)+' · '+(SERVICE_DURATIONS[sv.name]||DEFAULT_SLOT_MIN)+' min')))),
       h(Field,{label:'Fee (₱)'},h('input',{type:'number',value:f.fee,onChange:e=>s('fee',+e.target.value)}))
     ),
     h('div',{className:'fg2'},
       h(Field,{label:'Date *'},h('input',{type:'date',value:f.date,onChange:e=>s('date',e.target.value),min:new Date().toISOString().split('T')[0]})),
       h(Field,{label:'Dentist'},h('select',{value:f.dentist,onChange:e=>s('dentist',e.target.value)},DENTISTS.map(d=>h('option',{key:d},d))))
     ),
-    h(Field,{label:'Time'},h('div',{className:'tsg'},TIMES.map(t=>h('button',{key:t,className:'tsl'+(f.time===t?' sel':''),onClick:()=>s('time',t),type:'button'},t)))),
+    h(Field,{label:'Time'+(f.service?' · '+(SERVICE_DURATIONS[f.service]||DEFAULT_SLOT_MIN)+' min slot':'')},
+      h(TimeSlotGrid,{
+        appointments: appointments || [],
+        selectedDate: f.date,
+        selectedService: f.service,
+        selectedTime: f.time,
+        onTimeChange: (t) => s('time', t)
+      })
+    ),
+    // Availability banner
+    f.date && f.time && f.service && h(AvailabilityBanner, {
+      appointments: appointments || [],
+      date: f.date, time: f.time, service: f.service
+    }),
+    // AI suggestions when conflict
+    showSuggestions && suggestions.length > 0 && h('div', {className: 'avail-suggest'},
+      h('div', {className: 'avail-suggest-title'}, '🤖 Try one of these available slots:'),
+      h('div', {className: 'avail-suggest-grid'},
+        suggestions.map((sg, i) => h('button', {
+          key: i,
+          type: 'button',
+          className: 'avail-suggest-btn',
+          onClick: () => { s('date', sg.date); s('time', sg.time); }
+        },
+          h('div', {style: {fontWeight: 600, fontSize: 12}}, fmtDateWithDay(sg.date)),
+          h('div', {style: {fontSize: 11, color: 'var(--md)'}}, fmtTime(sg.time))
+        ))
+      )
+    ),
     h(Field,{label:'Notes'},h('textarea',{value:f.notes,onChange:e=>s('notes',e.target.value),placeholder:'Notes or concerns…'}))
   );
 }
 function ApptDetail({a,onClose}){
-  const rows=[['Patient',a.patientName],['Service',a.service],['Dentist',a.dentist],['Date',a.date],['Time',a.time],['Fee','₱'+p$(a.fee)],['Phone',a.phone||'—'],['Email',a.email||'—'],['Notes',a.notes||'—']];
+  const rows=[['Patient',a.patientName],['Service',a.service],['Dentist',a.dentist],['Date',fmtDateFull(a.date)],['Time',fmtTime(a.time)],['When',fmtDateRelative(a.date)],['Fee','₱'+p$(a.fee)],['Phone',a.phone||'—'],['Email',a.email||'—'],['Notes',a.notes||'—']];
   return h(Modal,{title:'Appointment Details',sub:'#'+a.id,onClose,footer:h('button',{className:'btn bgh',onClick:onClose},'Close')},
     h('div',{className:'ig'},
       rows.map(([l,v])=>h('div',{key:l},h('div',{className:'ilb'},l),h('div',{className:'ivl'},v))),
@@ -2790,76 +3166,456 @@ function ApptDetail({a,onClose}){
     )
   );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ✅ APPOINTMENT AVAILABILITY CHECKER
+// ═══════════════════════════════════════════════════════════════════════════
+// Given existing appointments + a desired date/time/service, returns:
+//   { available: bool, conflicts: [...], reason: 'past'|'booked'|'overlapping'|'' }
+
+// Default slot duration (45 min) when service isn't in SERVICE_DURATIONS
+const DEFAULT_SLOT_MIN = 45;
+
+// Convert "HH:MM" to minutes since midnight
+function timeToMinutes(t) {
+  if (!t) return 0;
+  const [h, m] = String(t).split(':');
+  return (+h || 0) * 60 + (+m || 0);
+}
+
+// Check if two intervals [a1, a2) and [b1, b2) overlap
+function intervalsOverlap(a1, a2, b1, b2) {
+  return a1 < b2 && b1 < a2;
+}
+
+// Returns active (non-cancelled, non-completed) appointments on a given date
+function appointmentsOnDate(appointments, date, excludeId) {
+  if (!date) return [];
+  return appointments.filter(a =>
+    a.date === date &&
+    a.id !== excludeId &&
+    a.status !== 'cancelled' &&
+    a.status !== 'completed'
+  );
+}
+
+// Check if (date, time, service) is available
+// Returns: { available, conflicts, reason, message }
+function checkAvailability(appointments, date, time, service, excludeId) {
+  if (!date || !time) {
+    return { available: false, conflicts: [], reason: 'incomplete', message: 'Pick date and time' };
+  }
+
+  // Check past time
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  if (date < todayStr) {
+    return { available: false, conflicts: [], reason: 'past', message: '⏱ Date is in the past' };
+  }
+  if (date === todayStr) {
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const slotMin = timeToMinutes(time);
+    if (slotMin <= nowMin) {
+      return { available: false, conflicts: [], reason: 'past', message: '⏱ Time has already passed today' };
+    }
+  }
+
+  // Check Sunday (clinic closed)
+  const d = parseLocalDate(date);
+  if (d && d.getDay() === 0) {
+    return { available: false, conflicts: [], reason: 'closed', message: '🏥 Clinic closed on Sundays' };
+  }
+
+  // Check overlap with existing appointments
+  const duration = SERVICE_DURATIONS[service] || DEFAULT_SLOT_MIN;
+  const start = timeToMinutes(time);
+  const end = start + duration;
+
+  const onDate = appointmentsOnDate(appointments, date, excludeId);
+  const conflicts = onDate.filter(a => {
+    const aStart = timeToMinutes(a.time);
+    const aEnd = aStart + (SERVICE_DURATIONS[a.service] || DEFAULT_SLOT_MIN);
+    return intervalsOverlap(start, end, aStart, aEnd);
+  });
+
+  if (conflicts.length > 0) {
+    const c = conflicts[0];
+    return {
+      available: false,
+      conflicts: conflicts,
+      reason: conflicts[0].time === time ? 'booked' : 'overlapping',
+      message: conflicts[0].time === time
+        ? '❌ Already booked: ' + c.patientName + ' (' + c.service + ')'
+        : '⚠ Overlaps with ' + c.patientName + ' at ' + fmtTime(c.time) + ' (' + c.service + ', needs ' + (SERVICE_DURATIONS[c.service]||DEFAULT_SLOT_MIN) + ' min)'
+    };
+  }
+
+  return { available: true, conflicts: [], reason: '', message: '✅ Available' };
+}
+
+// Returns status for EVERY time slot on a given date
+// Result: { '09:00': 'available'|'booked'|'overlap'|'past'|'closed', ... }
+function slotStatusForDate(appointments, date, service, excludeId) {
+  const result = {};
+  TIMES.forEach(t => {
+    const check = checkAvailability(appointments, date, t, service, excludeId);
+    if (check.available) {
+      result[t] = { status: 'available', label: 'Available' };
+    } else {
+      // Map reason to slot status
+      const map = {
+        past: 'past',
+        closed: 'closed',
+        booked: 'booked',
+        overlapping: 'overlap',
+        incomplete: 'available'
+      };
+      result[t] = {
+        status: map[check.reason] || 'unavailable',
+        label: check.message,
+        conflicts: check.conflicts
+      };
+    }
+  });
+  return result;
+}
+
+// Component: Renders a TimeSlot grid with availability awareness
+// Props: appointments, selectedDate, selectedService, selectedTime, onTimeChange, excludeId?
+function TimeSlotGrid({appointments, selectedDate, selectedService, selectedTime, onTimeChange, excludeId}) {
+  const statuses = selectedDate
+    ? slotStatusForDate(appointments, selectedDate, selectedService, excludeId)
+    : {};
+
+  return h('div', {className: 'tsg'},
+    TIMES.map(t => {
+      const slot = statuses[t] || { status: 'available' };
+      const isSelected = selectedTime === t;
+      const disabled = ['booked','past','closed','overlap','unavailable'].includes(slot.status);
+      return h('button', {
+        key: t,
+        type: 'button',
+        className: 'tsl tsl-' + slot.status + (isSelected ? ' sel' : ''),
+        onClick: () => onTimeChange(t),
+        disabled: disabled && !isSelected,
+        title: slot.label || ''
+      },
+        h('div', {style: {fontSize: 13, fontWeight: isSelected ? 700 : 500}}, fmtTime(t)),
+        slot.status === 'booked' && h('div', {className: 'tsl-mark'}, '🔒 Booked'),
+        slot.status === 'overlap' && h('div', {className: 'tsl-mark'}, '⚠ Overlap'),
+        slot.status === 'past' && h('div', {className: 'tsl-mark'}, '⏱ Past'),
+        slot.status === 'closed' && h('div', {className: 'tsl-mark'}, '🏥 Closed'),
+        slot.status === 'available' && !isSelected && h('div', {className: 'tsl-mark tsl-ok'}, '✓ Open')
+      );
+    })
+  );
+}
+
+// Component: Availability summary banner (live as user picks date/time)
+function AvailabilityBanner({appointments, date, time, service, excludeId}) {
+  if (!date || !time) {
+    return h('div', {className: 'avail-banner avail-info'},
+      h('span', null, '📅 Pick a date and time to check availability')
+    );
+  }
+  const check = checkAvailability(appointments, date, time, service, excludeId);
+  const cls = check.available ? 'avail-ok' : check.reason === 'past' || check.reason === 'closed' ? 'avail-warn' : 'avail-error';
+  const duration = SERVICE_DURATIONS[service] || DEFAULT_SLOT_MIN;
+  return h('div', {className: 'avail-banner ' + cls},
+    h('div', {style: {fontWeight: 600, fontSize: 13}}, check.message),
+    check.available && h('div', {style: {fontSize: 11.5, color: 'var(--md)', marginTop: 3}},
+      fmtDateFull(date) + ' · ' + fmtTime(time) + ' · ' + duration + ' min slot'
+    ),
+    check.conflicts && check.conflicts.length > 1 && h('div', {style: {fontSize: 11, marginTop: 4, color: 'var(--md)'}},
+      '+ ' + (check.conflicts.length - 1) + ' more conflict(s) on this day'
+    )
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📅 APPOINTMENT CALENDAR — Month grid view
+// ═══════════════════════════════════════════════════════════════════════════
+function AppointmentCalendar({appointments, onDayClick}){
+  const [viewMonth, setViewMonth] = useState(()=>{
+    const t = new Date();
+    return new Date(t.getFullYear(), t.getMonth(), 1);
+  });
+
+  // Build month grid (Sun..Sat × 6 weeks max)
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startWeekday = firstDay.getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Group appointments by date string
+  const byDate = {};
+  appointments.forEach(a => {
+    if (!a.date || a.status === 'cancelled') return;
+    if (!byDate[a.date]) byDate[a.date] = [];
+    byDate[a.date].push(a);
+  });
+
+  const cells = [];
+  // Leading blanks
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  // Days
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = year + '-' + String(month+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    cells.push({ day: d, dateStr, appts: byDate[dateStr] || [] });
+  }
+  // Trailing blanks to complete week
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const monthLabel = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const prevMonth = ()=> setViewMonth(new Date(year, month-1, 1));
+  const nextMonth = ()=> setViewMonth(new Date(year, month+1, 1));
+  const goToday = ()=> {
+    const t = new Date();
+    setViewMonth(new Date(t.getFullYear(), t.getMonth(), 1));
+  };
+
+  return h('div', {className: 'cal-wrap'},
+    // Header
+    h('div', {className: 'cal-head'},
+      h('button', {type: 'button', className: 'cal-nav-btn', onClick: prevMonth, title: 'Previous month'}, '‹'),
+      h('div', {className: 'cal-month-label'}, monthLabel),
+      h('button', {type: 'button', className: 'cal-nav-btn', onClick: nextMonth, title: 'Next month'}, '›'),
+      h('button', {type: 'button', className: 'btn bgh bsm', onClick: goToday, style: {marginLeft: 'auto'}}, 'Today')
+    ),
+    // Weekday header
+    h('div', {className: 'cal-weekdays'},
+      ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d =>
+        h('div', {key: d, className: 'cal-weekday'}, d)
+      )
+    ),
+    // Day cells
+    h('div', {className: 'cal-grid'},
+      cells.map((c, i) => {
+        if (!c) return h('div', {key: i, className: 'cal-cell cal-blank'});
+        const isToday = c.dateStr === todayStr;
+        const hasAppts = c.appts.length > 0;
+        const arrivedCount = c.appts.filter(a => a.arrived).length;
+        const pendingCount = c.appts.filter(a => a.status === 'pending').length;
+        return h('div', {
+            key: i,
+            className: 'cal-cell' + (isToday ? ' cal-today' : '') + (hasAppts ? ' cal-hasappts' : ''),
+            onClick: hasAppts ? ()=>onDayClick(c.dateStr, c.appts) : null,
+            title: hasAppts ? c.appts.length + ' appointment(s)' : ''
+          },
+          h('div', {className: 'cal-day-num'}, c.day),
+          hasAppts && h('div', {className: 'cal-appt-list'},
+            c.appts.slice(0, 3).map((a, j) =>
+              h('div', {
+                key: j,
+                className: 'cal-appt-pill cal-appt-' + (a.arrived ? 'arrived' : a.status)
+              },
+                fmtTime(a.time) + ' ' + (a.patientName.split(' ')[0])
+              )
+            ),
+            c.appts.length > 3 && h('div', {className: 'cal-appt-more'}, '+' + (c.appts.length - 3) + ' more')
+          ),
+          hasAppts && h('div', {className: 'cal-cell-summary'},
+            pendingCount > 0 && h('span', {className: 'cal-dot cal-dot-pending', title: pendingCount + ' pending'}),
+            arrivedCount > 0 && h('span', {className: 'cal-dot cal-dot-arrived', title: arrivedCount + ' arrived'})
+          )
+        );
+      })
+    ),
+    // Legend
+    h('div', {className: 'cal-legend'},
+      h('span', null, h('span', {className: 'cal-swatch cal-appt-confirmed'}), 'Confirmed'),
+      h('span', null, h('span', {className: 'cal-swatch cal-appt-pending'}), 'Pending'),
+      h('span', null, h('span', {className: 'cal-swatch cal-appt-completed'}), 'Completed'),
+      h('span', null, h('span', {className: 'cal-swatch cal-appt-arrived'}), 'Arrived')
+    )
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📋 APPOINTMENTS PAGE — sortable table + calendar view toggle
+// ═══════════════════════════════════════════════════════════════════════════
 function Appointments({appointments,setAppointments,patients,setNotifications,addToast}){
   const [filter,setFilter]=useState('all');
   const [search,setSearch]=useState('');
   const [modal,setModal]=useState(false);
   const [detail,setDetail]=useState(null);
+  const [viewMode,setViewMode]=useState('table'); // 'table' | 'calendar'
+  // sortBy: 'patient' | 'service' | 'datetime' | 'fee' | 'status'
+  // sortDir: 'asc' | 'desc'
+  const [sortBy,setSortBy]=useState('datetime');
+  const [sortDir,setSortDir]=useState('desc');
+  // Day-detail modal (when clicking a calendar day)
+  const [dayDetail,setDayDetail]=useState(null);
+
   const STATUSES=['all','pending','confirmed','completed','cancelled','arrived'];
-  const filtered=appointments.filter(a=>{
+
+  // ── FILTER ──
+  let filtered=appointments.filter(a=>{
     if(filter==='arrived')return a.arrived;
     return filter==='all'||a.status===filter;
-  }).filter(a=>!search||a.patientName.toLowerCase().includes(search.toLowerCase())||a.service.toLowerCase().includes(search.toLowerCase()));
+  }).filter(a=>!search||
+    a.patientName.toLowerCase().includes(search.toLowerCase())||
+    a.service.toLowerCase().includes(search.toLowerCase()));
+
+  // ── SORT ──
+  const sortFns = {
+    patient:  (a,b)=> (a.patientName||'').localeCompare(b.patientName||''),
+    service:  (a,b)=> (a.service||'').localeCompare(b.service||''),
+    datetime: (a,b)=> dateTimeValue(a.date,a.time) - dateTimeValue(b.date,b.time),
+    fee:      (a,b)=> (+a.fee||0) - (+b.fee||0),
+    status:   (a,b)=> (a.status||'').localeCompare(b.status||''),
+  };
+  filtered = [...filtered].sort((a,b)=>{
+    const cmp = (sortFns[sortBy] || sortFns.datetime)(a,b);
+    return sortDir==='asc' ? cmp : -cmp;
+  });
+
+  const toggleSort = (col)=>{
+    if (sortBy === col) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(col);
+      setSortDir('asc');
+    }
+  };
+
+  const sortIcon = (col)=>{
+    if (sortBy !== col) return h('span', {className: 'sort-icon sort-icon-idle'}, '⇅');
+    return h('span', {className: 'sort-icon sort-icon-active'}, sortDir === 'asc' ? '↑' : '↓');
+  };
+
   const action=(id,status)=>{
     const a=appointments.find(x=>x.id===id);
     setAppointments(prev=>prev.map(x=>x.id===id?{...x,status}:x));
     const msgs={confirmed:'Confirmed! Auto-SMS sent.',completed:'Marked complete.',cancelled:'Appointment cancelled.'};
     addToast(msgs[status]||'Updated.',status==='cancelled'?'error':'success');
     if(status==='confirmed'&&a){
-      setNotifications(prev=>[{id:'N'+uid(),type:'sms',recipient:a.patientName,phone:a.phone||'—',email:a.email||'—',message:'Hi '+a.patientName+'! Your '+a.service+' on '+a.date+' at '+a.time+' is CONFIRMED. See you at Cyrabell Dental! 🦷',sentAt:new Date().toLocaleString(),status:'sent'},...prev]);
+      setNotifications(prev=>[{id:'N'+uid(),type:'sms',recipient:a.patientName,phone:a.phone||'—',email:a.email||'—',message:'Hi '+a.patientName+'! Your '+a.service+' on '+fmtDateLong(a.date)+' at '+fmtTime(a.time)+' is CONFIRMED. See you at Cyrabell Dental! 🦷',sentAt:new Date().toLocaleString(),status:'sent'},...prev]);
     }
   };
+
   return h('div',null,
     h('div',{className:'ph'},
       h('div',null,h('div',{className:'ptl'},'Appointments'),h('div',{className:'psl'},'Manage and confirm patient visits')),
-      h('div',{className:'ph-act'},h('button',{className:'btn bp',onClick:()=>setModal(true)},h(Svg,{d:IC.plus,size:14}),' New'))
+      h('div',{className:'ph-act'},
+        // View toggle
+        h('div',{className:'view-toggle'},
+          h('button',{className:'vt-btn'+(viewMode==='table'?' act':''),onClick:()=>setViewMode('table')},'📋 Table'),
+          h('button',{className:'vt-btn'+(viewMode==='calendar'?' act':''),onClick:()=>setViewMode('calendar')},'📅 Calendar')
+        ),
+        h('button',{className:'btn bp',onClick:()=>setModal(true)},h(Svg,{d:IC.plus,size:14}),' New')
+      )
     ),
-    h('div',{style:{marginBottom:12}},
+
+    // Filters + search (only in table view)
+    viewMode === 'table' && h('div',{style:{marginBottom:12}},
       h('div',{className:'filters'},STATUSES.map(f=>h('button',{key:f,className:'fb'+(filter===f?' act':''),onClick:()=>setFilter(f)},
         f==='arrived'?'🪑 In Clinic':f.charAt(0).toUpperCase()+f.slice(1)
       ))),
-      h('div',{className:'tsr',style:{width:'100%',maxWidth:320}},h(Svg,{d:IC.search,size:13,color:'var(--lt)'}),h('input',{placeholder:'Search…',value:search,onChange:e=>setSearch(e.target.value)}))
+      h('div',{className:'tsr',style:{width:'100%',maxWidth:320}},h(Svg,{d:IC.search,size:13,color:'var(--lt)'}),h('input',{placeholder:'Search…',value:search,onChange:e=>setSearch(e.target.value)})),
+      h('div',{style:{fontSize:11,color:'var(--md)',marginTop:6}}, filtered.length + ' appointment' + (filtered.length!==1?'s':'') + ' · sorted by ' + sortBy + ' (' + sortDir + ')')
     ),
-    h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
-      h('thead',null,h('tr',null,['Patient','Service','Date & Time','Fee','Status','Actions'].map(c=>h('th',{key:c},c)))),
-      h('tbody',null,filtered.length===0?h('tr',null,h('td',{colSpan:6},h('div',{className:'empty'},'No appointments found'))):
-        filtered.map(a=>h('tr',{key:a.id},
-          h('td',null,
-            h('strong',null,a.patientName),
-            a.arrived&&h('span',{className:'kiosk-arrived-badge',style:{marginLeft:6,fontSize:9}},'🪑'),
-            h('div',{style:{fontSize:11,color:'var(--lt)'}},a.dentist)
-          ),
-          h('td',null,a.service),
-          h('td',{style:{whiteSpace:'nowrap'}},a.date+' · '+a.time),
-          h('td',null,'₱'+p$(a.fee)),
-          h('td',null,a.arrived?h('span',{className:'kiosk-arrived-badge'},'✓ In Clinic'):h(SBadge,{status:a.status})),
-          h('td',null,h('div',{className:'gap8'},
-            h('button',{className:'btn bgh bsm',onClick:()=>setDetail(a)},h(Svg,{d:IC.eye,size:13})),
-            a.status==='pending'&&h('button',{className:'btn bs bsm',onClick:()=>action(a.id,'confirmed')},'Confirm'),
-            (a.status==='confirmed'||a.arrived)&&h('button',{className:'btn bp bsm',onClick:()=>action(a.id,'completed')},'Complete'),
-            (a.status==='pending'||a.status==='confirmed')&&h('button',{className:'btn bd2 bsm',onClick:()=>action(a.id,'cancelled')},'Cancel')
+
+    // CALENDAR VIEW
+    viewMode === 'calendar' && h(AppointmentCalendar, {
+      appointments,
+      onDayClick: (dateStr, appts) => setDayDetail({date: dateStr, appts})
+    }),
+
+    // TABLE VIEW
+    viewMode === 'table' && h(Fragment, null,
+      h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
+        h('thead',null,h('tr',null,
+          h('th', {onClick: ()=>toggleSort('patient'), style: {cursor:'pointer',userSelect:'none'}}, 'Patient ', sortIcon('patient')),
+          h('th', {onClick: ()=>toggleSort('service'), style: {cursor:'pointer',userSelect:'none'}}, 'Service ', sortIcon('service')),
+          h('th', {onClick: ()=>toggleSort('datetime'), style: {cursor:'pointer',userSelect:'none'}}, 'Date & Time ', sortIcon('datetime')),
+          h('th', {onClick: ()=>toggleSort('fee'), style: {cursor:'pointer',userSelect:'none'}}, 'Fee ', sortIcon('fee')),
+          h('th', {onClick: ()=>toggleSort('status'), style: {cursor:'pointer',userSelect:'none'}}, 'Status ', sortIcon('status')),
+          h('th', null, 'Actions')
+        )),
+        h('tbody',null,filtered.length===0?h('tr',null,h('td',{colSpan:6},h('div',{className:'empty'},'No appointments found'))):
+          filtered.map(a=>h('tr',{key:a.id},
+            h('td',null,
+              h('strong',null,a.patientName),
+              a.arrived&&h('span',{className:'kiosk-arrived-badge',style:{marginLeft:6,fontSize:9}},'🪑'),
+              h('div',{style:{fontSize:11,color:'var(--lt)'}},a.dentist)
+            ),
+            h('td',null,a.service),
+            h('td',{style:{whiteSpace:'nowrap'}},
+              h('div',{style:{fontWeight:600,fontSize:13}}, fmtDateWithDay(a.date)),
+              h('div',{style:{fontSize:11,color:'var(--md)'}}, fmtTime(a.time) + ' · ' + fmtDateRelative(a.date))
+            ),
+            h('td',null,'₱'+p$(a.fee)),
+            h('td',null,a.arrived?h('span',{className:'kiosk-arrived-badge'},'✓ In Clinic'):h(SBadge,{status:a.status})),
+            h('td',null,h('div',{className:'gap8'},
+              h('button',{className:'btn bgh bsm',onClick:()=>setDetail(a)},h(Svg,{d:IC.eye,size:13})),
+              a.status==='pending'&&h('button',{className:'btn bs bsm',onClick:()=>action(a.id,'confirmed')},'Confirm'),
+              (a.status==='confirmed'||a.arrived)&&h('button',{className:'btn bp bsm',onClick:()=>action(a.id,'completed')},'Complete'),
+              (a.status==='pending'||a.status==='confirmed')&&h('button',{className:'btn bd2 bsm',onClick:()=>action(a.id,'cancelled')},'Cancel')
+            ))
           ))
+        )
+      ))),
+
+      // Mobile cards
+      h('div',{className:'ml'},
+        filtered.length===0&&h('div',{className:'empty'},'No appointments found'),
+        filtered.map(a=>h('div',{key:a.id,className:'mc'},
+          h('div',{className:'mc-top'},
+            h('div',null,
+              h('div',{className:'mc-nm'},a.patientName,a.arrived&&h('span',{style:{marginLeft:6,fontSize:13}},'🪑')),
+              h('div',{className:'mc-sb'},a.service+' · '+a.dentist)
+            ),
+            a.arrived?h('span',{className:'kiosk-arrived-badge'},'In Clinic'):h(SBadge,{status:a.status})
+          ),
+          h('div',{className:'mc-row'},
+            h('span',{className:'mc-lbl'},'Date'),
+            h('span',{className:'mc-val'}, fmtDateWithDay(a.date))
+          ),
+          h('div',{className:'mc-row'},
+            h('span',{className:'mc-lbl'},'Time'),
+            h('span',{className:'mc-val'}, fmtTime(a.time) + ' · ' + fmtDateRelative(a.date))
+          ),
+          h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Fee'),h('span',{className:'mc-val',style:{color:'var(--t)',fontWeight:700}},'₱'+p$(a.fee))),
+          h('div',{className:'mc-act'},
+            h('button',{className:'btn bgh bsm',style:{flex:1},onClick:()=>setDetail(a)},'View'),
+            a.status==='pending'&&h('button',{className:'btn bs bsm',style:{flex:2},onClick:()=>action(a.id,'confirmed')},'✓ Confirm'),
+            (a.status==='confirmed'||a.arrived)&&h('button',{className:'btn bp bsm',style:{flex:2},onClick:()=>action(a.id,'completed')},'Complete'),
+            (a.status==='pending'||a.status==='confirmed')&&h('button',{className:'btn bd2 bsm',style:{flex:1},onClick:()=>action(a.id,'cancelled')},'Cancel')
+          )
         ))
       )
-    ))),
-    h('div',{className:'ml'},
-      filtered.length===0&&h('div',{className:'empty'},'No appointments found'),
-      filtered.map(a=>h('div',{key:a.id,className:'mc'},
-        h('div',{className:'mc-top'},
-          h('div',null,h('div',{className:'mc-nm'},a.patientName,a.arrived&&h('span',{style:{marginLeft:6,fontSize:13}},'🪑')),h('div',{className:'mc-sb'},a.service+' · '+a.dentist)),
-          a.arrived?h('span',{className:'kiosk-arrived-badge'},'In Clinic'):h(SBadge,{status:a.status})
-        ),
-        h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Date & Time'),h('span',{className:'mc-val'},a.date+' · '+a.time)),
-        h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Fee'),h('span',{className:'mc-val',style:{color:'var(--t)',fontWeight:700}},'₱'+p$(a.fee))),
-        h('div',{className:'mc-act'},
-          h('button',{className:'btn bgh bsm',style:{flex:1},onClick:()=>setDetail(a)},'View'),
-          a.status==='pending'&&h('button',{className:'btn bs bsm',style:{flex:2},onClick:()=>action(a.id,'confirmed')},'✓ Confirm'),
-          (a.status==='confirmed'||a.arrived)&&h('button',{className:'btn bp bsm',style:{flex:2},onClick:()=>action(a.id,'completed')},'Complete'),
-          (a.status==='pending'||a.status==='confirmed')&&h('button',{className:'btn bd2 bsm',style:{flex:1},onClick:()=>action(a.id,'cancelled')},'Cancel')
-        )
-      ))
     ),
-    modal&&h(ApptForm,{patients,onClose:()=>setModal(false),onSave:d=>{setAppointments(p=>[{...d,id:'A'+uid(),status:'pending',arrived:false},...p]);setModal(false);addToast('Appointment booked!','success');}}),
+
+    // Day-detail modal (from calendar click)
+    dayDetail && h(Modal, {
+      title: fmtDateFull(dayDetail.date),
+      sub: dayDetail.appts.length + ' appointment' + (dayDetail.appts.length!==1?'s':''),
+      onClose: ()=>setDayDetail(null),
+      large: true,
+      footer: h('button', {className: 'btn bgh', onClick: ()=>setDayDetail(null)}, 'Close')
+    },
+      h('div', {style: {display: 'flex', flexDirection: 'column', gap: 10}},
+        dayDetail.appts
+          .slice()
+          .sort((a,b)=> (a.time||'').localeCompare(b.time||''))
+          .map(a => h('div', {key: a.id, className: 'day-detail-item'},
+            h('div', {className: 'day-detail-time'}, fmtTime(a.time)),
+            h('div', {style: {flex: 1, minWidth: 0}},
+              h('div', {style: {fontWeight: 600}}, a.patientName),
+              h('div', {style: {fontSize: 12, color: 'var(--md)'}}, a.service + ' · ' + a.dentist)
+            ),
+            a.arrived?h('span',{className:'kiosk-arrived-badge'},'In Clinic'):h(SBadge,{status:a.status}),
+            h('button', {className: 'btn bgh bsm', onClick: ()=>{setDayDetail(null);setDetail(a);}}, 'View')
+          ))
+      )
+    ),
+
+    modal&&h(ApptForm,{patients,appointments,onClose:()=>setModal(false),onSave:d=>{setAppointments(p=>[{...d,id:'A'+uid(),status:'pending',arrived:false},...p]);setModal(false);addToast('Appointment booked!','success');}}),
     detail&&h(ApptDetail,{a:detail,onClose:()=>setDetail(null)})
   );
 }
@@ -4753,12 +5509,18 @@ function Analytics({appointments,payments,patients}){
 }
 
 // ─── PUBLIC BOOKING (unchanged) ───────────────────────────────────────────────
-function PublicBooking({onBook,onBack}){
+function PublicBooking({onBook,onBack,existingAppointments}){
   const [step,setStep]=useState(1);
   const [form,setForm]=useState({name:'',dob:'',phone:'',email:'',address:'',bloodType:'O+',service:'',date:'',time:'09:00',notes:'',dentist:'Dr. Arnold Colao'});
   const [done,setDone]=useState(null);
   const s=(k,v)=>setForm(f=>({...f,[k]:v}));
   const submit=()=>{
+    // Re-check availability before submission
+    const check = checkAvailability(existingAppointments||[], form.date, form.time, form.service);
+    if (!check.available) {
+      alert('Cannot book: ' + check.message);
+      return;
+    }
     const svc=SVCS.find(x=>x.name===form.service);
     const a={...form,id:'A'+uid(),patientId:'P'+uid(),patientName:form.name,status:'pending',fee:svc?svc.fee:0,arrived:false};
     onBook(a,form);setDone(a);
@@ -4810,7 +5572,21 @@ function PublicBooking({onBook,onBack}){
         h(Field,{label:'Date *'},h('input',{type:'date',value:form.date,onChange:e=>s('date',e.target.value),min:new Date().toISOString().split('T')[0]})),
         h(Field,{label:'Dentist'},h('select',{value:form.dentist,onChange:e=>s('dentist',e.target.value)},DENTISTS.map(d=>h('option',{key:d},d))))
       ),
-      h('div',{className:'fg',style:{marginBottom:12}},h('label',null,'Time'),h('div',{className:'tsg'},TIMES.map(t=>h('button',{key:t,type:'button',className:'tsl'+(form.time===t?' sel':''),onClick:()=>s('time',t)},t)))),
+      h('div',{className:'fg',style:{marginBottom:12}},
+        h('label',null,'Time'+(form.service?' · '+(SERVICE_DURATIONS[form.service]||DEFAULT_SLOT_MIN)+' min slot':'')),
+        h(TimeSlotGrid,{
+          appointments: existingAppointments || [],
+          selectedDate: form.date,
+          selectedService: form.service,
+          selectedTime: form.time,
+          onTimeChange: (t) => s('time', t)
+        })
+      ),
+      // Public booking availability banner
+      form.date && form.time && form.service && h(AvailabilityBanner, {
+        appointments: existingAppointments || [],
+        date: form.date, time: form.time, service: form.service
+      }),
       h(Field,{label:'Notes'},h('textarea',{value:form.notes,onChange:e=>s('notes',e.target.value),placeholder:'Concerns or requests…'})),
       h('div',{style:{display:'flex',gap:10,marginTop:16}},
         h('button',{className:'btn bgh',style:{flex:1},onClick:()=>setStep(1)},'← Back'),
@@ -5463,7 +6239,7 @@ function App(){
     h(PublicBooking,{
       onBook:handleBook,
       onBack:()=>setView('login')
-    }),
+    ,existingAppointments:appointments}),
     h(Toast,{toasts,rm:id=>setToasts(p=>p.filter(t=>t.id!==id))})
   );
 
