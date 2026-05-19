@@ -4139,7 +4139,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
           h('button',{className:'tbb',onClick:onLogout,title:'Log out'},h(Svg,{d:IC.logout,size:15,color:'var(--md)'})),
           h('button',{className:'tbb'},h(Svg,{d:IC.bell,size:15,color:'var(--md)'}),pending>0&&h('span',{className:'nd'}))
         ),
-        h('div',{className:'content'},h(PageContent)),
+        h('div',{className:'content'},PageContent()),
         h('div',{className:'bot-nav'},
           h('div',{className:'bn-wrap'},
             BOT.map(item=>h('button',{key:item.id,className:'bn-item '+(page===item.id?'act':''),onClick:()=>nav(item.id)},
