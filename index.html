@@ -1478,6 +1478,162 @@ function Modal({title,sub,onClose,children,footer,large,xl}){
 
 // ═══════════════════════════════════════════════════════════════════════════
 // LOGIN SCREEN (admin/reception authentication)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📨 NOTIFICATION SENDERS — Multi-channel delivery
+// ═══════════════════════════════════════════════════════════════════════════
+// Channels:
+//   email:     via Apps Script (Gmail) — server-side, real send
+//   sms:       via Apps Script email-to-SMS gateway — real send if carrier set
+//   whatsapp:  via wa.me deep link — opens WhatsApp with message pre-filled
+//   viber:     via viber:// deep link — opens Viber with message pre-filled
+//   messenger: via m.me deep link — opens Messenger
+//
+// For deep-link channels we open a URL in a new tab and rely on the OS to
+// hand off to the installed app. The user taps SEND in the app.
+
+// Normalize phone for deep links: strip leading 0/spaces, add country code
+function normalizePhone(phone, defaultCountry) {
+  defaultCountry = defaultCountry || '63'; // PH default
+  let p = String(phone || '').replace(/[^\d+]/g, '');
+  if (p.startsWith('+')) return p.substring(1); // already has country code
+  if (p.startsWith('0')) p = defaultCountry + p.substring(1);
+  return p;
+}
+
+function nlog(stage, detail) {
+  if (typeof window !== 'undefined') {
+    window.__notifLogs = window.__notifLogs || [];
+    window.__notifLogs.push({ t: new Date().toISOString().substr(11,12), stage, detail });
+    if (window.__notifLogs.length > 100) window.__notifLogs.shift();
+  }
+  console.log('[📨 notif]', stage, detail || '');
+}
+
+// ─── EMAIL: Apps Script real send ──────────────────────────────────────────
+async function sendEmailNotification(syncUrl, to, subject, message) {
+  nlog('email:start', { to, subject });
+  if (!syncUrl) throw new Error('No Sync URL. Configure ☁️ Sync to enable emails.');
+  if (!to) throw new Error('No email address');
+  const res = await fetch(syncUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action: 'sendEmail',
+      to, subject: subject || 'Cyrabell Dental Notification',
+      message
+    }),
+    redirect: 'follow'
+  });
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch (e) { throw new Error('Bad response from Apps Script'); }
+  if (!data.ok) throw new Error(data.error || 'Email send failed');
+  nlog('email:sent', { remaining: data.remainingToday });
+  return data;
+}
+
+// ─── SMS: Apps Script email-to-SMS gateway ─────────────────────────────────
+async function sendSmsNotification(syncUrl, phone, message, carrier) {
+  nlog('sms:start', { phone, carrier });
+  if (!phone) throw new Error('No phone number');
+  if (!syncUrl) {
+    // Fallback: open device SMS app
+    const p = normalizePhone(phone);
+    const uri = 'sms:+' + p + '?body=' + encodeURIComponent(message);
+    nlog('sms:fallback-tel', { uri });
+    window.open(uri, '_blank');
+    return { ok: true, method: 'manual', telUri: uri };
+  }
+  const res = await fetch(syncUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'sendSms', phone, message, carrier: carrier || '' }),
+    redirect: 'follow'
+  });
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch (e) { throw new Error('Bad response from Apps Script'); }
+  if (!data.ok) throw new Error(data.error || 'SMS send failed');
+  // If carrier wasn't set, server returns a telUri to launch
+  if (data.method === 'manual' && data.telUri) {
+    nlog('sms:opening-tel', { telUri: data.telUri });
+    window.open(data.telUri, '_blank');
+  } else {
+    nlog('sms:sent-gateway', { gateway: data.gateway });
+  }
+  return data;
+}
+
+// ─── WhatsApp: wa.me deep link ─────────────────────────────────────────────
+function sendWhatsAppNotification(phone, message) {
+  nlog('whatsapp:start', { phone });
+  if (!phone) throw new Error('No phone number');
+  const p = normalizePhone(phone);
+  const url = 'https://wa.me/' + p + '?text=' + encodeURIComponent(message);
+  nlog('whatsapp:opening', { url });
+  window.open(url, '_blank');
+  return { ok: true, method: 'deeplink', url };
+}
+
+// ─── Viber: viber:// deep link ─────────────────────────────────────────────
+function sendViberNotification(phone, message) {
+  nlog('viber:start', { phone });
+  if (!phone) throw new Error('No phone number');
+  const p = normalizePhone(phone);
+  // Viber's URI scheme: viber://chat?number=+639...&text=...
+  // On desktop, falls back to web fallback if app not installed
+  const uri = 'viber://chat?number=%2B' + p + '&draft=' + encodeURIComponent(message);
+  nlog('viber:opening', { uri });
+  window.open(uri, '_blank');
+  return { ok: true, method: 'deeplink', url: uri };
+}
+
+// ─── Messenger: m.me deep link ─────────────────────────────────────────────
+// Note: Messenger doesn't support pre-filled text from third parties anymore
+// (Facebook removed this in 2020). We can only open the chat — user must
+// type the message themselves. For convenience we copy the message to clipboard.
+function sendMessengerNotification(messengerId, message) {
+  nlog('messenger:start', { messengerId });
+  // Copy message to clipboard so the user can paste it
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try { navigator.clipboard.writeText(message); }
+    catch (e) {}
+  }
+  // m.me/<username-or-id> opens the chat
+  // If no specific username, fall back to messenger home (user picks recipient)
+  let url;
+  if (messengerId && messengerId.indexOf('http') === 0) {
+    url = messengerId;  // already a URL
+  } else if (messengerId) {
+    url = 'https://m.me/' + messengerId;
+  } else {
+    url = 'https://www.messenger.com/';
+  }
+  nlog('messenger:opening', { url });
+  window.open(url, '_blank');
+  return {
+    ok: true,
+    method: 'deeplink',
+    url,
+    note: 'Message copied to clipboard — paste it in Messenger'
+  };
+}
+
+// ─── DISPATCHER: route to the right sender ────────────────────────────────
+async function sendNotification(channel, patient, message, syncUrl) {
+  nlog('dispatch', { channel, patient: patient.name });
+  const subject = 'Cyrabell Dental — ' + (patient.name || 'Reminder');
+  if (channel === 'email')     return await sendEmailNotification(syncUrl, patient.email, subject, message);
+  if (channel === 'sms')       return await sendSmsNotification(syncUrl, patient.phone, message, patient.smsCarrier);
+  if (channel === 'whatsapp')  return sendWhatsAppNotification(patient.phone, message);
+  if (channel === 'viber')     return sendViberNotification(patient.phone, message);
+  if (channel === 'messenger') return sendMessengerNotification(patient.messengerId || '', message);
+  throw new Error('Unknown channel: ' + channel);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
   const [mode,setMode]=useState('choose'); // 'choose' | 'admin'
@@ -3069,11 +3225,39 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
   let preview='';
   if(curA&&tmpl!=='custom'){const fn=TMPL[tmpl];preview=fn?fn(curA):'';}
   else if(tmpl==='custom')preview=custom;
-  const send=()=>{
+  const [sendingNow,setSendingNow]=useState(false);
+  const send=async()=>{
     if(!curA||!preview)return;
-    setNotifications(prev=>[{id:'N'+uid(),type:ntype,recipient:curA.patientName,phone:curA.phone||'—',email:curA.email||'—',message:preview,sentAt:new Date().toLocaleString(),status:'sent'},...prev]);
-    addToast(ntype.toUpperCase()+' sent to '+curA.patientName+'!','success');
+    setSendingNow(true);
+    const syncUrl=(function(){try{return localStorage.getItem('cyrabell_sync_url')||'';}catch(e){return '';}})();
+    const patient={
+      name:curA.patientName,
+      phone:curA.phone,
+      email:curA.email,
+      smsCarrier:curA.smsCarrier||''
+    };
+    let status='sent';
+    let errMsg='';
+    try {
+      await sendNotification(ntype, patient, preview, syncUrl);
+      addToast(ntype.toUpperCase()+' sent to '+curA.patientName+'!','success');
+    } catch (err) {
+      status='failed';
+      errMsg=err.message;
+      addToast('Send failed: '+err.message,'error');
+    }
+    setNotifications(prev=>[{
+      id:'N'+uid(),
+      type:ntype,
+      recipient:curA.patientName,
+      phone:curA.phone||'—',
+      email:curA.email||'—',
+      message:preview+(errMsg?'\n[ERROR: '+errMsg+']':''),
+      sentAt:new Date().toLocaleString(),
+      status:status
+    },...prev]);
     setApptId('');
+    setSendingNow(false);
   };
   return h('div',null,
     h('div',{className:'ph'},h('div',null,h('div',{className:'ptl'},'Notifications'),h('div',{className:'psl'},'Send SMS & Email alerts to patients'))),
@@ -3081,12 +3265,20 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
     tab==='send'&&h('div',{className:'ng',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}},
       h('div',{className:'card'},h('div',{className:'ch'},h('div',{className:'ct'},'Compose')),h('div',{className:'cb'},
         h('div',{className:'fg',style:{marginBottom:12}},h('label',null,'Type'),
-          h('div',{className:'ntg'},[['sms','📱','SMS','To phone'],['email','📧','Email','To inbox']].map(([v,e,n,d])=>
-            h('div',{key:v,className:'ntc'+(ntype===v?' sel':''),onClick:()=>setNtype(v)},
-              h('div',{className:'ntic',style:{background:v==='sms'?'#e8f5f3':'#e8eeff'}},h('span',{style:{fontSize:17}},e)),
-              h('div',{className:'ntn'},n),h('div',{className:'ntd'},d)
+          h('div',{className:'ntg'},
+            [
+              ['sms','📱','SMS','Text message'],
+              ['email','📧','Email','To inbox'],
+              ['whatsapp','💬','WhatsApp','Opens WhatsApp'],
+              ['viber','🟣','Viber','Opens Viber'],
+              ['messenger','💙','Messenger','Opens FB Messenger'],
+            ].map(([v,e,n,d])=>
+              h('div',{key:v,className:'ntc'+(ntype===v?' sel':''),onClick:()=>setNtype(v)},
+                h('div',{className:'ntic',style:{background:v==='sms'?'#e8f5f3':v==='email'?'#e8eeff':v==='whatsapp'?'#dcfce7':v==='viber'?'#f3e8ff':'#dbeafe'}},h('span',{style:{fontSize:17}},e)),
+                h('div',{className:'ntn'},n),h('div',{className:'ntd'},d)
+              )
             )
-          ))
+          )
         ),
         h('div',{className:'fg',style:{marginBottom:12}},h('label',null,'Appointment'),
           h('select',{value:apptId,onChange:e=>setApptId(e.target.value)},
@@ -3102,11 +3294,17 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
           )
         ),
         tmpl==='custom'&&h('div',{className:'fg',style:{marginBottom:12}},h('label',null,'Message'),h('textarea',{value:custom,onChange:e=>setCustom(e.target.value),placeholder:'Type your message…'})),
-        h('button',{className:'btn bp',style:{width:'100%'},onClick:send,disabled:!apptId||!preview},h(Svg,{d:IC.send,size:14}),' Send '+(ntype==='sms'?'SMS':'Email'))
+        h('button',{className:'btn bp',style:{width:'100%'},onClick:send,disabled:!apptId||!preview||sendingNow},
+          h(Svg,{d:IC.send,size:14}),
+          sendingNow?' Sending…':' Send '+(ntype==='sms'?'SMS':ntype==='email'?'Email':ntype==='whatsapp'?'via WhatsApp':ntype==='viber'?'via Viber':'via Messenger')
+        )
       )),
       h('div',{className:'card'},h('div',{className:'ch'},h('div',{className:'ct'},'Preview')),h('div',{className:'cb'},
         preview?h(Fragment,null,
-          h('div',{style:{fontSize:11,color:'var(--md)',marginBottom:7}},(ntype==='sms'?'📱':'📧')+(curA?' → '+(ntype==='sms'?curA.phone:curA.email):'')),
+          h('div',{style:{fontSize:11,color:'var(--md)',marginBottom:7}},
+            (ntype==='sms'?'📱':ntype==='email'?'📧':ntype==='whatsapp'?'💬':ntype==='viber'?'🟣':'💙')+
+            (curA?' → '+(ntype==='email'?(curA.email||'no email'):(curA.phone||'no phone')):'')
+          ),
           h('div',{className:'npv'},preview),
           h('div',{style:{fontSize:11,color:'var(--lt)',marginTop:7}},preview.length+' chars · ~'+Math.ceil(preview.length/160)+' SMS segment(s)')
         ):h('div',{className:'empty'},'💬\nSelect an appointment and template to preview')
@@ -3284,26 +3482,36 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
     setModal(false);setEdit(null);
   };
 
-  const sendNow = (reminder)=>{
+  const sendNow = async (reminder)=>{
     const patient = patients.find(p=>p.id===reminder.patientId);
     if(!patient){addToast('Patient not found','error');return;}
     const type = REMINDER_TYPES[reminder.type];
     if(!type)return;
     const message = type.template(patient);
+    const syncUrl = (function(){try{return localStorage.getItem('cyrabell_sync_url')||'';}catch(e){return '';}})();
 
-    // Log one entry per channel
-    const newLogs = reminder.channels.map(ch=>({
-      id:'RL'+uid()+ch,
-      reminderId:reminder.id,
-      patientId:reminder.patientId,
-      patientName:reminder.patientName,
-      type:reminder.type,
-      channel:ch,
-      message:message,
-      sentAt:new Date().toLocaleString(),
-      status:'sent'
+    // Fire each channel and capture status
+    const results = await Promise.all(reminder.channels.map(async (ch)=>{
+      let status='sent', errMsg='';
+      try {
+        await sendNotification(ch, patient, message, syncUrl);
+      } catch (err) {
+        status='failed';
+        errMsg=err.message;
+      }
+      return {
+        id:'RL'+uid()+ch,
+        reminderId:reminder.id,
+        patientId:reminder.patientId,
+        patientName:reminder.patientName,
+        type:reminder.type,
+        channel:ch,
+        message:message+(errMsg?'\n[ERROR: '+errMsg+']':''),
+        sentAt:new Date().toLocaleString(),
+        status:status
+      };
     }));
-    setReminderLog(prev=>[...newLogs,...prev]);
+    setReminderLog(prev=>[...results,...prev]);
 
     // Update next due date
     const newLastSent = today;
@@ -3312,7 +3520,15 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
     const newNextDue = d.toISOString().split('T')[0];
     setReminders(prev=>prev.map(r=>r.id===reminder.id?{...r,lastSent:newLastSent,nextDue:newNextDue}:r));
 
-    addToast('Sent via '+reminder.channels.length+' channel'+(reminder.channels.length>1?'s':'')+' to '+reminder.patientName,'success');
+    const successCount = results.filter(r=>r.status==='sent').length;
+    const failCount = results.length-successCount;
+    if(failCount===0){
+      addToast('✓ Sent via '+successCount+' channel'+(successCount>1?'s':'')+' to '+reminder.patientName,'success');
+    } else if(successCount===0){
+      addToast('✕ All '+failCount+' channels failed for '+reminder.patientName,'error');
+    } else {
+      addToast(successCount+' sent, '+failCount+' failed for '+reminder.patientName,'info');
+    }
   };
 
   const toggleActive = (id)=>{
