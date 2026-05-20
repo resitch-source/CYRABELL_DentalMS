@@ -1074,6 +1074,92 @@ th:hover .sort-icon{opacity:.9}
 @media(max-width:640px){
   .avail-suggest-grid{grid-template-columns:1fr 1fr}
 }
+
+
+/* ── AUTO-CONFIRM BANNER ── */
+.autoconfirm-banner{
+  background:var(--cr);
+  border:1px solid var(--bd);
+  border-radius:11px;
+  padding:11px 14px;
+  margin-bottom:12px;
+  transition:all .2s;
+}
+.autoconfirm-banner.on{
+  background:linear-gradient(135deg,#e6f7f3,#f0fdf4);
+  border-color:#86efac;
+}
+
+/* ── TOGGLE SWITCH ── */
+.switch{
+  position:relative;display:inline-block;
+  width:42px;height:24px;flex-shrink:0;
+}
+.switch input{opacity:0;width:0;height:0}
+.slider{
+  position:absolute;cursor:pointer;
+  top:0;left:0;right:0;bottom:0;
+  background-color:#cbd5e0;
+  transition:.3s;border-radius:24px;
+}
+.slider:before{
+  position:absolute;content:"";
+  height:18px;width:18px;left:3px;bottom:3px;
+  background-color:white;
+  transition:.3s;border-radius:50%;
+  box-shadow:0 2px 4px rgba(0,0,0,.2);
+}
+.switch input:checked + .slider{background-color:var(--t)}
+.switch input:checked + .slider:before{transform:translateX(18px)}
+
+/* ── CONFLICT ANALYSIS MODAL ── */
+.analysis-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:10px;margin-bottom:16px;
+}
+.analysis-card{
+  background:#fff;border-radius:11px;
+  border:1.5px solid var(--bd);
+  padding:14px 12px;text-align:center;
+}
+.analysis-ok{background:#e6f7f3;border-color:#86efac}
+.analysis-warn{background:#fff7e6;border-color:#fcd34d}
+.analysis-danger{background:#fdeaea;border-color:#fcc}
+.analysis-info{background:#e8eeff;border-color:#bfdbfe}
+.ac-num{
+  font-family:'Playfair Display',serif;
+  font-size:28px;font-weight:700;line-height:1;
+}
+.ac-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
+.ac-sub{font-size:10.5px;color:var(--md);margin-top:3px}
+
+.analysis-section{margin-bottom:14px}
+.analysis-section-title{
+  font-weight:700;font-size:13.5px;
+  margin-bottom:8px;
+}
+.conflict-item{
+  background:#fdeaea;border-left:4px solid var(--re);
+  border-radius:8px;padding:11px 13px;margin-bottom:8px;
+}
+.conflict-warn{background:#fff7e6;border-left-color:#d97706}
+.conflict-date{font-size:11px;font-weight:600;color:var(--md);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.conflict-pair{
+  display:flex;align-items:center;gap:12px;
+}
+.conflict-side{flex:1;font-size:13px}
+.conflict-vs{
+  font-size:18px;font-weight:700;color:var(--re);
+  flex-shrink:0;
+}
+.conflict-warn .conflict-vs{color:#d97706}
+
+@media(max-width:640px){
+  .analysis-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .conflict-pair{flex-direction:column;align-items:stretch;gap:6px}
+  .conflict-vs{text-align:center}
+}
+
 @media(max-width:380px){
   .avail-suggest-grid{grid-template-columns:1fr}
 }
@@ -2427,6 +2513,184 @@ function AIAssistant({appointments, patients, payments, addToast, onClose, defau
   );
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 👤 PATIENT DEDUPLICATION
+// ═══════════════════════════════════════════════════════════════════════════
+// Normalize a name for comparison: lowercase, trim, collapse whitespace
+function normName(n) {
+  if (!n) return '';
+  return String(n).toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+// Normalize phone: digits only, strip leading 0/63
+function normPhone(p) {
+  if (!p) return '';
+  let s = String(p).replace(/\D/g, '');
+  if (s.startsWith('63') && s.length === 12) s = s.substring(2);
+  if (s.startsWith('0') && s.length === 11) s = s.substring(1);
+  return s;
+}
+
+// Find an existing patient that matches by name+phone OR exact email
+// Returns the matched patient object, or null
+function findExistingPatient(patients, candidate) {
+  if (!candidate || (!candidate.name && !candidate.phone && !candidate.email)) return null;
+  const cName  = normName(candidate.name);
+  const cPhone = normPhone(candidate.phone);
+  const cEmail = (candidate.email || '').toLowerCase().trim();
+
+  for (const p of patients) {
+    const pName  = normName(p.name);
+    const pPhone = normPhone(p.phone);
+    const pEmail = (p.email || '').toLowerCase().trim();
+
+    // Match priority: name+phone, then exact phone, then exact email
+    if (cName && pName === cName && cPhone && pPhone === cPhone) return p;
+    if (cPhone && cPhone.length >= 10 && pPhone === cPhone) return p;
+    if (cEmail && pEmail && cEmail === pEmail) return p;
+  }
+  return null;
+}
+
+// Dedupe an array of patient records by name+phone, keeping the FIRST occurrence
+// (assumes the array is ordered with the canonical/newest entry first)
+function dedupePatients(patients) {
+  const seen = new Map();
+  const result = [];
+  for (const p of patients) {
+    const key = normName(p.name) + '|' + normPhone(p.phone);
+    if (!seen.has(key) || !key.includes('|')) {
+      seen.set(key, true);
+      result.push(p);
+    }
+  }
+  return result;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⏰ REMINDER AUTO-TRIGGER — Daily check for due reminders
+// ═══════════════════════════════════════════════════════════════════════════
+// Runs at app startup AND every 6 hours while the app is open.
+// Sends all reminders whose nextDue date is today or in the past.
+// Can be disabled via localStorage.cyrabell_reminder_auto = 'false'
+
+function reminderAutoEnabled() {
+  try { return localStorage.getItem('cyrabell_reminder_auto') !== 'false'; }
+  catch (e) { return true; }
+}
+
+function reminderLastRunDate() {
+  try { return localStorage.getItem('cyrabell_reminder_last_run') || ''; }
+  catch (e) { return ''; }
+}
+
+function setReminderLastRunDate(dateStr) {
+  try { localStorage.setItem('cyrabell_reminder_last_run', dateStr); }
+  catch (e) {}
+}
+
+function rlog(stage, detail) {
+  if (typeof window !== 'undefined') {
+    window.__reminderLogs = window.__reminderLogs || [];
+    window.__reminderLogs.push({ t: new Date().toISOString().substr(11,12), stage, detail });
+    if (window.__reminderLogs.length > 100) window.__reminderLogs.shift();
+  }
+  console.log('[⏰ reminder]', stage, detail || '');
+}
+
+// Find reminders that are due today or overdue
+function getDueReminders(reminders) {
+  const today = new Date().toISOString().split('T')[0];
+  return reminders.filter(r =>
+    r.active &&
+    r.nextDue &&
+    r.nextDue <= today
+  );
+}
+
+// Run the daily trigger — sends all due reminders, updates schedules
+async function runDailyReminderTrigger(reminders, patients, setReminders, setReminderLog, addToast) {
+  if (!reminderAutoEnabled()) {
+    rlog('skip:disabled');
+    return { sent: 0, skipped: 'disabled' };
+  }
+  const today = new Date().toISOString().split('T')[0];
+  if (reminderLastRunDate() === today) {
+    rlog('skip:already-ran-today');
+    return { sent: 0, skipped: 'already-ran-today' };
+  }
+
+  const due = getDueReminders(reminders);
+  rlog('trigger:start', { dueCount: due.length });
+  if (due.length === 0) {
+    setReminderLastRunDate(today);
+    rlog('trigger:nothing-due');
+    return { sent: 0 };
+  }
+
+  const syncUrl = (function(){try{return localStorage.getItem('cyrabell_sync_url')||'';}catch(e){return '';}})();
+  let sentCount = 0;
+  let failedCount = 0;
+  const newLogs = [];
+  const updatedReminders = [...reminders];
+
+  for (const reminder of due) {
+    const patient = patients.find(p => p.id === reminder.patientId);
+    if (!patient) {
+      rlog('skip:no-patient', { id: reminder.id });
+      continue;
+    }
+    const type = REMINDER_TYPES[reminder.type];
+    if (!type) continue;
+    const message = type.template(patient);
+
+    for (const ch of (reminder.channels || [])) {
+      let status = 'sent', errMsg = '';
+      try {
+        await sendNotification(ch, patient, message, syncUrl);
+        sentCount++;
+      } catch (err) {
+        status = 'failed';
+        errMsg = err.message;
+        failedCount++;
+      }
+      newLogs.push({
+        id: 'RL'+uid()+ch,
+        reminderId: reminder.id,
+        patientId: reminder.patientId,
+        patientName: reminder.patientName,
+        type: reminder.type,
+        channel: ch,
+        message: message + (errMsg ? '\n[ERROR: ' + errMsg + ']' : '') + '\n[auto-trigger]',
+        sentAt: new Date().toLocaleString() + ' (auto)',
+        status: status
+      });
+    }
+
+    // Advance schedule
+    const newLastSent = today;
+    const d = new Date(newLastSent);
+    d.setDate(d.getDate() + (+reminder.frequency || 90));
+    const newNextDue = d.toISOString().split('T')[0];
+    const idx = updatedReminders.findIndex(r => r.id === reminder.id);
+    if (idx !== -1) {
+      updatedReminders[idx] = {...updatedReminders[idx], lastSent: newLastSent, nextDue: newNextDue};
+    }
+  }
+
+  setReminderLog(prev => [...newLogs, ...prev]);
+  setReminders(updatedReminders);
+  setReminderLastRunDate(today);
+
+  rlog('trigger:complete', { sent: sentCount, failed: failedCount });
+  if (sentCount > 0) {
+    addToast('⏰ Auto-sent ' + sentCount + ' reminder' + (sentCount!==1?'s':'') + (failedCount > 0 ? ' (' + failedCount + ' failed)' : ''), 'success');
+  }
+  return { sent: sentCount, failed: failedCount };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
   const [mode,setMode]=useState('choose'); // 'choose' | 'admin'
@@ -3391,6 +3655,79 @@ function AvailabilityBanner({appointments, date, time, service, excludeId}) {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🤖 APPOINTMENT AUTOMATION & CONFLICT ANALYSIS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Check if auto-confirm is enabled
+function autoConfirmEnabled() {
+  try { return localStorage.getItem('cyrabell_auto_confirm') === 'true'; }
+  catch (e) { return false; }
+}
+
+// Analyze ALL appointments for conflicts/issues
+function analyzeAppointmentConflicts(appointments) {
+  const active = appointments.filter(a => a.status !== 'cancelled' && a.status !== 'completed' && a.date && a.time);
+  const conflicts = [];
+  const nearMisses = [];
+
+  // Group by date
+  const byDate = {};
+  active.forEach(a => {
+    if (!byDate[a.date]) byDate[a.date] = [];
+    byDate[a.date].push(a);
+  });
+
+  // Check each date for overlaps
+  for (const date in byDate) {
+    const dayAppts = byDate[date];
+    for (let i = 0; i < dayAppts.length; i++) {
+      for (let j = i + 1; j < dayAppts.length; j++) {
+        const a = dayAppts[i];
+        const b = dayAppts[j];
+        const aStart = timeToMinutes(a.time);
+        const aEnd = aStart + (SERVICE_DURATIONS[a.service] || DEFAULT_SLOT_MIN);
+        const bStart = timeToMinutes(b.time);
+        const bEnd = bStart + (SERVICE_DURATIONS[b.service] || DEFAULT_SLOT_MIN);
+
+        if (intervalsOverlap(aStart, aEnd, bStart, bEnd)) {
+          conflicts.push({ a, b, date });
+        } else {
+          // Near-miss: less than 15 min gap
+          const gap = Math.min(Math.abs(aEnd - bStart), Math.abs(bEnd - aStart));
+          if (gap < 15) {
+            nearMisses.push({ a, b, date, gap });
+          }
+        }
+      }
+    }
+  }
+
+  // Count pending appointments
+  const pending = active.filter(a => a.status === 'pending').length;
+  const confirmed = active.filter(a => a.status === 'confirmed').length;
+  const arrived = active.filter(a => a.arrived).length;
+
+  return { conflicts, nearMisses, pending, confirmed, arrived, totalActive: active.length };
+}
+
+// Auto-confirm any pending appointments that have no conflicts
+// Returns array of confirmed appointment IDs
+function runAutoConfirm(appointments) {
+  if (!autoConfirmEnabled()) return [];
+  const pending = appointments.filter(a => a.status === 'pending' && a.date && a.time);
+  const confirmedIds = [];
+  for (const a of pending) {
+    const check = checkAvailability(appointments, a.date, a.time, a.service, a.id);
+    if (check.available) {
+      confirmedIds.push(a.id);
+    }
+  }
+  return confirmedIds;
+}
+
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 📅 APPOINTMENT CALENDAR — Month grid view
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3496,12 +3833,13 @@ function AppointmentCalendar({appointments, onDayClick}){
 // ═══════════════════════════════════════════════════════════════════════════
 // 📋 APPOINTMENTS PAGE — sortable table + calendar view toggle
 // ═══════════════════════════════════════════════════════════════════════════
-function Appointments({appointments,setAppointments,patients,setNotifications,addToast}){
+function Appointments({appointments,setAppointments,patients,setNotifications,setPayments,addToast}){
   const [filter,setFilter]=useState('all');
   const [search,setSearch]=useState('');
   const [modal,setModal]=useState(false);
   const [detail,setDetail]=useState(null);
   const [viewMode,setViewMode]=useState('table'); // 'table' | 'calendar'
+  const [showAnalysis, setShowAnalysis] = useState(false);
   // sortBy: 'patient' | 'service' | 'datetime' | 'fee' | 'status'
   // sortDir: 'asc' | 'desc'
   const [sortBy,setSortBy]=useState('datetime');
@@ -3553,6 +3891,24 @@ function Appointments({appointments,setAppointments,patients,setNotifications,ad
     addToast(msgs[status]||'Updated.',status==='cancelled'?'error':'success');
     if(status==='confirmed'&&a){
       setNotifications(prev=>[{id:'N'+uid(),type:'sms',recipient:a.patientName,phone:a.phone||'—',email:a.email||'—',message:'Hi '+a.patientName+'! Your '+a.service+' on '+fmtDateLong(a.date)+' at '+fmtTime(a.time)+' is CONFIRMED. See you at Cyrabell Dental! 🦷',sentAt:new Date().toLocaleString(),status:'sent'},...prev]);
+      // Auto-create pending payment if not already exists
+      if (setPayments && a.fee > 0) {
+        const refTag = 'auto-' + a.id;
+        setPayments(prev => {
+          if (prev.some(p => p.ref === refTag)) return prev; // already created
+          return [{
+            id: 'PAY'+uid(),
+            patientId: a.patientId,
+            patientName: a.patientName,
+            amount: a.fee,
+            method: 'pending',
+            service: a.service,
+            date: a.date,
+            status: 'pending',
+            ref: refTag
+          }, ...prev];
+        });
+      }
     }
   };
 
@@ -3565,9 +3921,12 @@ function Appointments({appointments,setAppointments,patients,setNotifications,ad
           h('button',{className:'vt-btn'+(viewMode==='table'?' act':''),onClick:()=>setViewMode('table')},'📋 Table'),
           h('button',{className:'vt-btn'+(viewMode==='calendar'?' act':''),onClick:()=>setViewMode('calendar')},'📅 Calendar')
         ),
+        h('button',{className:'btn bg2',onClick:()=>setShowAnalysis(true),title:'View conflict analysis'},'🔍 Analysis'),
         h('button',{className:'btn bp',onClick:()=>setModal(true)},h(Svg,{d:IC.plus,size:14}),' New')
       )
     ),
+    // Auto-confirm toggle banner
+    h(AutoConfirmBanner, {appointments, setAppointments, addToast}),
 
     // Filters + search (only in table view)
     viewMode === 'table' && h('div',{style:{marginBottom:12}},
@@ -3673,10 +4032,160 @@ function Appointments({appointments,setAppointments,patients,setNotifications,ad
       )
     ),
 
-    modal&&h(ApptForm,{patients,appointments,onClose:()=>setModal(false),onSave:d=>{setAppointments(p=>[{...d,id:'A'+uid(),status:'pending',arrived:false},...p]);setModal(false);addToast('Appointment booked!','success');}}),
-    detail&&h(ApptDetail,{a:detail,onClose:()=>setDetail(null)})
+    modal&&h(ApptForm,{patients,appointments,onClose:()=>setModal(false),onSave:d=>{
+      // Check auto-confirm
+      const status = autoConfirmEnabled() ? 'confirmed' : 'pending';
+      const newAppt = {...d,id:'A'+uid(),status,arrived:false};
+      setAppointments(p=>[newAppt,...p]);
+      setModal(false);
+      addToast(status==='confirmed' ? '✓ Auto-confirmed!' : 'Appointment booked!', 'success');
+      // If auto-confirmed AND setPayments available, create pending payment
+      if (status === 'confirmed' && setPayments && newAppt.fee > 0) {
+        setPayments(prev=>[{
+          id: 'PAY'+uid(),
+          patientId: newAppt.patientId,
+          patientName: newAppt.patientName,
+          amount: newAppt.fee,
+          method: 'pending',
+          service: newAppt.service,
+          date: newAppt.date,
+          status: 'pending',
+          ref: 'auto-' + newAppt.id
+        }, ...prev]);
+      }
+    }}),
+    detail&&h(ApptDetail,{a:detail,onClose:()=>setDetail(null)}),
+    showAnalysis && h(ConflictAnalysisModal, {appointments, onClose: ()=>setShowAnalysis(false)})
   );
 }
+
+// ─── AUTO-CONFIRM BANNER ───────────────────────────────────────────────────
+function AutoConfirmBanner({appointments, setAppointments, addToast}){
+  const [enabled, setEnabled] = useState(autoConfirmEnabled());
+  const pending = appointments.filter(a => a.status === 'pending').length;
+
+  const toggle = () => {
+    const newVal = !enabled;
+    try { localStorage.setItem('cyrabell_auto_confirm', newVal ? 'true' : 'false'); } catch (e) {}
+    setEnabled(newVal);
+    addToast(newVal ? '✓ Auto-confirm enabled' : 'Auto-confirm disabled', 'info');
+  };
+
+  const confirmAllNow = () => {
+    const ids = runAutoConfirm(appointments);
+    if (ids.length === 0) {
+      addToast('No conflict-free pending appointments to confirm', 'info');
+      return;
+    }
+    setAppointments(prev => prev.map(a =>
+      ids.includes(a.id) ? {...a, status: 'confirmed'} : a
+    ));
+    addToast('✓ Auto-confirmed ' + ids.length + ' appointment(s)', 'success');
+  };
+
+  return h('div', {className: 'autoconfirm-banner ' + (enabled ? 'on' : '')},
+    h('div', {style: {display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap'}},
+      h('label', {className: 'switch', style: {margin: 0}},
+        h('input', {type: 'checkbox', checked: enabled, onChange: toggle}),
+        h('span', {className: 'slider'})
+      ),
+      h('div', {style: {flex: 1, minWidth: 200}},
+        h('div', {style: {fontWeight: 600, fontSize: 13}},
+          enabled ? '🤖 Auto-confirm ON' : '⚙ Auto-confirm OFF'
+        ),
+        h('div', {style: {fontSize: 11.5, color: 'var(--md)', marginTop: 2}},
+          enabled
+            ? 'New bookings without conflicts are auto-confirmed.'
+            : 'New bookings start as pending and need manual confirmation.'
+        )
+      ),
+      pending > 0 && h('button', {
+        className: 'btn bs bsm',
+        onClick: confirmAllNow,
+        title: 'Confirm all pending appointments that have no conflicts'
+      }, '⚡ Confirm pending (' + pending + ')')
+    )
+  );
+}
+
+// ─── CONFLICT ANALYSIS MODAL ───────────────────────────────────────────────
+function ConflictAnalysisModal({appointments, onClose}){
+  const analysis = analyzeAppointmentConflicts(appointments);
+
+  return h(Modal, {
+    title: '🔍 Appointment Analysis',
+    sub: 'Schedule conflicts and capacity overview',
+    onClose, large: true,
+    footer: h('button', {className: 'btn bgh', onClick: onClose}, 'Close')
+  },
+    // Summary cards
+    h('div', {className: 'analysis-grid'},
+      h('div', {className: 'analysis-card analysis-' + (analysis.conflicts.length > 0 ? 'danger' : 'ok')},
+        h('div', {className: 'ac-num'}, analysis.conflicts.length),
+        h('div', {className: 'ac-lbl'}, 'Conflicts'),
+        h('div', {className: 'ac-sub'}, 'Overlapping appointments')
+      ),
+      h('div', {className: 'analysis-card analysis-' + (analysis.nearMisses.length > 0 ? 'warn' : 'ok')},
+        h('div', {className: 'ac-num'}, analysis.nearMisses.length),
+        h('div', {className: 'ac-lbl'}, 'Near-misses'),
+        h('div', {className: 'ac-sub'}, '<15 min gap between')
+      ),
+      h('div', {className: 'analysis-card analysis-info'},
+        h('div', {className: 'ac-num'}, analysis.pending),
+        h('div', {className: 'ac-lbl'}, 'Pending'),
+        h('div', {className: 'ac-sub'}, 'Need confirmation')
+      ),
+      h('div', {className: 'analysis-card analysis-info'},
+        h('div', {className: 'ac-num'}, analysis.arrived),
+        h('div', {className: 'ac-lbl'}, 'In clinic'),
+        h('div', {className: 'ac-sub'}, 'Currently arrived')
+      )
+    ),
+
+    // Conflicts detail
+    analysis.conflicts.length > 0 && h('div', {className: 'analysis-section'},
+      h('div', {className: 'analysis-section-title'}, '🚨 Schedule Conflicts'),
+      analysis.conflicts.map((c, i) => h('div', {key: i, className: 'conflict-item'},
+        h('div', {className: 'conflict-date'}, fmtDateWithDay(c.date)),
+        h('div', {className: 'conflict-pair'},
+          h('div', {className: 'conflict-side'},
+            h('div', {style: {fontSize: 12, fontWeight: 600}}, fmtTime(c.a.time)),
+            h('div', {style: {fontWeight: 600}}, c.a.patientName),
+            h('div', {style: {fontSize: 11, color: 'var(--md)'}}, c.a.service+' ('+(SERVICE_DURATIONS[c.a.service]||DEFAULT_SLOT_MIN)+' min)')
+          ),
+          h('div', {className: 'conflict-vs'}, '⚡'),
+          h('div', {className: 'conflict-side'},
+            h('div', {style: {fontSize: 12, fontWeight: 600}}, fmtTime(c.b.time)),
+            h('div', {style: {fontWeight: 600}}, c.b.patientName),
+            h('div', {style: {fontSize: 11, color: 'var(--md)'}}, c.b.service+' ('+(SERVICE_DURATIONS[c.b.service]||DEFAULT_SLOT_MIN)+' min)')
+          )
+        )
+      ))
+    ),
+
+    // Near-misses
+    analysis.nearMisses.length > 0 && h('div', {className: 'analysis-section'},
+      h('div', {className: 'analysis-section-title'}, '⏱ Tight gaps (<15 min)'),
+      analysis.nearMisses.map((c, i) => h('div', {key: i, className: 'conflict-item conflict-warn'},
+        h('div', {className: 'conflict-date'}, fmtDateWithDay(c.date)+' · '+c.gap+' min gap'),
+        h('div', {className: 'conflict-pair'},
+          h('div', {className: 'conflict-side'},
+            h('div', null, fmtTime(c.a.time)+' · '+c.a.patientName)
+          ),
+          h('div', {className: 'conflict-vs'}, '↔'),
+          h('div', {className: 'conflict-side'},
+            h('div', null, fmtTime(c.b.time)+' · '+c.b.patientName)
+          )
+        )
+      ))
+    ),
+
+    analysis.conflicts.length === 0 && analysis.nearMisses.length === 0 && h('div', {className: 'empty', style: {padding: 30}},
+      '✓ No conflicts or near-misses detected.'
+    )
+  );
+}
+
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -4439,8 +4948,25 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
   const [view,setView]=useState(null);
   const filtered=patients.filter(p=>!search||p.name.toLowerCase().includes(search.toLowerCase())||p.id.includes(search));
   const save=d=>{
-    if(d.id)setPatients(p=>p.map(x=>x.id===d.id?{...x,...d}:x));
-    else setPatients(p=>[{...d,id:'P'+String(Date.now()).slice(-4),balance:0,lastVisit:'—',teeth:{}},...p]);
+    if(d.id) {
+      setPatients(p=>p.map(x=>x.id===d.id?{...x,...d}:x));
+    } else {
+      // Check for duplicates by name + phone
+      const existing = findExistingPatient(patients, d);
+      if (existing) {
+        if (confirm('A patient with the same name and phone already exists: "' + existing.name + '" (ID: ' + existing.id + '). Update their record instead of creating a new one?')) {
+          setPatients(p=>p.map(x=>x.id===existing.id?{...x,...d,id:existing.id}:x));
+          addToast('Updated existing patient: '+existing.name, 'success');
+          setModal(false); setEdit(null);
+          return;
+        } else {
+          // User wants to keep separate — proceed as new
+          setPatients(p=>[{...d,id:'P'+String(Date.now()).slice(-4),balance:0,lastVisit:'—',teeth:{}},...p]);
+        }
+      } else {
+        setPatients(p=>[{...d,id:'P'+String(Date.now()).slice(-4),balance:0,lastVisit:'—',teeth:{}},...p]);
+      }
+    }
     addToast(d.id?'Record updated!':'Patient added!','success');setModal(false);setEdit(null);
   };
   const updateTeeth = (patientId, newTeeth) => {
@@ -5047,15 +5573,47 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
     );
   };
 
+  const [autoTrigger, setAutoTrigger] = useState(reminderAutoEnabled());
+  const toggleAutoTrigger = () => {
+    const v = !autoTrigger;
+    try { localStorage.setItem('cyrabell_reminder_auto', v?'true':'false'); } catch(e) {}
+    setAutoTrigger(v);
+    addToast(v ? '⏰ Daily auto-trigger enabled' : 'Daily auto-trigger disabled', 'info');
+  };
+  const forceRunNow = async () => {
+    if (!confirm('Run reminder trigger now? This will send all DUE reminders immediately.')) return;
+    // Force-reset the "last run today" so trigger isn't skipped
+    try { localStorage.setItem('cyrabell_reminder_last_run', ''); } catch(e) {}
+    await runDailyReminderTrigger(reminders, patients, setReminders, setReminderLog, addToast);
+  };
+
   return h('div',null,
     h('div',{className:'ph'},
-      h('div',null,
-        h('div',{className:'ptl'},'Recurring Reminders'),
-        h('div',{className:'psl'},'Automated preventive care notifications')
-      ),
+      h('div',null,h('div',{className:'ptl'},'Reminders'),h('div',{className:'psl'},'Automated patient recall — '+remindersOn.length+' active')),
       h('div',{className:'ph-act'},
         dueCount>0&&h('button',{className:'btn bg2',onClick:sendAllDue,title:'Send all due reminders now'},'⚡ Send All Due ('+dueCount+')'),
+        h('button',{className:'btn bgh',onClick:forceRunNow,title:'Run the daily trigger right now (sends all due)'},'⏰ Run Trigger Now'),
         h('button',{className:'btn bp',onClick:()=>{setEdit(null);setModal(true);}},h(Svg,{d:IC.plus,size:14}),' New Reminder')
+      )
+    ),
+
+    // Daily auto-trigger toggle banner
+    h('div', {className: 'autoconfirm-banner ' + (autoTrigger ? 'on' : '')},
+      h('div', {style: {display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap'}},
+        h('label', {className: 'switch', style: {margin: 0}},
+          h('input', {type: 'checkbox', checked: autoTrigger, onChange: toggleAutoTrigger}),
+          h('span', {className: 'slider'})
+        ),
+        h('div', {style: {flex: 1, minWidth: 200}},
+          h('div', {style: {fontWeight: 600, fontSize: 13}},
+            autoTrigger ? '⏰ Daily auto-send ON' : '⏰ Daily auto-send OFF'
+          ),
+          h('div', {style: {fontSize: 11.5, color: 'var(--md)', marginTop: 2}},
+            autoTrigger
+              ? 'Reminders auto-send at app launch + every 6 hours.'
+              : 'Reminders only fire when you click Send manually.'
+          )
+        )
       )
     ),
 
@@ -5704,7 +6262,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
 
   const PageContent=()=>{
     if(page==='dashboard')return h(Dashboard,{appointments,patients,payments,onGoKiosk});
-    if(page==='appointments')return h(Appointments,{appointments,setAppointments,patients,setNotifications,addToast});
+    if(page==='appointments')return h(Appointments,{appointments,setAppointments,patients,setNotifications,setPayments,addToast});
     if(page==='patients')return h(Patients,{patients,setPatients,appointments,payments,addToast,syncUrl});
     if(page==='payments')return h(Payments,{payments,setPayments,patients,addToast});
     if(page==='reminders')return h(Reminders,{reminders,setReminders,reminderLog,setReminderLog,patients,addToast});
@@ -6177,9 +6735,11 @@ function App(){
           const cleanedPays = (data.payments||[]).map(p => ({
             ...p, date: fixDateStr(p.date)
           }));
-          const cleanedPatients = (data.patients||[]).map(p => ({
-            ...p, dob: fixDateStr(p.dob), lastVisit: fixDateStr(p.lastVisit)
-          }));
+          const cleanedPatients = dedupePatients(
+            (data.patients||[]).map(p => ({
+              ...p, dob: fixDateStr(p.dob), lastVisit: fixDateStr(p.lastVisit)
+            }))
+          );
           const cleanedReminders = (data.reminders||[]).map(r => ({
             ...r, lastSent: fixDateStr(r.lastSent), nextDue: fixDateStr(r.nextDue)
           }));
@@ -6192,6 +6752,10 @@ function App(){
           if (Array.isArray(data.reminders))     setReminders(cleanedReminders);
           if (Array.isArray(data.reminderLog))   setReminderLog(data.reminderLog);
           asLog('boot:applied-sheet-data', { cleanedAppts: cleanedAppts.length });
+          // Trigger reminder auto-send AFTER state has been applied
+          setTimeout(() => {
+            runDailyReminderTrigger(cleanedReminders, cleanedPatients, setReminders, setReminderLog, addToast);
+          }, 2000);
           // Unlock auto-sync AFTER React applies the setState
           setTimeout(() => {
             autoSyncReadyRef.current = true;
@@ -6208,6 +6772,15 @@ function App(){
       }
     })();
   }, []);  // empty deps — run exactly once
+
+  // ───── REMINDER PERIODIC TRIGGER — runs every 6 hours ─────
+  useEffect(() => {
+    if (!user) return;  // Only run while logged in
+    const interval = setInterval(() => {
+      runDailyReminderTrigger(reminders, patients, setReminders, setReminderLog, addToast);
+    }, 6 * 60 * 60 * 1000); // 6 hours
+    return () => clearInterval(interval);
+  }, [user, reminders, patients]);
 
   // ───── AUTO-SYNC: push to Google Sheets on data changes ─────
   // Now gated by autoSyncReadyRef which is only set after initial pull succeeds
@@ -6258,7 +6831,16 @@ function App(){
   const handleBook=(appt,pd)=>{
     setAppointments(p=>[appt,...p]);
     if(!patients.find(p=>p.phone===pd.phone))
-      setPatients(p=>[{id:appt.patientId,name:pd.name,dob:pd.dob||'',phone:pd.phone,email:pd.email||'',address:pd.address||'',bloodType:pd.bloodType||'O+',allergies:'',lastVisit:'—',balance:0,teeth:{}},...p]);
+      // Dedupe: check if patient already exists, link the appointment to the existing record
+      const existingPat = findExistingPatient(patients, pd);
+      if (existingPat) {
+        // Patient exists — link appointment to existing patient instead of creating a new one
+        appt.patientId = existingPat.id;
+        appt.patientName = existingPat.name;
+        asLog && asLog('booking:matched-existing-patient', { id: existingPat.id, name: existingPat.name });
+      } else {
+        setPatients(p=>[{id:appt.patientId,name:pd.name,dob:pd.dob||'',phone:pd.phone,email:pd.email||'',address:pd.address||'',bloodType:pd.bloodType||'O+',allergies:'',lastVisit:'—',balance:0,teeth:{}},...p]);
+      }
     addToast('Booking received from '+pd.name+'!','success');
   };
   const handleCheckIn=(apptId)=>{
