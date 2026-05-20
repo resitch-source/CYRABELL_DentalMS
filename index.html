@@ -2776,16 +2776,20 @@ function AIAssistant({appointments, patients, payments, addToast, onClose, defau
 // ═══════════════════════════════════════════════════════════════════════════
 // 👤 PATIENT DEDUPLICATION
 // ═══════════════════════════════════════════════════════════════════════════
+
+// Defensive string coercion — handles null, undefined, numbers, etc.
+// Sheets sometimes returns "09171234567" as a Number, which has no .includes/.toLowerCase
+const S = (v) => (v === null || v === undefined) ? '' : String(v);
+
+
 // Normalize a name for comparison: lowercase, trim, collapse whitespace
 function normName(n) {
-  if (!n) return '';
-  return String(n).toLowerCase().trim().replace(/\s+/g, ' ');
+  return S(n).toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
 // Normalize phone: digits only, strip leading 0/63
 function normPhone(p) {
-  if (!p) return '';
-  let s = String(p).replace(/\D/g, '');
+  let s = S(p).replace(/\D/g, '');
   if (s.startsWith('63') && s.length === 12) s = s.substring(2);
   if (s.startsWith('0') && s.length === 11) s = s.substring(1);
   return s;
@@ -3068,8 +3072,8 @@ function KioskMode({appointments,onCheckIn,onExit,addToast}){
 
   const filtered = todayAppts.filter(a =>
     !search ||
-    a.patientName.toLowerCase().includes(search.toLowerCase()) ||
-    (a.phone||'').includes(search)
+    S(a.patientName).toLowerCase().includes(search.toLowerCase()) ||
+    S(a.phone).includes(search)
   );
 
   const handlePick = (appt)=>{
@@ -4459,6 +4463,89 @@ function PatForm({patient,onClose,onSave,syncUrl,addToast}){
     h(Field,{label:'Allergies / Notes'},h('textarea',{value:f.allergies,onChange:e=>s('allergies',e.target.value),placeholder:'Known allergies or conditions…'}))
   );
 }
+
+// ─── Patient Photo (avatar) ─────────────────────────────────────────────
+// Shows the patient's photo if photoFileId exists, otherwise initials in a colored circle.
+// Lazy-loads from Google Drive on mount; results cached in window.__cyrabellPhotoCache.
+function PatientPhoto({patient, size, syncUrl}) {
+  size = size || 40;
+  const [dataUrl, setDataUrl] = useState(null);
+  const [errored, setErrored] = useState(false);
+
+  useEffect(() => {
+    if (!patient || !patient.photoFileId || !syncUrl) {
+      setDataUrl(null);
+      return;
+    }
+    // Check cache
+    window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
+    const cached = window.__cyrabellPhotoCache[patient.photoFileId];
+    if (cached) {
+      setDataUrl(cached);
+      return;
+    }
+    // Fetch from Drive via Apps Script
+    let cancelled = false;
+    (async () => {
+      try {
+        if (typeof fetchPhotoFromDrive === 'function') {
+          const url = await fetchPhotoFromDrive(syncUrl, patient.photoFileId);
+          if (!cancelled && url) {
+            window.__cyrabellPhotoCache[patient.photoFileId] = url;
+            setDataUrl(url);
+          }
+        }
+      } catch (err) {
+        if (!cancelled) setErrored(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [patient && patient.photoFileId, syncUrl]);
+
+  const name = S(patient && patient.name);
+  const initials = name
+    ? name.split(' ').filter(Boolean).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('') || '?'
+    : '?';
+  // Color hash based on patient ID for consistent colors
+  const colors = ['#0a7c6e','#3a7bd5','#c9a84c','#7c3aed','#3aa876','#e8943a','#dc2626'];
+  const idStr = S(patient && patient.id);
+  let hash = 0;
+  for (let i = 0; i < idStr.length; i++) hash = (hash * 31 + idStr.charCodeAt(i)) & 0xffffff;
+  const bgColor = colors[Math.abs(hash) % colors.length];
+
+  if (dataUrl && !errored) {
+    return h('img', {
+      src: dataUrl,
+      style: {
+        width: size + 'px', height: size + 'px',
+        borderRadius: '50%', objectFit: 'cover',
+        border: '2px solid #fff',
+        boxShadow: '0 1px 3px rgba(0,0,0,.15)',
+        flexShrink: 0,
+      },
+      alt: name
+    });
+  }
+
+  return h('div', {
+    style: {
+      width: size + 'px', height: size + 'px',
+      borderRadius: '50%',
+      background: 'linear-gradient(135deg, ' + bgColor + ', ' + bgColor + 'dd)',
+      color: '#fff',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: (size * 0.4) + 'px',
+      fontWeight: 700,
+      flexShrink: 0,
+      border: '2px solid #fff',
+      boxShadow: '0 1px 3px rgba(0,0,0,.1)',
+      letterSpacing: '-0.5px',
+    },
+    title: name
+  }, initials);
+}
+
+
 function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl}){
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
   const [tab,setTab]=useState('info');
@@ -4516,7 +4603,7 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
   const [modal,setModal]=useState(false);
   const [edit,setEdit]=useState(null);
   const [view,setView]=useState(null);
-  const filtered=patients.filter(p=>!search||p.name.toLowerCase().includes(search.toLowerCase())||p.id.includes(search));
+  const filtered=patients.filter(p=>!search||S(p.name).toLowerCase().includes(S(search).toLowerCase())||S(p.id).includes(S(search)));
   const save=d=>{
     if(d.id) {
       setPatients(p=>p.map(x=>x.id===d.id?{...x,...d}:x));
@@ -4935,7 +5022,7 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
       if(r.nextDue>today)return false;
     }
     if(filterType!=='all'&&r.type!==filterType)return false;
-    if(search&&!r.patientName.toLowerCase().includes(search.toLowerCase()))return false;
+    if(search&&!S(r.patientName).toLowerCase().includes(S(search).toLowerCase()))return false;
     return true;
   });
 
@@ -5159,7 +5246,7 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
 
   return h('div',null,
     h('div',{className:'ph'},
-      h('div',null,h('div',{className:'ptl'},'Reminders'),h('div',{className:'psl'},'Automated patient recall — '+remindersOn.length+' active')),
+      h('div',null,h('div',{className:'ptl'},'Reminders'),h('div',{className:'psl'},'Automated patient recall — '+totalActive+' active')),
       h('div',{className:'ph-act'},
         dueCount>0&&h('button',{className:'btn bg2',onClick:sendAllDue,title:'Send all due reminders now'},'⚡ Send All Due ('+dueCount+')'),
         h('button',{className:'btn bgh',onClick:forceRunNow,title:'Run the daily trigger right now (sends all due)'},'⏰ Run Trigger Now'),
@@ -5823,15 +5910,15 @@ function Appointments({appointments,setAppointments,patients,setNotifications,se
     if(filter==='arrived')return a.arrived;
     return filter==='all'||a.status===filter;
   }).filter(a=>!search||
-    a.patientName.toLowerCase().includes(search.toLowerCase())||
-    a.service.toLowerCase().includes(search.toLowerCase()));
+    S(a.patientName).toLowerCase().includes(S(search).toLowerCase())||
+    S(a.service).toLowerCase().includes(S(search).toLowerCase()));
 
   const sortFns = {
-    patient:  (a,b)=> (a.patientName||'').localeCompare(b.patientName||''),
-    service:  (a,b)=> (a.service||'').localeCompare(b.service||''),
+    patient:  (a,b)=> S(a.patientName).localeCompare(S(b.patientName)),
+    service:  (a,b)=> S(a.service).localeCompare(S(b.service)),
     datetime: (a,b)=> dateTimeValue(a.date,a.time) - dateTimeValue(b.date,b.time),
     fee:      (a,b)=> (+a.fee||0) - (+b.fee||0),
-    status:   (a,b)=> (a.status||'').localeCompare(b.status||''),
+    status:   (a,b)=> S(a.status).localeCompare(S(b.status)),
   };
   filtered = [...filtered].sort((a,b)=>{
     const cmp = (sortFns[sortBy] || sortFns.datetime)(a,b);
