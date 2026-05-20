@@ -1312,9 +1312,9 @@ th:hover .sort-icon{opacity:.9}
 }
 .dchart-3d-container{
   position:relative;
-  height:520px;
-  perspective:1100px;
-  perspective-origin:50% 30%;
+  height:480px;
+  perspective:850px;
+  perspective-origin:50% 35%;
 }
 .dchart-stage{
   width:100%;height:100%;
@@ -1338,49 +1338,45 @@ th:hover .sort-icon{opacity:.9}
   transform-style:preserve-3d;
   width:0;height:0;
 }
-.upper-jaw{transform:translateY(-50px) rotateX(-8deg)}
-.lower-jaw{transform:translateY(50px) rotateX(8deg)}
+.upper-jaw{transform:translateY(-22px) rotateX(-6deg)}
+.lower-jaw{transform:translateY(22px) rotateX(6deg)}
 
-/* Gum tissue (gingiva) - pink crescent shapes */
+/* Gum tissue (gingiva) - tight pink U-shape behind teeth */
 .gum-tissue{
   position:absolute;
-  width:340px;
-  height:80px;
-  left:-170px;
-  background:radial-gradient(ellipse at 50% 50%,
-    #ff8b8b 0%,
-    #e16060 40%,
-    #b04545 75%,
-    transparent 100%);
+  width:200px;
+  height:60px;
+  left:-100px;
   border-radius:50%;
-  filter:blur(3px) brightness(0.95);
+  filter:blur(2px) brightness(0.95);
   transform-style:preserve-3d;
-  opacity:0.85;
+  opacity:0.95;
+  pointer-events:none;
 }
 .upper-gum{
-  top:-8px;
-  transform:rotateX(60deg) scaleY(0.5) translateZ(-20px);
+  top:-2px;
+  transform:rotateX(50deg) scaleY(0.45) translateZ(-12px);
   background:radial-gradient(ellipse at 50% 60%,
     #ff9999 0%,
     #e87070 35%,
-    #c05555 70%,
+    #c05555 75%,
     #803030 100%);
 }
 .lower-gum{
-  top:-30px;
-  transform:rotateX(-60deg) scaleY(0.5) translateZ(-20px);
+  top:-25px;
+  transform:rotateX(-50deg) scaleY(0.45) translateZ(-12px);
   background:radial-gradient(ellipse at 50% 40%,
     #ff9999 0%,
     #e87070 35%,
-    #c05555 70%,
+    #c05555 75%,
     #803030 100%);
 }
 
 /* Mouth opening - dark cavity between jaws */
 .mouth-opening{
   position:absolute;
-  width:280px;height:30px;
-  left:-140px;top:-15px;
+  width:170px;height:22px;
+  left:-85px;top:-11px;
   background:radial-gradient(ellipse at center, #2a0a0a 0%, #4a1a1a 60%, transparent 100%);
   border-radius:50%;
   filter:blur(4px);
@@ -3541,7 +3537,51 @@ function toothSvgPath(type, upper) {
 }
 
 // Anatomical 2.5D tooth — SVG with gradient depth for 3D illusion
-function Tooth3D({fdi, condition, selected, onSelect, idx, total, isUpper}){
+// Helper: tooth widths by type (in pixels, scaled for our 3D arch)
+// These are tuned to match real-anatomy proportions
+function toothWidthFor(fdi) {
+  const type = toothType(fdi);
+  const pos = fdi % 10;
+  if (type === 'molar') return 20;
+  if (type === 'premolar') return 15;
+  if (type === 'canine') return 13;
+  // incisor — central is wider than lateral
+  return pos === 1 ? 14 : 12;
+}
+
+// Pre-compute the x positions for an entire arch by accumulating widths from center
+// Returns array of x positions (one per tooth, in order)
+function computeArchPositions(teethArray) {
+  const widths = teethArray.map(toothWidthFor);
+  const positions = new Array(teethArray.length);
+  // Half the teeth on left side (negative x), half on right
+  const n = teethArray.length;
+  const center = (n - 1) / 2;
+  // Walk left from center
+  let xL = 0;
+  for (let i = Math.floor(center); i >= 0; i--) {
+    if (i === Math.floor(center)) {
+      // The middle two teeth flank the centerline
+      positions[i] = -widths[i] / 2 - 0.5;
+    } else {
+      xL -= (widths[i] + widths[i + 1]) / 2 - 0.5;
+      positions[i] = xL;
+    }
+  }
+  // Walk right from center
+  let xR = 0;
+  for (let i = Math.ceil(center); i < n; i++) {
+    if (i === Math.ceil(center)) {
+      positions[i] = widths[i] / 2 + 0.5;
+    } else {
+      xR += (widths[i] + widths[i - 1]) / 2 - 0.5;
+      positions[i] = xR;
+    }
+  }
+  return positions;
+}
+
+function Tooth3D({fdi, condition, selected, onSelect, idx, total, isUpper, archPositions, teethArray}){
   const cond = CONDITIONS[condition || 'healthy'];
   const type = toothType(fdi);
   const isMolar = type === 'molar';
@@ -3549,23 +3589,23 @@ function Tooth3D({fdi, condition, selected, onSelect, idx, total, isUpper}){
   const isCanine = type === 'canine';
   const missing = condition === 'missing';
 
-  // Parabolic dental arch - real anatomy follows a U curve, not a half-circle
-  // Map idx (0 to total-1) onto an angle in the arch
-  const centerIdx = (total - 1) / 2;
-  const offset = idx - centerIdx;
-  const angleSpread = 78; // degrees from midline
-  const angle = (offset / centerIdx) * angleSpread;
-  const rad = angle * Math.PI / 180;
-  // Parabolic radius - back teeth are deeper (z), front teeth more forward
-  const archRadius = 130;
-  const x = Math.sin(rad) * archRadius;
-  const z = -Math.cos(rad) * archRadius * 0.85 + archRadius * 0.4;
+  // ─── REALISTIC DENTAL ARCH ─────────────────────────────────────────
+  // x = accumulated tooth widths from centerline (teeth touch each other)
+  // z = parabolic depth — front teeth at 0, back molars curve back
+  // angle = tangent angle along the arch (teeth face outward)
+  const x = archPositions[idx] || 0;
+  // Parabolic depth: z = (x² / focalLength) where focal length controls curvature
+  // smaller focal = tighter U-shape (more curved); larger = flatter arch
+  const focalLength = 95;
+  const z = (x * x) / focalLength;
+  // Tangent angle: derivative of parabola is 2x/focal, so angle = atan(2x/focal)
+  const angle = Math.atan2(2 * x, focalLength) * 180 / Math.PI;
 
-  // Realistic tooth dimensions in mm-like units (scaled)
-  const w = isMolar ? 22 : isPremolar ? 18 : isCanine ? 15 : (fdi % 10 === 1 ? 17 : 13);
-  const crownH = isMolar ? 18 : isPremolar ? 17 : isCanine ? 22 : 19;
-  const rootH = isMolar ? 22 : isPremolar ? 24 : isCanine ? 28 : 22;
-  const depth = isMolar ? 18 : isPremolar ? 14 : 11; // thickness
+  // Realistic tooth dimensions
+  const w = toothWidthFor(fdi);
+  const crownH = isMolar ? 16 : isPremolar ? 15 : isCanine ? 19 : 17;
+  const rootH = isMolar ? 20 : isPremolar ? 22 : isCanine ? 25 : 19;
+  const depth = isMolar ? 16 : isPremolar ? 13 : 10;
 
   // Color logic - healthy teeth get realistic ivory, conditions tint accordingly
   let enamelTop, enamelBase, dentinColor;
@@ -4187,6 +4227,14 @@ function DentalChart3D({teethData, onToothEdit}){
         h('div', {className: 'dchart-scene', style: {
           transform: 'scale(' + zoom + ') rotateX(' + rotX + 'deg) rotateY(' + rotY + 'deg)'
         }},
+          // Pre-compute arch positions so teeth touch like real anatomy
+          (function(){
+            const upperPositions = computeArchPositions(TEETH_UPPER);
+            const lowerPositions = computeArchPositions(TEETH_LOWER);
+            window.__archPositions = {upper: upperPositions, lower: lowerPositions};
+            return null;
+          })(),
+
           // Upper jaw with gum tissue
           h('div', {className: 'jaw-3d upper-jaw'},
             // Gum (gingiva) base
@@ -4194,7 +4242,9 @@ function DentalChart3D({teethData, onToothEdit}){
             TEETH_UPPER.map((fdi, i) => h(Tooth3D, {
               key: fdi, fdi, condition: teethData[fdi],
               selected: selected === fdi, onSelect: setSelected,
-              idx: i, total: TEETH_UPPER.length, isUpper: true
+              idx: i, total: TEETH_UPPER.length, isUpper: true,
+              archPositions: window.__archPositions.upper,
+              teethArray: TEETH_UPPER
             }))
           ),
 
@@ -4207,7 +4257,9 @@ function DentalChart3D({teethData, onToothEdit}){
             TEETH_LOWER.map((fdi, i) => h(Tooth3D, {
               key: fdi, fdi, condition: teethData[fdi],
               selected: selected === fdi, onSelect: setSelected,
-              idx: i, total: TEETH_LOWER.length, isUpper: false
+              idx: i, total: TEETH_LOWER.length, isUpper: false,
+              archPositions: window.__archPositions.lower,
+              teethArray: TEETH_LOWER
             }))
           )
         )
