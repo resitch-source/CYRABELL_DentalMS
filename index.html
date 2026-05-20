@@ -6829,18 +6829,20 @@ function App(){
     addToast('Logged out successfully','info');
   };
   const handleBook=(appt,pd)=>{
-    setAppointments(p=>[appt,...p]);
-    if(!patients.find(p=>p.phone===pd.phone))
-      // Dedupe: check if patient already exists, link the appointment to the existing record
-      const existingPat = findExistingPatient(patients, pd);
-      if (existingPat) {
-        // Patient exists — link appointment to existing patient instead of creating a new one
-        appt.patientId = existingPat.id;
-        appt.patientName = existingPat.name;
-        asLog && asLog('booking:matched-existing-patient', { id: existingPat.id, name: existingPat.name });
-      } else {
-        setPatients(p=>[{id:appt.patientId,name:pd.name,dob:pd.dob||'',phone:pd.phone,email:pd.email||'',address:pd.address||'',bloodType:pd.bloodType||'O+',allergies:'',lastVisit:'—',balance:0,teeth:{}},...p]);
+    // Dedupe: check if patient already exists (by name+phone+email)
+    const existingPat = findExistingPatient(patients, pd);
+    if (existingPat) {
+      // Link the booking to the existing patient record (no duplicate patient created)
+      appt.patientId = existingPat.id;
+      appt.patientName = existingPat.name;
+      if (typeof asLog === 'function') {
+        asLog('booking:matched-existing-patient', { id: existingPat.id, name: existingPat.name });
       }
+    } else {
+      // New patient — create the record
+      setPatients(p=>[{id:appt.patientId,name:pd.name,dob:pd.dob||'',phone:pd.phone,email:pd.email||'',address:pd.address||'',bloodType:pd.bloodType||'O+',allergies:'',lastVisit:'—',balance:0,teeth:{}},...p]);
+    }
+    setAppointments(p=>[appt,...p]);
     addToast('Booking received from '+pd.name+'!','success');
   };
   const handleCheckIn=(apptId)=>{
