@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#0a7c6e"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <title>Cyrabell Dental Management System</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -3006,13 +3006,23 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
 // Parse "YYYY-MM-DD" safely as a LOCAL date (avoids timezone shift)
 function parseLocalDate(s) {
   if (!s) return null;
-  if (s instanceof Date) return s;
-  const parts = String(s).split('-');
-  if (parts.length !== 3) {
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? null : d;
+  if (s instanceof Date) {
+    if (s.getFullYear() < 1970) return null;  // 1899 epoch
+    return s;
   }
-  const d = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+  const str = String(s);
+  if (str.indexOf('1899-12-30') === 0) return null;  // 1899 epoch as string
+  // Handle ISO datetime "YYYY-MM-DDTHH:MM:SS..." → take date part
+  const datePart = str.length > 10 && str.indexOf('T') === 10 ? str.substring(0, 10) : str;
+  const parts = datePart.split('-');
+  if (parts.length !== 3) {
+    const d = new Date(str);
+    if (isNaN(d.getTime()) || d.getFullYear() < 1970) return null;
+    return d;
+  }
+  const y = +parts[0], m = +parts[1], dd = +parts[2];
+  if (y < 1970 || isNaN(y) || isNaN(m) || isNaN(dd)) return null;
+  const d = new Date(y, m - 1, dd);
   return isNaN(d.getTime()) ? null : d;
 }
 
@@ -3044,17 +3054,65 @@ function fmtDateFull(s) {
   return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-// "9:00 AM" from "09:00"
+// "9:00 AM" from many possible inputs (string, Date, ISO with 1899 prefix)
 function fmtTime(s) {
+  if (!s && s !== 0) return '';
+  let hh, mm;
+
+  // Already a Date object — pull time directly
+  if (s instanceof Date) {
+    hh = s.getHours();
+    mm = String(s.getMinutes()).padStart(2, '0');
+  }
+  // Number 0-1: fraction of a day (Sheets serial time)
+  else if (typeof s === 'number' && s < 1 && s >= 0) {
+    const totalMin = Math.round(s * 24 * 60);
+    hh = Math.floor(totalMin / 60);
+    mm = String(totalMin % 60).padStart(2, '0');
+  }
+  // ISO datetime that includes "1899-12-30" (Sheets time-only epoch)
+  else if (typeof s === 'string' && s.indexOf('1899-12-30') === 0) {
+    const m = s.match(/T(\d{1,2}):(\d{2})/);
+    if (m) { hh = +m[1]; mm = m[2]; }
+    else return '';
+  }
+  // Any ISO-like datetime "yyyy-mm-ddTHH:MM..."
+  else if (typeof s === 'string' && s.match(/T\d{1,2}:\d{2}/)) {
+    const m = s.match(/T(\d{1,2}):(\d{2})/);
+    if (m) { hh = +m[1]; mm = m[2]; }
+    else return s;
+  }
+  // Plain "HH:MM" or "H:MM" or "HH:MM AM/PM"
+  else {
+    const str = String(s).trim();
+    // Already AM/PM formatted? return as-is
+    if (/[AP]M$/i.test(str)) return str;
+    const parts = str.split(':');
+    if (parts.length < 2) return s;
+    hh = +parts[0];
+    mm = String(parts[1]).substring(0, 2).padStart(2, '0');
+  }
+
+  if (isNaN(hh)) return '';
+  const ampm = hh >= 12 ? 'PM' : 'AM';
+  if (hh === 0) hh = 12;
+  else if (hh > 12) hh -= 12;
+  return hh + ':' + mm + ' ' + ampm;
+}
+
+// Sanitize a date value too — return empty if it's the 1899 epoch
+function sanitizeDate(s) {
   if (!s) return '';
-  const parts = String(s).split(':');
-  if (parts.length < 2) return s;
-  let h = +parts[0];
-  const m = parts[1];
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  if (h === 0) h = 12;
-  else if (h > 12) h -= 12;
-  return h + ':' + m + ' ' + ampm;
+  if (s instanceof Date) {
+    if (s.getFullYear() < 1970) return '';  // time-only epoch
+    return s.toISOString().split('T')[0];
+  }
+  if (typeof s === 'string') {
+    if (s.indexOf('1899-12-30') === 0) return '';
+    // ISO datetime → date part only
+    if (s.length > 10 && s.indexOf('T') === 10) return s.substring(0, 10);
+  }
+  return s;
 }
 
 // "Today" / "Tomorrow" / "Yesterday" / "Fri, May 22"
@@ -6088,14 +6146,52 @@ function App(){
           autoSyncReadyRef.current = true;
           setBootState('ready');
         } else {
+          // Normalize: clean any 1899-12-30 corrupted values that may be in old data
+          const fixTimeStr = (v) => {
+            if (!v) return v;
+            if (typeof v === 'string') {
+              if (v.indexOf('1899-12-30') === 0) {
+                const m = v.match(/T(\d{1,2}):(\d{2})/);
+                return m ? (String(m[1]).padStart(2,'0') + ':' + m[2]) : '';
+              }
+              if (v.length > 10 && v.indexOf('T') === 10) {
+                const m = v.match(/T(\d{1,2}):(\d{2})/);
+                return m ? (String(m[1]).padStart(2,'0') + ':' + m[2]) : v;
+              }
+            }
+            return v;
+          };
+          const fixDateStr = (v) => {
+            if (!v) return v;
+            if (typeof v === 'string') {
+              if (v.indexOf('1899-12-30') === 0) return '';
+              if (v.length > 10 && v.indexOf('T') === 10) return v.substring(0, 10);
+            }
+            return v;
+          };
+          const cleanedAppts = (data.appointments||[]).map(a => ({
+            ...a,
+            date: fixDateStr(a.date),
+            time: fixTimeStr(a.time)
+          }));
+          const cleanedPays = (data.payments||[]).map(p => ({
+            ...p, date: fixDateStr(p.date)
+          }));
+          const cleanedPatients = (data.patients||[]).map(p => ({
+            ...p, dob: fixDateStr(p.dob), lastVisit: fixDateStr(p.lastVisit)
+          }));
+          const cleanedReminders = (data.reminders||[]).map(r => ({
+            ...r, lastSent: fixDateStr(r.lastSent), nextDue: fixDateStr(r.nextDue)
+          }));
+
           // Replace local state with sheet data (sheets is source of truth)
-          if (Array.isArray(data.patients))      setPatients(data.patients);
-          if (Array.isArray(data.appointments))  setAppointments(data.appointments);
-          if (Array.isArray(data.payments))      setPayments(data.payments);
+          if (Array.isArray(data.patients))      setPatients(cleanedPatients);
+          if (Array.isArray(data.appointments))  setAppointments(cleanedAppts);
+          if (Array.isArray(data.payments))      setPayments(cleanedPays);
           if (Array.isArray(data.notifications)) setNotifications(data.notifications);
-          if (Array.isArray(data.reminders))     setReminders(data.reminders);
+          if (Array.isArray(data.reminders))     setReminders(cleanedReminders);
           if (Array.isArray(data.reminderLog))   setReminderLog(data.reminderLog);
-          asLog('boot:applied-sheet-data');
+          asLog('boot:applied-sheet-data', { cleanedAppts: cleanedAppts.length });
           // Unlock auto-sync AFTER React applies the setState
           setTimeout(() => {
             autoSyncReadyRef.current = true;
