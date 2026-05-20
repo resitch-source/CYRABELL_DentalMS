@@ -1832,7 +1832,7 @@ const INIT_P=[
 ];
 
 // Today's date for demo - appointments on today are kiosk-eligible
-const todayStr = new Date().toISOString().split('T')[0];
+const todayStr = localToday();
 
 const INIT_A=[
   {id:'A001',patientId:'P001',patientName:'Maria Santos',service:'Teeth Cleaning',date:todayStr,time:'09:00',status:'confirmed',notes:'Regular cleaning',fee:800,dentist:'Dr. Arnold Colao',phone:'09171234567',email:'maria@email.com',arrived:false},
@@ -1935,8 +1935,8 @@ const REMINDER_TYPES = {
 
 // ─── INITIAL REMINDERS DATA ─────────────────────────────────────────────────
 // Date helpers for demo - lastSent within last X days based on interval
-function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().split('T')[0];}
-function daysFromNow(n){const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
+function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return toLocalDateStr(d);}
+function daysFromNow(n){const d=new Date();d.setDate(d.getDate()+n);return toLocalDateStr(d);}
 
 const INIT_REMINDERS = [
   {id:'R001',patientId:'P001',patientName:'Maria Santos',type:'cleaning',channels:['sms','email'],frequency:180,lastSent:daysAgo(175),nextDue:daysFromNow(5),active:true,notes:''},
@@ -2439,7 +2439,7 @@ function aiSuggestSlots(appointments, service, fromDate, daysAhead) {
     const d = new Date(startDate);
     d.setDate(d.getDate() + dayOffset);
     if (d.getDay() === 0) continue; // skip Sundays
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = toLocalDateStr(d);
 
     const busy = appointments.filter(a =>
       a.date === dateStr &&
@@ -2472,7 +2472,7 @@ function aiCheckConflicts(appointments, date, time, excludeId) {
 }
 
 function aiScheduleInsights(appointments) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localToday();
   const insights = [];
 
   // Today's load
@@ -2486,7 +2486,7 @@ function aiScheduleInsights(appointments) {
 
   // Tomorrow forecast
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
-  const tomStr = tomorrow.toISOString().split('T')[0];
+  const tomStr = toLocalDateStr(tomorrow);
   const tomAppts = appointments.filter(a => a.date === tomStr && a.status !== 'cancelled');
   insights.push({
     type: 'info',
@@ -2525,7 +2525,7 @@ function aiScheduleInsights(appointments) {
   for (let i = 1; i <= 7; i++) {
     const d = new Date(); d.setDate(d.getDate()+i);
     if (d.getDay() === 0) continue;
-    const ds = d.toISOString().split('T')[0];
+    const ds = toLocalDateStr(d);
     const cnt = appointments.filter(a => a.date === ds && a.status !== 'cancelled').length;
     if (cnt === 0) next7Days.push(ds);
   }
@@ -2777,6 +2777,40 @@ function AIAssistant({appointments, patients, payments, addToast, onClose, defau
 // 👤 PATIENT DEDUPLICATION
 // ═══════════════════════════════════════════════════════════════════════════
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🌏 LOCAL TIMEZONE HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+// IMPORTANT: Never use toISOString() for date strings — it returns UTC date,
+// which can be off by one day depending on the user's timezone (e.g., 7 PM
+// UTC = 3 AM next day in Manila). Use these helpers instead.
+
+// Returns the user's LOCAL date as 'YYYY-MM-DD'
+function localToday() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+// Converts a Date object to LOCAL 'YYYY-MM-DD' string
+function toLocalDateStr(d) {
+  if (!d) return '';
+  if (typeof d === 'string') return d.substring(0, 10);
+  if (!(d instanceof Date)) d = new Date(d);
+  if (isNaN(d.getTime())) return '';
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+// Date N days from today, as 'YYYY-MM-DD' in LOCAL time
+function dateOffsetStr(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return toLocalDateStr(d);
+}
+
 // Defensive string coercion — handles null, undefined, numbers, etc.
 // Sheets sometimes returns "09171234567" as a Number, which has no .includes/.toLowerCase
 const S = (v) => (v === null || v === undefined) ? '' : String(v);
@@ -2865,7 +2899,7 @@ function rlog(stage, detail) {
 
 // Find reminders that are due today or overdue
 function getDueReminders(reminders) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localToday();
   return reminders.filter(r =>
     r.active &&
     r.nextDue &&
@@ -2879,7 +2913,7 @@ async function runDailyReminderTrigger(reminders, patients, setReminders, setRem
     rlog('skip:disabled');
     return { sent: 0, skipped: 'disabled' };
   }
-  const today = new Date().toISOString().split('T')[0];
+  const today = localToday();
   if (reminderLastRunDate() === today) {
     rlog('skip:already-ran-today');
     return { sent: 0, skipped: 'already-ran-today' };
@@ -2936,7 +2970,7 @@ async function runDailyReminderTrigger(reminders, patients, setReminders, setRem
     const newLastSent = today;
     const d = new Date(newLastSent);
     d.setDate(d.getDate() + (+reminder.frequency || 90));
-    const newNextDue = d.toISOString().split('T')[0];
+    const newNextDue = toLocalDateStr(d);
     const idx = updatedReminders.findIndex(r => r.id === reminder.id);
     if (idx !== -1) {
       updatedReminders[idx] = {...updatedReminders[idx], lastSent: newLastSent, nextDue: newNextDue};
@@ -3065,7 +3099,7 @@ function KioskMode({appointments,onCheckIn,onExit,addToast}){
   },[]);
 
   // Today's appointments only (confirmed or pending)
-  const today = new Date().toISOString().split('T')[0];
+  const today = localToday();
   const todayAppts = appointments.filter(a =>
     a.date===today && (a.status==='confirmed'||a.status==='pending')
   );
@@ -4687,7 +4721,7 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
 
 // ─── PAYMENTS (unchanged) ─────────────────────────────────────────────────────
 function PayForm({patients,onClose,onSave}){
-  const [f,setF]=useState({patientId:'',patientName:'',service:'',amount:'',method:'Cash',date:new Date().toISOString().split('T')[0]});
+  const [f,setF]=useState({patientId:'',patientName:'',service:'',amount:'',method:'Cash',date:localToday()});
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
   const ok=f.patientId&&f.service&&f.amount;
   return h(Modal,{title:'Record Payment',sub:'Enter payment details',onClose,
@@ -4905,7 +4939,7 @@ function ReminderForm({patients,reminder,onClose,onSave}){
   const [f,setF]=useState(reminder||{
     patientId:'',patientName:'',type:'cleaning',channels:['sms','email'],
     frequency:180,notes:'',active:true,
-    lastSent:new Date().toISOString().split('T')[0],
+    lastSent:localToday(),
   });
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
 
@@ -4934,7 +4968,7 @@ function ReminderForm({patients,reminder,onClose,onSave}){
     if(!f.lastSent)return '—';
     const d=new Date(f.lastSent);
     d.setDate(d.getDate()+(+f.frequency||90));
-    return d.toISOString().split('T')[0];
+    return toLocalDateStr(d);
   })();
 
   return h(Modal,{title:reminder?'Edit Reminder':'New Recurring Reminder',
@@ -5012,7 +5046,7 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
   const [modal,setModal]=useState(false);
   const [edit,setEdit]=useState(null);
 
-  const today=new Date().toISOString().split('T')[0];
+  const today=localToday();
 
   const filtered = reminders.filter(r=>{
     if(tab==='active'&&!r.active)return false;
@@ -5081,7 +5115,7 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
       const newLastSent = today;
       const d=new Date(newLastSent);
       d.setDate(d.getDate()+(+reminder.frequency||90));
-      const newNextDue = d.toISOString().split('T')[0];
+      const newNextDue = toLocalDateStr(d);
       setReminders(prev=>prev.map(r=>r.id===reminder.id?{...r,lastSent:newLastSent,nextDue:newNextDue}:r));
     }
 
@@ -5441,7 +5475,7 @@ function sanitizeDate(s) {
   if (!s) return '';
   if (s instanceof Date) {
     if (s.getFullYear() < 1970) return '';
-    return s.toISOString().split('T')[0];
+    return toLocalDateStr(s);
   }
   if (typeof s === 'string') {
     if (s.indexOf('1899-12-30') === 0) return '';
@@ -5481,7 +5515,7 @@ function checkAvailability(appointments, date, time, service, excludeId) {
     return { available: false, conflicts: [], reason: 'incomplete', message: 'Pick date and time' };
   }
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = toLocalDateStr(now);
   if (date < todayStr) {
     return { available: false, conflicts: [], reason: 'past', message: '⏱ Date is in the past' };
   }
@@ -5647,7 +5681,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
   const addToast2 = (m,t) => {};
   const pending=appointments.filter(a=>a.status==='pending').length;
   const rev=payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
-  const today=new Date().toISOString().split('T')[0];
+  const today=localToday();
   const todayAppts=appointments.filter(a=>a.date===today && a.status!=='cancelled')
     .sort((a,b)=>(a.time||'').localeCompare(b.time||''));
   const recent=[...appointments].sort((a,b)=>dateTimeValue(b.date,b.time)-dateTimeValue(a.date,a.time)).slice(0,5);
@@ -5768,7 +5802,7 @@ function ApptForm({patients,appointments,onClose,onSave}){
       h(Field,{label:'Fee (₱)'},h('input',{type:'number',value:f.fee,onChange:e=>s('fee',+e.target.value)}))
     ),
     h('div',{className:'fg2'},
-      h(Field,{label:'Date *'},h('input',{type:'date',value:f.date,onChange:e=>s('date',e.target.value),min:new Date().toISOString().split('T')[0]})),
+      h(Field,{label:'Date *'},h('input',{type:'date',value:f.date,onChange:e=>s('date',e.target.value),min:localToday()})),
       h(Field,{label:'Dentist'},h('select',{value:f.dentist,onChange:e=>s('dentist',e.target.value)},DENTISTS.map(d=>h('option',{key:d},d))))
     ),
     h(Field,{label:'Time'+(f.service?' · '+(SERVICE_DURATIONS[f.service]||DEFAULT_SLOT_MIN)+' min slot':'')},
@@ -5829,7 +5863,7 @@ function AppointmentCalendar({appointments, onDayClick}){
   }
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = localToday();
   const monthLabel = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   const prevMonth = ()=> setViewMonth(new Date(year, month-1, 1));
@@ -6372,7 +6406,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
         const ws = XLSX.utils.json_to_sheet(rows);
         XLSX.utils.book_append_sheet(wb, ws, name);
       });
-      const stamp = new Date().toISOString().split('T')[0];
+      const stamp = localToday();
       const filename = 'cyrabell-dental-backup-' + stamp + '.xlsx';
       XLSX.writeFile(wb, filename);
       addLog('✅ Saved ' + filename, 'ok');
@@ -6601,7 +6635,7 @@ function ExportPage({appointments,patients,payments}){
       h('button',{key:f,className:'btn bgh',onClick:()=>go(type,f),disabled:!!busy},busy===type+'-'+f?'…':l)
     ))
   );
-  const stats=[['Patients',patients.length,'var(--t)'],['Appointments',appointments.length,'var(--bl)'],['Pending',appointments.filter(a=>a.status==='pending').length,'var(--or)'],['Checked-In Today',appointments.filter(a=>a.arrived&&a.date===new Date().toISOString().split('T')[0]).length,'#d97706'],['Revenue','₱'+p$(payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0)),'var(--go)'],['Outstanding','₱'+p$(patients.reduce((s,p)=>s+p.balance,0)),'var(--re)']];
+  const stats=[['Patients',patients.length,'var(--t)'],['Appointments',appointments.length,'var(--bl)'],['Pending',appointments.filter(a=>a.status==='pending').length,'var(--or)'],['Checked-In Today',appointments.filter(a=>a.arrived&&a.date===localToday()).length,'#d97706'],['Revenue','₱'+p$(payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0)),'var(--go)'],['Outstanding','₱'+p$(patients.reduce((s,p)=>s+p.balance,0)),'var(--re)']];
   return h('div',null,
     h('div',{className:'ph'},h('div',null,h('div',{className:'ptl'},'Export & Reports'),h('div',{className:'psl'},'Download data in multiple formats'))),
     h('div',{className:'eg',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}},
@@ -6724,7 +6758,7 @@ function PublicBooking({onBook,onBack,existingAppointments}){
       h('div',{style:{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,marginBottom:16}},'Service & Schedule'),
       h('div',{className:'fg',style:{marginBottom:12}},h('label',null,'Select Service *'),h('div',{className:'svcg'},SVCS.map(sv=>h('div',{key:sv.name,className:'svcc'+(form.service===sv.name?' sel':''),onClick:()=>s('service',sv.name)},h('div',{className:'svcn'},sv.name),h('div',{className:'svcf'},'₱'+p$(sv.fee)))))),
       h('div',{className:'fg2'},
-        h(Field,{label:'Date *'},h('input',{type:'date',value:form.date,onChange:e=>s('date',e.target.value),min:new Date().toISOString().split('T')[0]})),
+        h(Field,{label:'Date *'},h('input',{type:'date',value:form.date,onChange:e=>s('date',e.target.value),min:localToday()})),
         h(Field,{label:'Dentist'},h('select',{value:form.dentist,onChange:e=>s('dentist',e.target.value)},DENTISTS.map(d=>h('option',{key:d},d))))
       ),
       h('div',{className:'fg',style:{marginBottom:12}},
@@ -6772,9 +6806,9 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
   // It gets set by the Sync page. Re-read on every render is cheap.
   const syncUrl = (function(){ try { return localStorage.getItem('cyrabell_sync_url') || ''; } catch(e) { return ''; } })();
   const pending=appointments.filter(a=>a.status==='pending').length;
-  const today=new Date().toISOString().split('T')[0];
+  const today=localToday();
   const dueRemindersCount=reminders.filter(r=>r.active&&r.nextDue<=today).length;
-  const arrivedCount = appointments.filter(a=>a.arrived&&a.date===new Date().toISOString().split('T')[0]).length;
+  const arrivedCount = appointments.filter(a=>a.arrived&&a.date===localToday()).length;
   const nav=id=>{setPage(id);setSideOpen(false);};
 
   const NAV=[
