@@ -196,17 +196,7 @@ textarea{resize:vertical;min-height:80px}
 .dchart-wrap{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;align-items:start}
 .dchart-3d-container{background:linear-gradient(135deg,#f0f9ff 0%,#e6f7f3 100%);border-radius:14px;padding:0;height:380px;perspective:900px;perspective-origin:50% 30%;position:relative;overflow:hidden;border:1px solid var(--bd)}
 .dchart-3d-container::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.6) 0%,transparent 60%);pointer-events:none}
-.dchart-stage{width:100%;height:100%;position:relative;cursor:grab;touch-action:none;transform-style:preserve-3d}
-.dchart-stage:active{cursor:grabbing}
-.dchart-scene{position:absolute;top:50%;left:50%;transform-style:preserve-3d;transition:transform .15s ease-out;width:0;height:0}
-.jaw{position:absolute;transform-style:preserve-3d;width:0;height:0}
-.jaw.upper{transform:translateY(-30px) rotateX(-12deg)}
-.jaw.lower{transform:translateY(30px) rotateX(12deg)}
-.jaw-divider{position:absolute;width:280px;height:8px;background:linear-gradient(180deg,#fdb3b3 0%,#f48a8a 50%,transparent 100%);border-radius:50%;opacity:0.35;top:-4px;left:-140px;transform-style:preserve-3d;filter:blur(3px)}
-.tooth3d{position:absolute;top:0;left:0;transform-style:preserve-3d;cursor:pointer;transition:filter .15s ease}
-.tooth3d:hover{filter:brightness(1.1)}
-.tooth3d.sel{filter:drop-shadow(0 0 8px rgba(10,124,110,.6))}
-.tooth3d.missing{opacity:0.5}
+/* dental chart CSS replaced - see realistic version below */
 .tooth-body{position:absolute;top:0;left:0;width:100%;height:100%;border-style:solid;border-radius:50% 50% 28% 28% / 60% 60% 40% 40%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transform:translate(-50%,-50%);transition:all .18s ease}
 .t-num{font-size:9px;font-weight:700;color:#1a2332;background:rgba(255,255,255,0.85);padding:0 3px;border-radius:3px;line-height:1.2;pointer-events:none}
 .t-sym{font-size:13px;line-height:1;pointer-events:none;font-weight:700}
@@ -1301,6 +1291,221 @@ th:hover .sort-icon{opacity:.9}
     gap:14px;
   }
   .tooth-detail-3d{min-height:340px}
+}
+
+
+/* ── REALISTIC 3D DENTAL CHART ── */
+.dchart-wrap{
+  background:linear-gradient(180deg, #1a1d2e 0%, #2a3045 50%, #1f2235 100%);
+  border-radius:16px;
+  padding:16px;
+  position:relative;
+  box-shadow:inset 0 2px 12px rgba(0,0,0,.3);
+  overflow:hidden;
+}
+.dchart-wrap::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:radial-gradient(ellipse at 50% 30%, rgba(255,180,150,.08) 0%, transparent 60%);
+  pointer-events:none;
+}
+.dchart-3d-container{
+  position:relative;
+  height:520px;
+  perspective:1100px;
+  perspective-origin:50% 30%;
+}
+.dchart-stage{
+  width:100%;height:100%;
+  position:relative;
+  cursor:grab;
+  touch-action:none;
+  transform-style:preserve-3d;
+}
+.dchart-stage:active{cursor:grabbing}
+.dchart-scene{
+  position:absolute;
+  top:50%;left:50%;
+  transform-style:preserve-3d;
+  transition:transform .12s linear;
+  width:0;height:0;
+}
+
+/* Jaws with realistic gum tissue */
+.jaw-3d{
+  position:absolute;
+  transform-style:preserve-3d;
+  width:0;height:0;
+}
+.upper-jaw{transform:translateY(-50px) rotateX(-8deg)}
+.lower-jaw{transform:translateY(50px) rotateX(8deg)}
+
+/* Gum tissue (gingiva) - pink crescent shapes */
+.gum-tissue{
+  position:absolute;
+  width:340px;
+  height:80px;
+  left:-170px;
+  background:radial-gradient(ellipse at 50% 50%,
+    #ff8b8b 0%,
+    #e16060 40%,
+    #b04545 75%,
+    transparent 100%);
+  border-radius:50%;
+  filter:blur(3px) brightness(0.95);
+  transform-style:preserve-3d;
+  opacity:0.85;
+}
+.upper-gum{
+  top:-8px;
+  transform:rotateX(60deg) scaleY(0.5) translateZ(-20px);
+  background:radial-gradient(ellipse at 50% 60%,
+    #ff9999 0%,
+    #e87070 35%,
+    #c05555 70%,
+    #803030 100%);
+}
+.lower-gum{
+  top:-30px;
+  transform:rotateX(-60deg) scaleY(0.5) translateZ(-20px);
+  background:radial-gradient(ellipse at 50% 40%,
+    #ff9999 0%,
+    #e87070 35%,
+    #c05555 70%,
+    #803030 100%);
+}
+
+/* Mouth opening - dark cavity between jaws */
+.mouth-opening{
+  position:absolute;
+  width:280px;height:30px;
+  left:-140px;top:-15px;
+  background:radial-gradient(ellipse at center, #2a0a0a 0%, #4a1a1a 60%, transparent 100%);
+  border-radius:50%;
+  filter:blur(4px);
+  opacity:0.7;
+  transform:translateZ(-30px);
+}
+
+/* Individual tooth */
+.tooth3d-r{
+  position:absolute;
+  top:0;left:0;
+  transform-style:preserve-3d;
+  cursor:pointer;
+  transition:filter .15s ease, transform .25s ease;
+  transform-origin:50% 50%;
+}
+.tooth3d-r:hover{
+  filter:brightness(1.12) drop-shadow(0 4px 8px rgba(10,124,110,.5));
+  z-index:200 !important;
+}
+.tooth3d-r.sel{
+  z-index:300 !important;
+}
+.tooth3d-r.missing{
+  opacity:0.55;
+}
+
+.tooth-body{
+  position:relative;
+  width:100%;
+  height:100%;
+  transform-style:preserve-3d;
+}
+.tooth-crown{
+  position:absolute;
+  transform-style:preserve-3d;
+}
+.tooth-root{
+  position:absolute;
+  transform-style:preserve-3d;
+  filter:blur(0.3px);
+}
+
+/* Control buttons */
+.dchart-ctrls{
+  position:absolute;
+  bottom:12px;left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:6px;
+  background:rgba(20,20,30,.85);
+  padding:6px 8px;
+  border-radius:11px;
+  backdrop-filter:blur(8px);
+  z-index:50;
+  border:1px solid rgba(255,255,255,.1);
+}
+.dc-btn{
+  width:34px;height:34px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  font-size:14px;font-weight:700;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+  font-family:inherit;
+}
+.dc-btn:hover{
+  background:rgba(10,124,110,.5);
+  border-color:var(--t);
+}
+.dc-btn.act{
+  background:var(--t);
+  border-color:var(--tl);
+}
+
+.dchart-hint{
+  position:absolute;
+  top:12px;right:14px;
+  font-size:11px;
+  color:rgba(255,255,255,.6);
+  background:rgba(0,0,0,.4);
+  padding:5px 10px;
+  border-radius:6px;
+  backdrop-filter:blur(4px);
+  z-index:50;
+}
+
+/* Stats and legend - keep on white background */
+.dchart-stats{
+  display:flex;flex-wrap:wrap;gap:10px;
+  margin-top:14px;
+  padding:12px;
+  background:#fff;
+  border-radius:11px;
+  border:1px solid var(--bd);
+}
+.dcs-item{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;
+}
+.dcs-dot{width:14px;height:14px;border-radius:4px;display:inline-block}
+.dcs-lbl{color:var(--md);font-weight:500}
+.dcs-num{font-weight:700;color:var(--dk);background:var(--cr);padding:1px 7px;border-radius:8px;font-size:11px}
+
+.dchart-legend{
+  margin-top:12px;padding:12px 14px;
+  background:#fff;border-radius:11px;
+  border:1px solid var(--bd);
+}
+.dcl-title{font-size:11px;font-weight:700;color:var(--md);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px}
+.dcl-items{display:flex;flex-wrap:wrap;gap:9px}
+.dcl-item{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--md)}
+.dcl-sw{
+  width:18px;height:18px;border-radius:5px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:bold;
+}
+
+@media (max-width: 640px){
+  .dchart-3d-container{height:380px}
+  .gum-tissue{width:260px;left:-130px}
+  .dc-btn{width:30px;height:30px;font-size:12px}
 }
 
 @media(max-width:380px){
@@ -3338,110 +3543,233 @@ function toothSvgPath(type, upper) {
 // Anatomical 2.5D tooth — SVG with gradient depth for 3D illusion
 function Tooth3D({fdi, condition, selected, onSelect, idx, total, isUpper}){
   const cond = CONDITIONS[condition || 'healthy'];
-  const angle = -75 + (150 * idx / Math.max(1, total - 1));
-  const rad = angle * Math.PI / 180;
-  const radius = 145;
-  const x = Math.sin(rad) * radius;
-  const z = -Math.cos(rad) * radius + radius;
   const type = toothType(fdi);
   const isMolar = type === 'molar';
   const isPremolar = type === 'premolar';
   const isCanine = type === 'canine';
   const missing = condition === 'missing';
 
-  // Width scales with tooth type
-  const w = isMolar ? 38 : isPremolar ? 32 : isCanine ? 28 : 26;
-  const hgt = isMolar ? 62 : isPremolar ? 56 : isCanine ? 60 : 56;
+  // Parabolic dental arch - real anatomy follows a U curve, not a half-circle
+  // Map idx (0 to total-1) onto an angle in the arch
+  const centerIdx = (total - 1) / 2;
+  const offset = idx - centerIdx;
+  const angleSpread = 78; // degrees from midline
+  const angle = (offset / centerIdx) * angleSpread;
+  const rad = angle * Math.PI / 180;
+  // Parabolic radius - back teeth are deeper (z), front teeth more forward
+  const archRadius = 130;
+  const x = Math.sin(rad) * archRadius;
+  const z = -Math.cos(rad) * archRadius * 0.85 + archRadius * 0.4;
 
-  const path = toothSvgPath(type, isUpper);
-  const baseColor = cond.color;
-  const strokeColor = selected ? '#0a7c6e' : cond.stroke;
-  const enamelLight = condition === 'healthy' || !condition ? '#ffffff' : baseColor;
-  const enamelDark = condition === 'healthy' || !condition ? '#dfeae5' : cond.stroke;
+  // Realistic tooth dimensions in mm-like units (scaled)
+  const w = isMolar ? 22 : isPremolar ? 18 : isCanine ? 15 : (fdi % 10 === 1 ? 17 : 13);
+  const crownH = isMolar ? 18 : isPremolar ? 17 : isCanine ? 22 : 19;
+  const rootH = isMolar ? 22 : isPremolar ? 24 : isCanine ? 28 : 22;
+  const depth = isMolar ? 18 : isPremolar ? 14 : 11; // thickness
 
-  // Render tooth flipped vertically for lower jaw
-  const flipY = isUpper ? 1 : -1;
+  // Color logic - healthy teeth get realistic ivory, conditions tint accordingly
+  let enamelTop, enamelBase, dentinColor;
+  if (condition && condition !== 'healthy') {
+    enamelTop = cond.color;
+    enamelBase = cond.stroke;
+    dentinColor = cond.stroke;
+  } else {
+    // Realistic ivory enamel - slight yellow at base (dentin showing through)
+    enamelTop = '#fefefe';
+    enamelBase = '#e8dfd0';
+    dentinColor = '#d4c4a8';
+  }
+
+  // Selection / highlight
+  const selectGlow = selected ? '0 0 16px rgba(10,124,110,.8), 0 0 4px rgba(10,124,110,1)' : '';
+  const enamelGradient = 'linear-gradient(180deg, ' + enamelTop + ' 0%, ' + enamelTop + ' 35%, ' + enamelBase + ' 100%)';
+
+  // Cusp/groove patterns drawn as inner divs for depth
+  const cuspMarkers = [];
+  if (isMolar && !missing) {
+    // 4 cusps with central pit
+    cuspMarkers.push({x: -w*0.25, y: 4, sz: 3.5, type: 'cusp'});
+    cuspMarkers.push({x: w*0.25, y: 4, sz: 3.5, type: 'cusp'});
+    cuspMarkers.push({x: -w*0.25, y: crownH*0.35, sz: 3, type: 'cusp'});
+    cuspMarkers.push({x: w*0.25, y: crownH*0.35, sz: 3, type: 'cusp'});
+    cuspMarkers.push({x: 0, y: crownH*0.2, sz: 1.5, type: 'pit'});
+  } else if (isPremolar && !missing) {
+    cuspMarkers.push({x: -w*0.2, y: 5, sz: 3, type: 'cusp'});
+    cuspMarkers.push({x: w*0.2, y: 5, sz: 3, type: 'cusp'});
+  } else if (isCanine && !missing) {
+    cuspMarkers.push({x: 0, y: 2, sz: 4, type: 'cusp-pointed'});
+  }
+
+  // The tooth root tilts inward toward the inside of the arch (lingual)
+  const rootTilt = isUpper ? 6 : -6;
 
   return h('div', {
-    className: 'tooth3d' + (selected ? ' sel' : '') + (missing ? ' missing' : ''),
+    className: 'tooth3d-r ' + (selected ? ' sel' : '') + (missing ? ' missing' : ''),
     onClick: e => { e.stopPropagation(); onSelect(fdi); },
     style: {
-      transform: 'translate3d(' + x + 'px,0,' + z + 'px) rotateY(' + angle + 'deg)',
+      transform: 'translate3d(' + x + 'px,' + (isUpper ? -6 : 6) + 'px,' + z + 'px) rotateY(' + angle + 'deg)',
       width: w + 'px',
-      height: hgt + 'px',
+      height: (crownH + rootH) + 'px',
+      filter: selected ? 'drop-shadow(' + selectGlow + ')' : '',
+      zIndex: Math.round(z + 200),
     },
     title: 'Tooth #' + fdi + ' · ' + toothName(fdi) + ' · ' + cond.label
   },
-    h('svg', {
-      width: w, height: hgt,
-      viewBox: '-15 -35 30 70',
-      style: { transform: 'scaleY(' + flipY + ')', overflow: 'visible' },
+    // Whole tooth wrapper (allows flip for lower jaw)
+    h('div', {
+      className: 'tooth-body',
+      style: {
+        transform: isUpper ? '' : 'rotateZ(180deg)',
+        transformStyle: 'preserve-3d',
+      }
     },
-      // Gradient defs for 3D depth illusion
-      h('defs', null,
-        h('linearGradient', {id: 'enamel-' + fdi, x1: '0%', y1: '0%', x2: '0%', y2: '100%'},
-          h('stop', {offset: '0%', stopColor: enamelLight}),
-          h('stop', {offset: '50%', stopColor: baseColor}),
-          h('stop', {offset: '100%', stopColor: enamelDark})
-        ),
-        h('radialGradient', {id: 'enamel-radial-' + fdi, cx: '50%', cy: '30%', r: '70%'},
-          h('stop', {offset: '0%', stopColor: '#ffffff', stopOpacity: missing ? 0 : 0.5}),
-          h('stop', {offset: '100%', stopColor: baseColor, stopOpacity: 0})
-        )
-      ),
-      // Root (drawn first, behind crown)
-      h('path', {
-        d: path.root,
-        fill: missing ? 'transparent' : '#f0e4d6',
-        stroke: missing ? '#e05252' : '#c4a98a',
-        strokeWidth: 0.8,
-        strokeDasharray: missing ? '2 2' : '0',
-        opacity: 0.9
+      // ─── ROOT (anchored into gum) ─────────────────────────────
+      !missing && h('div', {
+        className: 'tooth-root',
+        style: {
+          width: w * 0.55 + 'px',
+          height: rootH + 'px',
+          background: 'linear-gradient(180deg, #d8c8a8 0%, #b8a280 70%, #8f7a5a 100%)',
+          borderRadius: '40% 40% 50% 50% / 30% 30% 80% 80%',
+          position: 'absolute',
+          left: '50%',
+          top: crownH + 'px',
+          marginLeft: -(w * 0.55) / 2 + 'px',
+          transform: 'rotateX(' + rootTilt + 'deg)',
+          transformOrigin: 'top center',
+          boxShadow: 'inset -2px 0 4px rgba(0,0,0,.1), inset 2px 0 4px rgba(255,255,255,.2)',
+          opacity: 0.85,
+        }
       }),
-      // Crown
-      h('path', {
-        d: path.crown,
-        fill: 'url(#enamel-' + fdi + ')',
-        stroke: strokeColor,
-        strokeWidth: selected ? 1.8 : 1.0,
-        strokeLinejoin: 'round'
-      }),
-      // Highlight overlay for 3D feel
-      !missing && h('path', {
-        d: path.crown,
-        fill: 'url(#enamel-radial-' + fdi + ')',
-        pointerEvents: 'none'
-      }),
-      // Cusp / surface markings
-      isMolar && !missing && h('g', null,
-        h('circle', {cx: -6, cy: -16, r: 1.5, fill: enamelDark, opacity: 0.6}),
-        h('circle', {cx: 6, cy: -16, r: 1.5, fill: enamelDark, opacity: 0.6}),
-        h('circle', {cx: -5, cy: -5, r: 1.3, fill: enamelDark, opacity: 0.6}),
-        h('circle', {cx: 5, cy: -5, r: 1.3, fill: enamelDark, opacity: 0.6}),
-        // Central pit
-        h('circle', {cx: 0, cy: -10, r: 1.0, fill: '#7a6b5a', opacity: 0.5})
+
+      // ─── CROWN (visible tooth surface) ─────────────────────────
+      h('div', {
+        className: 'tooth-crown',
+        style: {
+          width: w + 'px',
+          height: crownH + 'px',
+          background: enamelGradient,
+          borderRadius: isMolar ? '8px 8px 14px 14px / 6px 6px 10px 10px'
+                       : isPremolar ? '7px 7px 12px 12px / 5px 5px 8px 8px'
+                       : isCanine ? '7px 7px 10px 10px / 12px 12px 6px 6px'
+                       : '5px 5px 11px 11px / 4px 4px 8px 8px',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          boxShadow: [
+            'inset 2px 1px 5px rgba(255,255,255,.7)',     // highlight top-left
+            'inset -2px -1px 5px rgba(0,0,0,.08)',        // shade bottom-right
+            'inset 0 -3px 6px rgba(0,0,0,.05)',           // gum-line shading
+            '0 1px 3px rgba(0,0,0,.15)',                  // drop shadow
+          ].join(', '),
+          border: '1px solid ' + enamelBase,
+          transformStyle: 'preserve-3d',
+        }
+      },
+        // Cusp markings (occlusal surface)
+        cuspMarkers.map((m, i) => h('div', {
+          key: i,
+          style: {
+            position: 'absolute',
+            left: '50%',
+            top: m.y + 'px',
+            width: m.sz + 'px',
+            height: m.sz + 'px',
+            marginLeft: -(m.sz/2) + m.x + 'px',
+            background: m.type === 'pit'
+              ? 'radial-gradient(circle, #5a4a30 0%, transparent 70%)'
+              : m.type === 'cusp-pointed'
+              ? 'radial-gradient(ellipse at 50% 30%, ' + enamelTop + ' 0%, ' + enamelBase + ' 100%)'
+              : 'radial-gradient(circle at 30% 30%, ' + enamelTop + ' 0%, ' + enamelBase + ' 80%, ' + dentinColor + ' 100%)',
+            borderRadius: '50%',
+            opacity: m.type === 'pit' ? 0.7 : 0.85,
+            pointerEvents: 'none',
+          }
+        })),
+
+        // Vertical groove for premolars/molars
+        (isMolar || isPremolar) && !missing && h('div', {
+          style: {
+            position: 'absolute',
+            left: '50%',
+            top: '20%',
+            width: '1px',
+            height: '40%',
+            marginLeft: '-0.5px',
+            background: 'linear-gradient(180deg, transparent 0%, rgba(120,100,70,.4) 50%, transparent 100%)',
+            pointerEvents: 'none',
+          }
+        }),
+
+        // Condition symbol overlay
+        cond.symbol && h('div', {
+          style: {
+            position: 'absolute',
+            top: '50%', left: '50%',
+            transform: (isUpper ? 'translate(-50%, -50%)' : 'translate(-50%, -50%) rotateZ(180deg)'),
+            fontSize: Math.min(w * 0.6, 13) + 'px',
+            fontWeight: 'bold',
+            color: condition === 'cavity' ? '#fff' : '#1a2332',
+            textShadow: '0 1px 1px rgba(0,0,0,.3)',
+            pointerEvents: 'none',
+            lineHeight: 1,
+          }
+        }, cond.symbol),
+
+        // Specular highlight (gloss)
+        !missing && h('div', {
+          style: {
+            position: 'absolute',
+            top: '8%',
+            left: '15%',
+            width: '40%',
+            height: '30%',
+            background: 'linear-gradient(135deg, rgba(255,255,255,.6) 0%, transparent 70%)',
+            borderRadius: '50%',
+            pointerEvents: 'none',
+            filter: 'blur(1px)',
+          }
+        })
       ),
-      isPremolar && !missing && h('g', null,
-        h('circle', {cx: -4, cy: -22, r: 1.4, fill: enamelDark, opacity: 0.6}),
-        h('circle', {cx: 4, cy: -22, r: 1.4, fill: enamelDark, opacity: 0.6})
+
+      // Missing tooth — show empty socket
+      missing && h('div', {
+        style: {
+          width: w + 'px',
+          height: (crownH + rootH * 0.5) + 'px',
+          border: '1.5px dashed #c4564b',
+          borderRadius: '50% 50% 30% 30% / 40% 40% 20% 20%',
+          background: 'radial-gradient(ellipse at center top, rgba(220,180,170,.3) 0%, transparent 70%)',
+          position: 'absolute',
+          top: 0, left: 0,
+        }
+      },
+        h('div', {
+          style: {
+            position: 'absolute', top: '50%', left: '50%',
+            transform: (isUpper ? 'translate(-50%, -50%)' : 'translate(-50%, -50%) rotateZ(180deg)'),
+            fontSize: '11px', color: '#c4564b', fontWeight: 'bold'
+          }
+        }, '✕')
       ),
-      // Condition symbol overlay (centered)
-      cond.symbol && h('text', {
-        x: 0, y: -10,
-        fontSize: isMolar ? 11 : 9,
-        textAnchor: 'middle',
-        fill: condition === 'cavity' ? '#fff' : '#1a2332',
-        fontWeight: 'bold',
-        style: {transform: 'scaleY(' + flipY + ')'},
-      }, cond.symbol),
-      // FDI number badge
-      h('text', {
-        x: 0, y: 28,
-        fontSize: 6,
-        textAnchor: 'middle',
-        fill: '#0a7c6e',
-        fontWeight: 'bold',
-        style: {transform: 'scaleY(' + flipY + ')'},
+
+      // FDI number badge below the tooth
+      h('div', {
+        className: 'tooth-fdi-label',
+        style: {
+          position: 'absolute',
+          top: (crownH + rootH + 4) + 'px',
+          left: '50%',
+          transform: (isUpper ? 'translateX(-50%)' : 'translateX(-50%) rotateZ(180deg)'),
+          fontSize: '9px',
+          color: 'var(--t)',
+          fontWeight: 700,
+          background: 'rgba(255,255,255,.85)',
+          padding: '1px 4px',
+          borderRadius: '4px',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        }
       }, fdi)
     )
   );
@@ -3806,12 +4134,20 @@ function surfaceDescription(s, type){
 
 // Main dental chart (overview)
 function DentalChart3D({teethData, onToothEdit}){
-  const [rotX, setRotX] = useState(-15);
+  const [rotX, setRotX] = useState(-25);
   const [rotY, setRotY] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [drag, setDrag] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [autoRotate, setAutoRotate] = useState(false);
   const stageRef = useRef(null);
+
+  // Auto-rotate when idle
+  useEffect(() => {
+    if (!autoRotate || drag) return;
+    const id = setInterval(() => setRotY(r => r + 0.3), 50);
+    return () => clearInterval(id);
+  }, [autoRotate, drag]);
 
   const handlePointerDown = (e) => {
     const p = e.touches ? e.touches[0] : e;
@@ -3851,15 +4187,23 @@ function DentalChart3D({teethData, onToothEdit}){
         h('div', {className: 'dchart-scene', style: {
           transform: 'scale(' + zoom + ') rotateX(' + rotX + 'deg) rotateY(' + rotY + 'deg)'
         }},
-          h('div', {className: 'jaw upper'},
+          // Upper jaw with gum tissue
+          h('div', {className: 'jaw-3d upper-jaw'},
+            // Gum (gingiva) base
+            h('div', {className: 'gum-tissue upper-gum'}),
             TEETH_UPPER.map((fdi, i) => h(Tooth3D, {
               key: fdi, fdi, condition: teethData[fdi],
               selected: selected === fdi, onSelect: setSelected,
               idx: i, total: TEETH_UPPER.length, isUpper: true
             }))
           ),
-          h('div', {className: 'jaw-divider'}),
-          h('div', {className: 'jaw lower'},
+
+          // Mouth opening (tongue suggestion)
+          h('div', {className: 'mouth-opening'}),
+
+          // Lower jaw with gum tissue
+          h('div', {className: 'jaw-3d lower-jaw'},
+            h('div', {className: 'gum-tissue lower-gum'}),
             TEETH_LOWER.map((fdi, i) => h(Tooth3D, {
               key: fdi, fdi, condition: teethData[fdi],
               selected: selected === fdi, onSelect: setSelected,
@@ -3869,11 +4213,12 @@ function DentalChart3D({teethData, onToothEdit}){
         )
       ),
       h('div', {className: 'dchart-ctrls'},
-        h('button', {type: 'button', className: 'dc-btn', onClick: () => setRotY(r => r - 30)}, '⟲'),
-        h('button', {type: 'button', className: 'dc-btn', onClick: () => setZoom(z => Math.max(0.5, z - 0.1))}, '−'),
-        h('button', {type: 'button', className: 'dc-btn', onClick: reset}, h(Svg, {d: IC.reset, size: 13})),
-        h('button', {type: 'button', className: 'dc-btn', onClick: () => setZoom(z => Math.min(2, z + 0.1))}, '+'),
-        h('button', {type: 'button', className: 'dc-btn', onClick: () => setRotY(r => r + 30)}, '⟳')
+        h('button', {type: 'button', className: 'dc-btn', onClick: () => setRotY(r => r - 30), title: 'Rotate left'}, '⟲'),
+        h('button', {type: 'button', className: 'dc-btn', onClick: () => setZoom(z => Math.max(0.5, z - 0.1)), title: 'Zoom out'}, '−'),
+        h('button', {type: 'button', className: 'dc-btn', onClick: reset, title: 'Reset view'}, h(Svg, {d: IC.reset, size: 13})),
+        h('button', {type: 'button', className: 'dc-btn', onClick: () => setZoom(z => Math.min(2, z + 0.1)), title: 'Zoom in'}, '+'),
+        h('button', {type: 'button', className: 'dc-btn', onClick: () => setRotY(r => r + 30), title: 'Rotate right'}, '⟳'),
+        h('button', {type: 'button', className: 'dc-btn' + (autoRotate ? ' act' : ''), onClick: () => setAutoRotate(a => !a), title: 'Auto-rotate', style: {marginLeft: '8px'}}, autoRotate ? '⏸' : '▶')
       ),
       h('div', {className: 'dchart-hint'}, '🖱️ Drag to rotate · Click any tooth for full 3D detail')
     ),
