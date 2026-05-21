@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#0a7c6e"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <title>Cyrabell Dental Management System</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -4617,15 +4617,33 @@ async function uploadPhotoToDrive(syncUrl, patientId, dataUrl, oldFileId) {
 }
 
 // ─── Fetch photo from Drive (returns data URL) ─────────────────────────
+/**
+ * Fetch a patient photo from Google Drive via Apps Script.
+ * Returns a base64 data URL, or null on any failure.
+ * URL: GET syncUrl?action=getPhoto&fileId=DRIVE_FILE_ID
+ */
 async function fetchPhotoFromDrive(syncUrl, fileId) {
-  if (!syncUrl || !fileId) return null;
-  const sep = syncUrl.includes('?') ? '&' : '?';
-  const res = await fetch(syncUrl + sep + 'action=getPhoto&fileId=' + encodeURIComponent(fileId));
-  const text = await res.text();
-  let result;
-  try { result = JSON.parse(text); } catch(e) { return null; }
-  if (!result.ok) return null;
-  return result.dataUrl;
+  if (!syncUrl || !fileId || typeof fileId !== 'string' || fileId.length < 5) return null;
+  try {
+    const sep = syncUrl.includes('?') ? '&' : '?';
+    const url = syncUrl + sep + 'action=getPhoto&fileId=' + encodeURIComponent(fileId);
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const text = await res.text();
+    let result;
+    try { result = JSON.parse(text); } catch(e) {
+      console.warn('[Photo] getPhoto returned non-JSON:', text.substring(0, 100));
+      return null;
+    }
+    if (!result.ok) {
+      console.warn('[Photo] getPhoto error:', result.error);
+      return null;
+    }
+    return result.dataUrl || null;
+  } catch (err) {
+    console.warn('[Photo] fetchPhotoFromDrive failed:', err.message);
+    return null;
+  }
 }
 
 // ─── The capture/upload widget shown inside PatForm ────────────────────
@@ -4818,8 +4836,39 @@ function PatForm({patient, onClose, onSave, syncUrl, addToast}){
     name: '', dob: '', phone: '', email: '', address: '',
     bloodType: 'O+', allergies: '', photoFileId: ''
   });
+  // pendingPhoto: null = no change | 'data:...' = new photo | 'REMOVE' = delete
   const [pendingPhoto, setPendingPhoto] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState(
+    // If editing and patient has inline base64, show it immediately
+    (patient && patient.photoDataUrl) || null
+  );
+
+  // Pre-load existing photo from Drive when editing a patient who has a photo
+  useEffect(() => {
+    if (!patient || !patient.photoFileId || !syncUrl) return;
+    if (existingPhotoUrl) return; // already loaded
+
+    let cancelled = false;
+    (async () => {
+      // Check cache first
+      window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
+      const cached = window.__cyrabellPhotoCache[patient.photoFileId];
+      if (cached) {
+        if (!cancelled) setExistingPhotoUrl(cached);
+        return;
+      }
+      // Fetch from Drive
+      try {
+        const url = await fetchPhotoFromDrive(syncUrl, patient.photoFileId);
+        if (!cancelled && url) {
+          window.__cyrabellPhotoCache[patient.photoFileId] = url;
+          setExistingPhotoUrl(url);
+        }
+      } catch (e) {}
+    })();
+    return () => { cancelled = true; };
+  }, [patient && patient.photoFileId, syncUrl]);
   const s = (k, v) => setF(x => ({...x, [k]: v}));
 
   const ok = S(f.name).trim() && S(f.phone).trim();
@@ -4845,15 +4894,26 @@ function PatForm({patient, onClose, onSave, syncUrl, addToast}){
           } catch(e) {}
         }
         dataToSave.photoFileId = '';
+        dataToSave.photoDataUrl = '';
       } else if (pendingPhoto && pendingPhoto.startsWith('data:')) {
         // New photo to upload
         if (!syncUrl) {
-          addToast && addToast('Sync URL not set — photo will not be saved to Drive', 'error');
+          // No sync URL — store photo inline as base64.
+          // The photo will show immediately and sync to Drive when user configures Sync URL.
+          dataToSave.photoDataUrl = pendingPhoto;
+          addToast && addToast('Photo saved locally. Configure ☁️ Sync to upload to Drive.', 'info');
         } else {
           const patientId = f.id || ('P' + uid());
           const fileId = await uploadPhotoToDrive(syncUrl, patientId, pendingPhoto, f.photoFileId);
           dataToSave.photoFileId = fileId;
-          // Cache the new photo
+          // IMPORTANT: also store the data URL in the patient record temporarily.
+          // PatientPhoto reads photoDataUrl first (priority 1), so the UI updates
+          // immediately after save without waiting for a new Drive fetch.
+          // The next time we push to Sheets, photoDataUrl is NOT saved (it's too
+          // large for Sheets), but photoFileId is. On next pull, the app fetches
+          // from Drive using photoFileId and caches it.
+          dataToSave.photoDataUrl = pendingPhoto;
+          // Also update the in-memory cache so PatientPhoto can display it instantly
           window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
           window.__cyrabellPhotoCache[fileId] = pendingPhoto;
         }
@@ -4882,8 +4942,13 @@ function PatForm({patient, onClose, onSave, syncUrl, addToast}){
     h('div', {className: 'patform-photo-section'},
       h(PhotoCaptureWidget, {
         patient: f,
-        photoDataUrl: pendingPhoto,
-        onPhotoChange: setPendingPhoto,
+        // Show pending (new) photo if selected; fall back to existing photo from Drive
+        photoDataUrl: pendingPhoto || existingPhotoUrl,
+        onPhotoChange: url => {
+          setPendingPhoto(url);
+          // When explicitly changing, clear the existing photo preview
+          if (url !== 'REMOVE') setExistingPhotoUrl(null);
+        },
         syncUrl, addToast
       })
     ),
@@ -5050,7 +5115,8 @@ function PatientPhoto({patient, size, syncUrl}) {
     if (!patient) { setDataUrl(null); setErrored(false); return; }
 
     // PRIORITY 1: Use inline base64 if available (offline mode / just taken)
-    if (patient.photoDataUrl) {
+    // Only if it's a valid non-empty data URL (not an empty string from removal)
+    if (patient.photoDataUrl && patient.photoDataUrl.startsWith('data:')) {
       setDataUrl(patient.photoDataUrl);
       return;
     }
@@ -5087,7 +5153,13 @@ function PatientPhoto({patient, size, syncUrl}) {
       }
     })();
     return () => { cancelled = true; };
-  }, [patient && patient.id, patient && patient.photoFileId, patient && patient.photoDataUrl, syncUrl]);
+  // Deps include photoDataUrl so re-renders when photo is added/changed/removed
+  }, [
+    patient && patient.id,
+    patient && patient.photoFileId,
+    patient && patient.photoDataUrl,
+    syncUrl
+  ]);
 
   const name = S(patient && patient.name);
   const initials = name
@@ -8106,8 +8178,16 @@ function App(){
       p: patients.length, a: appointments.length, pay: payments.length,
       n: notifications.length, r: reminders.length, rl: reminderLog.length
     });
+    // Strip photoDataUrl before sync — it's stored in Drive, not Sheets.
+    // Keeping it would make each Sheets push huge (~50KB per photo).
+    const patientsForSync = patients.map(p => {
+      if (!p.photoDataUrl) return p;
+      const {photoDataUrl: _drop, ...rest} = p;
+      return rest;
+    });
     scheduleAutoSync(syncUrl, {
-      patients, appointments, payments, notifications, reminders, reminderLog
+      patients: patientsForSync,
+      appointments, payments, notifications, reminders, reminderLog
     }, 2000);
   }, [patients, appointments, payments, notifications, reminders, reminderLog, user]);
 
