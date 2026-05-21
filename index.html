@@ -1872,6 +1872,45 @@ th:hover .sort-icon{opacity:.9}
   padding:4px;
 }
 
+
+/* ── NEXARCH BRANDING ── */
+.nexarch-badge{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  margin-top:18px;padding:10px 0;
+  border-top:1px solid rgba(255,255,255,.08);
+  opacity:0.75;
+  transition:opacity .2s;
+}
+.nexarch-badge:hover{opacity:1}
+.nexarch-badge span{
+  font-size:11px;color:rgba(255,255,255,.6);
+  letter-spacing:.3px;
+}
+.nexarch-badge strong{
+  color:var(--tl);font-weight:700;
+}
+.nexarch-logo-sm{
+  width:24px;height:24px;
+  object-fit:contain;
+  filter:drop-shadow(0 0 4px rgba(0,200,255,.5));
+}
+.nexarch-logo-xs{
+  width:16px;height:16px;
+  object-fit:contain;
+  filter:drop-shadow(0 0 3px rgba(0,200,255,.5));
+}
+.nexarch-sb-badge{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 12px;
+  margin-top:8px;
+  background:rgba(0,200,255,.05);
+  border-radius:7px;
+  border:1px solid rgba(0,200,255,.1);
+  font-size:10px;
+  color:rgba(255,255,255,.4);
+  letter-spacing:.3px;
+}
+
 @media(max-width:380px){
   .sg4,.sg3{grid-template-columns:1fr}
   .svcg,.ntg,.ig{grid-template-columns:1fr}
@@ -2450,6 +2489,13 @@ const CONDITIONS = {
 const CONDITION_KEYS = Object.keys(CONDITIONS);
 
 // ─── SHORTCUTS ───────────────────────────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🏢 NEXARCH BRANDING
+// Powered by NexArch — embedded logo (base64 PNG, 223×220px)
+// ═══════════════════════════════════════════════════════════════════════════
+const NEXARCH_LOGO = 'data:image/png;base64,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';
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 🛡️ GLOBAL ERROR HANDLER — Show errors visibly instead of white-screening
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3291,11 +3337,15 @@ function rlog(stage, detail) {
 // Find reminders that are due today or overdue
 function getDueReminders(reminders) {
   const today = localToday();
-  return reminders.filter(r =>
-    r.active &&
-    r.nextDue &&
-    r.nextDue <= today
-  );
+  return reminders.filter(r => {
+    // Must be active and have a valid nextDue date
+    if (!r.active) return false;
+    if (!r.nextDue || typeof r.nextDue !== 'string') return false;
+    // Reject obviously corrupt dates (1899 epoch, too short)
+    if (r.nextDue.length < 10) return false;
+    if (r.nextDue.startsWith('1899')) return false;
+    return r.nextDue <= today;
+  });
 }
 
 // Run the daily trigger — sends all due reminders, updates schedules
@@ -3429,6 +3479,10 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
             style:{background:'none',border:'none',cursor:'pointer',color:'var(--md)',fontSize:12.5,fontFamily:'inherit',textDecoration:'underline',textUnderlineOffset:3},
             onClick:onPublicBooking
           },'📅 I just want to book an appointment')
+        ),
+        h('div',{className:'nexarch-badge',style:{marginTop:20}},
+          h('img',{src:NEXARCH_LOGO,alt:'NexArch',className:'nexarch-logo-sm'}),
+          h('span',null,'Powered by ',h('strong',null,'NexArch'))
         )
       )
     );
@@ -3467,6 +3521,10 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
       ),
       h('div',{className:'login-back'},
         h('button',{onClick:()=>{setMode('choose');setError('');setUsername('');setPassword('');}},'← Back')
+      ),
+      h('div',{className:'nexarch-badge',style:{marginTop:12}},
+        h('img',{src:NEXARCH_LOGO,alt:'NexArch',className:'nexarch-logo-sm'}),
+        h('span',null,'Powered by ',h('strong',null,'NexArch'))
       )
     )
   );
@@ -4921,7 +4979,12 @@ function PatForm({patient, onClose, onSave, syncUrl, addToast}){
     large: true,
     footer: h(Fragment, null,
       h('button', {className:'btn bgh', onClick: onClose}, 'Cancel'),
-      h('button', {className:'btn bp', onClick: handleSave}, patient ? 'Save Changes' : 'Add Patient')
+      h('button', {
+        className:'btn bp',
+        onClick: handleSave,
+        disabled: !f.name || !f.phone,
+        title: (!f.name || !f.phone) ? 'Name and phone are required' : ''
+      }, patient ? 'Save Changes' : 'Add Patient')
     )
   },
     // Photo widget at top
@@ -4962,38 +5025,69 @@ function PatForm({patient, onClose, onSave, syncUrl, addToast}){
 
 // ─── Patient Photo (avatar) ─────────────────────────────────────────────
 // Shows the patient's photo if photoFileId exists, otherwise initials in a colored circle.
+/**
+ * PatientPhoto — displays patient's photo avatar.
+ *
+ * Priority:
+ *   1. photoDataUrl  — inline base64 (no Drive needed, for offline use)
+ *   2. photoFileId   — fetch from Google Drive via Apps Script
+ *   3. Initials     — colored circle fallback when no photo available
+ *
+ * @param {object} patient  - Patient record with photoFileId and/or photoDataUrl
+ * @param {number} size     - Diameter in px (default 40)
+ * @param {string} syncUrl  - Apps Script Web App URL for Drive fetch
+ */
 function PatientPhoto({patient, size, syncUrl}) {
   size = size || 40;
-  const [dataUrl, setDataUrl] = useState(null);
+  const [dataUrl, setDataUrl] = useState(
+    // Initialize with inline base64 immediately (no loading flash)
+    (patient && patient.photoDataUrl) || null
+  );
   const [errored, setErrored] = useState(false);
 
   useEffect(() => {
-    if (!patient || !patient.photoFileId || !syncUrl) {
+    // Clear state when patient changes
+    if (!patient) { setDataUrl(null); setErrored(false); return; }
+
+    // PRIORITY 1: Use inline base64 if available (offline mode / just taken)
+    if (patient.photoDataUrl) {
+      setDataUrl(patient.photoDataUrl);
+      return;
+    }
+
+    // PRIORITY 2: Fetch from Google Drive by fileId
+    if (!patient.photoFileId || !syncUrl) {
       setDataUrl(null);
       return;
     }
+
+    // Check in-memory cache to avoid redundant Drive fetches
     window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
     const cached = window.__cyrabellPhotoCache[patient.photoFileId];
     if (cached) {
       setDataUrl(cached);
       return;
     }
+
     let cancelled = false;
     (async () => {
       try {
         if (typeof fetchPhotoFromDrive === 'function') {
           const url = await fetchPhotoFromDrive(syncUrl, patient.photoFileId);
           if (!cancelled && url) {
+            // Cache and display
             window.__cyrabellPhotoCache[patient.photoFileId] = url;
             setDataUrl(url);
           }
         }
       } catch (err) {
+        // Photo load failed — will show initials fallback
+        console.warn('[PatientPhoto] fetch failed:', err.message);
         if (!cancelled) setErrored(true);
       }
     })();
     return () => { cancelled = true; };
-  }, [patient && patient.photoFileId, syncUrl]);
+  }, [patient && patient.id, patient && patient.photoFileId, patient && patient.photoDataUrl, syncUrl]);
 
   const name = S(patient && patient.name);
   const initials = name
@@ -5079,7 +5173,12 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
     h('button',{className:'btn bgh',onClick:onClose},'Close')
   )},
     h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:16}},
-      h(PatientPhoto,{patient,size:64,syncUrl}),
+      h(PatientPhoto,{
+  // Pass full patient object — PatientPhoto checks photoDataUrl first, then photoFileId
+  patient: patient,
+  size: 64,
+  syncUrl: syncUrl
+}),
       h('div',null,
         h('div',{style:{fontWeight:700,fontSize:16}},patient.name),
         h('div',{style:{fontSize:12,color:'var(--md)'}},patient.email||'No email'),
@@ -5147,7 +5246,7 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
   return h('div',null,
     h('div',{className:'ph'},
       h('div',null,h('div',{className:'ptl'},'Patient Records'),h('div',{className:'psl'},'Profiles · Dental Chart · History')),
-      h('div',{className:'ph-act'},h('button',{className:'btn bp',onClick:()=>{setEdit(null);setModal(true);}},h(Svg,{d:IC.plus,size:14}),' Add'))
+      h('div',{className:'ph-act'},h('button',{className:'btn bp',onClick:()=>{setEdit(null);setModal(true);}},h(Svg,{d:IC.plus,size:14}),' New Patient'))
     ),
     h('div',{className:'tsr',style:{width:'100%',maxWidth:320,marginBottom:14}},h(Svg,{d:IC.search,size:13,color:'var(--lt)'}),h('input',{placeholder:'Search patients…',value:search,onChange:e=>setSearch(e.target.value)})),
     h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
@@ -5156,7 +5255,7 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
         filtered.map(p=>{
           const issues = Object.values(p.teeth||{}).filter(v=>v&&v!=='healthy').length;
           return h('tr',{key:p.id},
-            h('td',null,h(PatientPhoto,{patient:p,size:36,syncUrl})),
+            h('td',null,h(PatientPhoto,{patient:p,size:36,syncUrl:syncUrl})),
             h('td',null,h('strong',null,p.name),h('div',{style:{fontSize:11,color:'var(--lt)'}},p.id+(p.email?' · '+p.email:''))),
             h('td',null,p.phone),
             h('td',null,h('span',{className:'tag',style:{background:'#f0e8ff',color:'#7c3aed'}},p.bloodType)),
@@ -5177,7 +5276,7 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
         return h('div',{key:p.id,className:'mc'},
           h('div',{className:'mc-top'},
             h('div',{style:{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}},
-              h(PatientPhoto,{patient:p,size:40,syncUrl}),
+              h(PatientPhoto,{patient:p,size:40,syncUrl:syncUrl}),
               h('div',{style:{minWidth:0}},
                 h('div',{className:'mc-nm'},p.name),
                 h('div',{className:'mc-sb'},p.id+' · '+p.phone)
@@ -5891,7 +5990,8 @@ function fmtDateFull(s) {
 }
 
 function fmtTime(s) {
-  if (!s && s !== 0) return '';
+  // Accept 0 (midnight as fraction-of-day = 0, or time '00:00')
+  if (s === null || s === undefined || s === '') return '';
   let hh, mm;
   if (s instanceof Date) {
     hh = s.getHours();
@@ -6475,8 +6575,18 @@ function Appointments({appointments,setAppointments,patients,setNotifications,se
       h('div',null,h('div',{className:'ptl'},'Appointments'),h('div',{className:'psl'},'Manage and confirm patient visits')),
       h('div',{className:'ph-act'},
         h('div',{className:'view-toggle'},
-          h('button',{className:'vt-btn'+(viewMode==='table'?' act':''),onClick:()=>setViewMode('table')},'📋 Table'),
-          h('button',{className:'vt-btn'+(viewMode==='calendar'?' act':''),onClick:()=>setViewMode('calendar')},'📅 Calendar')
+          h('button',{
+            type:'button',
+            className:'vt-btn'+(viewMode==='table'?' act':''),
+            style: viewMode==='table' ? {background:'#fff',color:'var(--t)',fontWeight:700,boxShadow:'0 1px 3px rgba(0,0,0,.1)'} : {},
+            onClick:()=>setViewMode('table')
+          },'📋 Table'),
+          h('button',{
+            type:'button',
+            className:'vt-btn'+(viewMode==='calendar'?' act':''),
+            style: viewMode==='calendar' ? {background:'#fff',color:'var(--t)',fontWeight:700,boxShadow:'0 1px 3px rgba(0,0,0,.1)'} : {},
+            onClick:()=>setViewMode('calendar')
+          },'📅 Calendar')
         ),
         h('button',{className:'btn bg2',onClick:()=>setShowAnalysis(true),title:'View conflict analysis'},'🔍 Analysis'),
         h('button',{className:'btn bp',onClick:()=>setModal(true)},h(Svg,{d:IC.plus,size:14}),' New')
@@ -7144,11 +7254,13 @@ function Analytics({appointments,payments,patients}){
   patients.forEach(p => {
     Object.entries(p.teeth || {}).forEach(([key, value]) => {
       // Skip surface-condition objects (keys ending in _surfaces store {mesial:'cavity'} etc.)
-      if (key.includes('_surfaces')) return;
-      // Only count valid string conditions
-      if (typeof value !== 'string' || !value || value === 'healthy') return;
-      // Only count conditions that exist in CONDITIONS lookup
+      if (!key || S(key).includes('_surfaces')) return;
+      // Only count valid non-empty string conditions
+      if (!value || typeof value !== 'string' || value === 'healthy') return;
+      // Reject any value that doesn't map to a known condition
       if (!CONDITIONS[value]) return;
+      // Reject numeric keys that look like FDI numbers but have object values
+      if (typeof value === 'object') return;
       issueStats[value] = (issueStats[value] || 0) + 1;
     });
   });
@@ -7194,10 +7306,19 @@ function PublicBooking({onBook,onBack,existingAppointments}){
   const [done,setDone]=useState(null);
   const s=(k,v)=>setForm(f=>({...f,[k]:v}));
   const submit=()=>{
-    // Re-check availability before submission
+    // Validate required fields
+    if (!form.name || !form.phone) {
+      alert('Please enter your name and phone number.');
+      return;
+    }
+    if (!form.service || !form.date || !form.time) {
+      alert('Please select a service, date, and time.');
+      return;
+    }
+    // Re-check availability before submission (prevent race conditions)
     const check = checkAvailability(existingAppointments||[], form.date, form.time, form.service);
     if (!check.available) {
-      alert('Cannot book: ' + check.message);
+      alert('This time slot is no longer available: ' + check.message + '\n\nPlease select a different time.');
       return;
     }
     const svc=SVCS.find(x=>x.name===form.service);
@@ -7382,6 +7503,11 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
             h('div',{className:'ua'},userInitial),
             h('div',null,h('div',{className:'un'},user.name||user.username),h('div',{className:'ur'},user.role)),
             h(Svg,{d:IC.logout,size:13,color:'rgba(255,255,255,.5)'})
+          ),
+          // NexArch power badge
+          h('div',{className:'nexarch-sb-badge'},
+            h('img',{src:NEXARCH_LOGO,alt:'NexArch',className:'nexarch-logo-xs'}),
+            h('span',null,'Powered by NexArch')
           )
         )
       ),
@@ -7812,6 +7938,10 @@ function App(){
       return;
     }
 
+    // ── Initial data pull from Google Sheets ─────────────────────────────
+    // This is the single most important boot operation.
+    // The result determines whether the app renders real data or demo data.
+    // All auto-sync is BLOCKED until this completes.
     asLog('boot:initial-pull-start', { url: syncUrl.substring(0, 50) + '...' });
 
     (async () => {
@@ -7926,7 +8056,14 @@ function App(){
     })();
   }, []);  // empty deps — run exactly once
 
-  // ───── REMINDER PERIODIC TRIGGER — runs every 6 hours ─────
+  // ─────────────────────────────────────────────────────────────────────────
+  // REMINDER PERIODIC TRIGGER
+  //
+  // Runs every 6 hours while the app tab is open.
+  // Sends all reminders with nextDue <= today (Philippines timezone).
+  // The daily lock (localStorage.cyrabell_reminder_last_run) prevents
+  // double-sending if the app is refreshed multiple times in one day.
+  // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;  // Only run while logged in
     const interval = setInterval(() => {
@@ -7935,8 +8072,17 @@ function App(){
     return () => clearInterval(interval);
   }, [user, reminders, patients]);
 
-  // ───── AUTO-SYNC: push to Google Sheets on data changes ─────
-  // Now gated by autoSyncReadyRef which is only set after initial pull succeeds
+  // ─────────────────────────────────────────────────────────────────────────
+  // AUTO-SYNC: push to Google Sheets on every data change.
+  //
+  // Design notes:
+  //   - Gated by autoSyncReadyRef, which is only TRUE after the initial pull
+  //     succeeds. This prevents overwriting Sheets with demo INIT_* data.
+  //   - Uses a 2-second debounce via scheduleAutoSync() so rapid edits
+  //     (e.g., typing in a text field) don't flood the Apps Script endpoint.
+  //   - A Web Worker handles the actual fetch() off the main thread.
+  //   - Skips sync while user is not logged in (prevents leaking draft data).
+  // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!autoSyncReadyRef.current) {
       asLog('app:auto-sync-blocked-until-pull-complete');
