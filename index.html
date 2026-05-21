@@ -196,17 +196,7 @@ textarea{resize:vertical;min-height:80px}
 .dchart-wrap{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;align-items:start}
 .dchart-3d-container{background:linear-gradient(135deg,#f0f9ff 0%,#e6f7f3 100%);border-radius:14px;padding:0;height:380px;perspective:900px;perspective-origin:50% 30%;position:relative;overflow:hidden;border:1px solid var(--bd)}
 .dchart-3d-container::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.6) 0%,transparent 60%);pointer-events:none}
-.dchart-stage{width:100%;height:100%;position:relative;cursor:grab;touch-action:none;transform-style:preserve-3d}
-.dchart-stage:active{cursor:grabbing}
-.dchart-scene{position:absolute;top:50%;left:50%;transform-style:preserve-3d;transition:transform .15s ease-out;width:0;height:0}
-.jaw{position:absolute;transform-style:preserve-3d;width:0;height:0}
-.jaw.upper{transform:translateY(-30px) rotateX(-12deg)}
-.jaw.lower{transform:translateY(30px) rotateX(12deg)}
-.jaw-divider{position:absolute;width:280px;height:8px;background:linear-gradient(180deg,#fdb3b3 0%,#f48a8a 50%,transparent 100%);border-radius:50%;opacity:0.35;top:-4px;left:-140px;transform-style:preserve-3d;filter:blur(3px)}
-.tooth3d{position:absolute;top:0;left:0;transform-style:preserve-3d;cursor:pointer;transition:filter .15s ease}
-.tooth3d:hover{filter:brightness(1.1)}
-.tooth3d.sel{filter:drop-shadow(0 0 8px rgba(10,124,110,.6))}
-.tooth3d.missing{opacity:0.5}
+/* dental chart CSS replaced - see realistic version below */
 .tooth-body{position:absolute;top:0;left:0;width:100%;height:100%;border-style:solid;border-radius:50% 50% 28% 28% / 60% 60% 40% 40%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transform:translate(-50%,-50%);transition:all .18s ease}
 .t-num{font-size:9px;font-weight:700;color:#1a2332;background:rgba(255,255,255,0.85);padding:0 3px;border-radius:3px;line-height:1.2;pointer-events:none}
 .t-sym{font-size:13px;line-height:1;pointer-events:none;font-weight:700}
@@ -1281,18 +1271,30 @@ th:hover .sort-icon{opacity:.9}
   margin-bottom:7px;
 }
 .td-surf-pick{
-  width:32px;height:32px;
-  border:1.5px solid var(--bd);
-  background:#fff;border-radius:7px;
-  cursor:pointer;font-size:14px;
+  width:36px;height:36px;
+  border:2px solid var(--bd);
+  background:#fff;border-radius:8px;
+  cursor:pointer;font-size:15px;font-weight:600;
   font-family:inherit;
   display:flex;align-items:center;justify-content:center;
-  transition:all .15s;
+  transition:all .12s;
+  color:var(--md);
+  user-select:none;
+  -webkit-tap-highlight-color:rgba(10,124,110,.2);
 }
-.td-surf-pick:hover{border-color:var(--t);background:var(--tp)}
+.td-surf-pick:hover{
+  border-color:var(--t);
+  background:var(--tp);
+  transform:translateY(-1px);
+  box-shadow:0 2px 6px rgba(10,124,110,.2);
+}
+.td-surf-pick:active{
+  transform:translateY(0);
+}
 .td-surf-pick.active{
-  color:#1a2332;font-weight:bold;
-  box-shadow:0 0 0 2px rgba(10,124,110,.3);
+  font-weight:bold;
+  box-shadow:0 0 0 3px rgba(10,124,110,.35), 0 2px 4px rgba(0,0,0,.15);
+  transform:scale(1.05);
 }
 
 @media (max-width: 800px){
@@ -1303,14 +1305,8 @@ th:hover .sort-icon{opacity:.9}
   .tooth-detail-3d{min-height:340px}
 }
 
-@media(max-width:380px){
-  .avail-suggest-grid{grid-template-columns:1fr}
-}
 
-@media(max-width:380px){
-  .rmnd-ch-grid{grid-template-columns:1fr}
-}
-
+/* Old realistic 3D chart CSS replaced with FDI clinical version below */
 
 /* ── SYNC PAGE ── */
 .sync-grid{
@@ -1479,6 +1475,252 @@ th:hover .sort-icon{opacity:.9}
   .photo-preview{align-self:center}
   .photo-actions{flex-direction:row;flex-wrap:wrap}
   .photo-actions .btn{flex:1;min-width:120px}
+}
+
+
+/* ── PROFESSIONAL FDI DENTAL CHART ── */
+.fdi-chart{
+  background:#fff;
+  border-radius:14px;
+  border:1px solid var(--bd);
+  padding:18px;
+  box-shadow:0 1px 4px rgba(0,0,0,.04);
+}
+.fdi-title-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:18px;
+  padding-bottom:14px;
+  border-bottom:2px solid var(--bd);
+  flex-wrap:wrap;gap:14px;
+}
+.fdi-chart-title{
+  font-family:'Playfair Display',serif;
+  font-size:19px;font-weight:700;
+}
+.fdi-chart-sub{
+  font-size:11px;color:var(--md);
+  text-transform:uppercase;letter-spacing:1px;
+  margin-top:3px;
+}
+.fdi-stats{
+  display:flex;gap:14px;
+}
+.fdi-stat{
+  text-align:center;
+  padding:7px 14px;
+  background:var(--cr);
+  border-radius:9px;
+  min-width:64px;
+}
+.fdi-stat-num{
+  font-family:'Playfair Display',serif;
+  font-size:22px;font-weight:700;
+  color:var(--t);line-height:1;
+}
+.fdi-stat-lbl{
+  font-size:9.5px;color:var(--md);
+  margin-top:2px;
+  text-transform:uppercase;letter-spacing:.5px;
+}
+
+/* Upper / Lower arch containers */
+.fdi-arch{
+  position:relative;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  padding:24px 12px;
+  background:linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border:1px solid var(--bd);
+  border-radius:11px;
+  margin-bottom:0;
+}
+.fdi-upper{
+  align-items:flex-end;
+  border-radius:11px 11px 4px 4px;
+}
+.fdi-lower{
+  align-items:flex-start;
+  border-radius:4px 4px 11px 11px;
+}
+
+/* Quadrant labels */
+.fdi-quad-lbl{
+  position:absolute;
+  top:6px;
+  font-size:9.5px;font-weight:700;
+  color:var(--md);
+  letter-spacing:1px;
+  text-transform:uppercase;
+}
+.fdi-q1-lbl, .fdi-q4-lbl{ left:14px; }
+.fdi-q2-lbl, .fdi-q3-lbl{ right:14px; }
+.fdi-lower .fdi-quad-lbl{ top:auto; bottom:6px; }
+
+/* Tooth rows */
+.fdi-row{
+  display:flex;
+  align-items:flex-end;
+  gap:2px;
+}
+.fdi-upper .fdi-row{ align-items:flex-end; }
+.fdi-lower .fdi-row{ align-items:flex-start; }
+
+/* Vertical midline */
+.fdi-midline{
+  width:1px;
+  background:var(--bd);
+  align-self:stretch;
+  margin:8px 8px;
+  border-left:1.5px dashed var(--lt);
+}
+
+/* Individual tooth cell */
+.fdi-cell{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:2px;
+  min-width:40px;
+}
+.fdi-num{
+  font-size:10px;font-weight:700;
+  color:var(--md);
+  background:#fff;
+  padding:1px 5px;
+  border-radius:4px;
+  border:1px solid var(--bd);
+  line-height:1.4;
+}
+.fdi-num-top{ margin-bottom:3px; }
+.fdi-num-bot{ margin-top:3px; }
+
+/* Clinical tooth — the actual 3D SVG */
+.clin-tooth{
+  cursor:pointer;
+  transition:all .15s;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.08));
+  padding:2px;
+  border-radius:6px;
+}
+.clin-tooth:hover{
+  transform:translateY(-2px);
+  filter:drop-shadow(0 3px 8px rgba(10,124,110,.35));
+  background:rgba(10,124,110,.04);
+}
+.clin-tooth.sel{
+  background:rgba(10,124,110,.15);
+  transform:translateY(-2px) scale(1.05);
+  filter:drop-shadow(0 4px 10px rgba(10,124,110,.5));
+}
+.clin-tooth.miss svg{ opacity:0.65; }
+.clin-tooth.issue{
+  background:rgba(220,38,38,.06);
+}
+
+/* Bite line — visual separator between upper/lower */
+.fdi-bite-line{
+  height:24px;
+  background:linear-gradient(90deg, transparent 0%, rgba(0,0,0,.06) 20%, rgba(0,0,0,.06) 80%, transparent 100%);
+  margin:6px 0;
+  position:relative;
+  display:flex;align-items:center;justify-content:center;
+}
+.fdi-bite-line span{
+  background:#fff;
+  padding:1px 12px;
+  font-size:9px;
+  color:var(--lt);
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:1.5px;
+}
+
+/* Condition stats grid */
+.fdi-condition-stats{
+  display:flex;flex-wrap:wrap;gap:8px;
+  margin-top:14px;
+  padding:11px 12px;
+  background:var(--cr);
+  border-radius:9px;
+  border:1px solid var(--bd);
+}
+.fdi-cstat{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:11.5px;
+}
+.fdi-cstat-sw{
+  width:18px;height:18px;
+  border-radius:5px;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.fdi-cstat-lbl{color:var(--md)}
+.fdi-cstat-num{
+  background:#fff;
+  padding:1px 7px;border-radius:6px;
+  font-weight:700;color:var(--dk);
+  border:1px solid var(--bd);
+}
+
+/* Full legend */
+.fdi-legend{
+  margin-top:10px;
+  padding:11px 12px;
+  background:#fff;
+  border:1px solid var(--bd);
+  border-radius:9px;
+}
+.fdi-legend-title{
+  font-size:10px;font-weight:700;
+  color:var(--md);
+  text-transform:uppercase;letter-spacing:1px;
+  margin-bottom:8px;
+}
+.fdi-legend-items{
+  display:grid;
+  grid-template-columns:repeat(5, 1fr);
+  gap:6px;
+}
+.fdi-legend-item{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:11px;color:var(--md);
+}
+.fdi-legend-sw{
+  width:16px;height:16px;border-radius:4px;
+  display:inline-flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+
+.fdi-help{
+  margin-top:12px;
+  padding:10px 12px;
+  background:linear-gradient(135deg, #e8f5f3, #f0fdfa);
+  border:1px solid #86efac;
+  border-radius:9px;
+  font-size:12px;
+  color:var(--dk);
+}
+
+@media (max-width: 800px){
+  .fdi-arch{padding:18px 6px}
+  .fdi-cell{min-width:34px;padding:1px}
+  .fdi-num{font-size:9px;padding:1px 3px}
+  .fdi-midline{margin:6px 4px}
+  .fdi-legend-items{grid-template-columns:repeat(2, 1fr)}
+  .fdi-stat{padding:5px 8px;min-width:50px}
+  .fdi-stat-num{font-size:18px}
+  .fdi-quad-lbl{font-size:8px}
+}
+@media (max-width: 480px){
+  .fdi-row{gap:1px}
+  .fdi-cell{min-width:30px}
+}
+
+/* Print-friendly */
+@media print{
+  .fdi-chart{box-shadow:none;border:1px solid #000}
+  .clin-tooth:hover{transform:none;background:transparent}
+  .fdi-help{display:none}
 }
 
 @media(max-width:380px){
@@ -1832,7 +2074,7 @@ const INIT_P=[
 ];
 
 // Today's date for demo - appointments on today are kiosk-eligible
-const todayStr = new Date().toISOString().split('T')[0];
+const todayStr = localToday();
 
 const INIT_A=[
   {id:'A001',patientId:'P001',patientName:'Maria Santos',service:'Teeth Cleaning',date:todayStr,time:'09:00',status:'confirmed',notes:'Regular cleaning',fee:800,dentist:'Dr. Arnold Colao',phone:'09171234567',email:'maria@email.com',arrived:false},
@@ -1935,8 +2177,8 @@ const REMINDER_TYPES = {
 
 // ─── INITIAL REMINDERS DATA ─────────────────────────────────────────────────
 // Date helpers for demo - lastSent within last X days based on interval
-function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.toISOString().split('T')[0];}
-function daysFromNow(n){const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
+function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return toLocalDateStr(d);}
+function daysFromNow(n){const d=new Date();d.setDate(d.getDate()+n);return toLocalDateStr(d);}
 
 const INIT_REMINDERS = [
   {id:'R001',patientId:'P001',patientName:'Maria Santos',type:'cleaning',channels:['sms','email'],frequency:180,lastSent:daysAgo(175),nextDue:daysFromNow(5),active:true,notes:''},
@@ -2439,7 +2681,7 @@ function aiSuggestSlots(appointments, service, fromDate, daysAhead) {
     const d = new Date(startDate);
     d.setDate(d.getDate() + dayOffset);
     if (d.getDay() === 0) continue; // skip Sundays
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = toLocalDateStr(d);
 
     const busy = appointments.filter(a =>
       a.date === dateStr &&
@@ -2472,7 +2714,7 @@ function aiCheckConflicts(appointments, date, time, excludeId) {
 }
 
 function aiScheduleInsights(appointments) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localToday();
   const insights = [];
 
   // Today's load
@@ -2486,7 +2728,7 @@ function aiScheduleInsights(appointments) {
 
   // Tomorrow forecast
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
-  const tomStr = tomorrow.toISOString().split('T')[0];
+  const tomStr = toLocalDateStr(tomorrow);
   const tomAppts = appointments.filter(a => a.date === tomStr && a.status !== 'cancelled');
   insights.push({
     type: 'info',
@@ -2525,7 +2767,7 @@ function aiScheduleInsights(appointments) {
   for (let i = 1; i <= 7; i++) {
     const d = new Date(); d.setDate(d.getDate()+i);
     if (d.getDay() === 0) continue;
-    const ds = d.toISOString().split('T')[0];
+    const ds = toLocalDateStr(d);
     const cnt = appointments.filter(a => a.date === ds && a.status !== 'cancelled').length;
     if (cnt === 0) next7Days.push(ds);
   }
@@ -2777,6 +3019,40 @@ function AIAssistant({appointments, patients, payments, addToast, onClose, defau
 // 👤 PATIENT DEDUPLICATION
 // ═══════════════════════════════════════════════════════════════════════════
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🌏 LOCAL TIMEZONE HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+// IMPORTANT: Never use toISOString() for date strings — it returns UTC date,
+// which can be off by one day depending on the user's timezone (e.g., 7 PM
+// UTC = 3 AM next day in Manila). Use these helpers instead.
+
+// Returns the user's LOCAL date as 'YYYY-MM-DD'
+function localToday() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+// Converts a Date object to LOCAL 'YYYY-MM-DD' string
+function toLocalDateStr(d) {
+  if (!d) return '';
+  if (typeof d === 'string') return d.substring(0, 10);
+  if (!(d instanceof Date)) d = new Date(d);
+  if (isNaN(d.getTime())) return '';
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+// Date N days from today, as 'YYYY-MM-DD' in LOCAL time
+function dateOffsetStr(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return toLocalDateStr(d);
+}
+
 // Defensive string coercion — handles null, undefined, numbers, etc.
 // Sheets sometimes returns "09171234567" as a Number, which has no .includes/.toLowerCase
 const S = (v) => (v === null || v === undefined) ? '' : String(v);
@@ -2865,7 +3141,7 @@ function rlog(stage, detail) {
 
 // Find reminders that are due today or overdue
 function getDueReminders(reminders) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localToday();
   return reminders.filter(r =>
     r.active &&
     r.nextDue &&
@@ -2879,7 +3155,7 @@ async function runDailyReminderTrigger(reminders, patients, setReminders, setRem
     rlog('skip:disabled');
     return { sent: 0, skipped: 'disabled' };
   }
-  const today = new Date().toISOString().split('T')[0];
+  const today = localToday();
   if (reminderLastRunDate() === today) {
     rlog('skip:already-ran-today');
     return { sent: 0, skipped: 'already-ran-today' };
@@ -2936,7 +3212,7 @@ async function runDailyReminderTrigger(reminders, patients, setReminders, setRem
     const newLastSent = today;
     const d = new Date(newLastSent);
     d.setDate(d.getDate() + (+reminder.frequency || 90));
-    const newNextDue = d.toISOString().split('T')[0];
+    const newNextDue = toLocalDateStr(d);
     const idx = updatedReminders.findIndex(r => r.id === reminder.id);
     if (idx !== -1) {
       updatedReminders[idx] = {...updatedReminders[idx], lastSent: newLastSent, nextDue: newNextDue};
@@ -3065,7 +3341,7 @@ function KioskMode({appointments,onCheckIn,onExit,addToast}){
   },[]);
 
   // Today's appointments only (confirmed or pending)
-  const today = new Date().toISOString().split('T')[0];
+  const today = localToday();
   const todayAppts = appointments.filter(a =>
     a.date===today && (a.status==='confirmed'||a.status==='pending')
   );
@@ -3302,113 +3578,154 @@ function toothSvgPath(type, upper) {
 }
 
 // Anatomical 2.5D tooth — SVG with gradient depth for 3D illusion
-function Tooth3D({fdi, condition, selected, onSelect, idx, total, isUpper}){
+// Clinical FDI dental chart — professional layout
+// Renders ONE tooth as a 3D-looking SVG with FDI number badge
+
+function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect}){
   const cond = CONDITIONS[condition || 'healthy'];
-  const angle = -75 + (150 * idx / Math.max(1, total - 1));
-  const rad = angle * Math.PI / 180;
-  const radius = 145;
-  const x = Math.sin(rad) * radius;
-  const z = -Math.cos(rad) * radius + radius;
   const type = toothType(fdi);
-  const isMolar = type === 'molar';
-  const isPremolar = type === 'premolar';
-  const isCanine = type === 'canine';
+  const isUpper = isUpperTooth(fdi);
   const missing = condition === 'missing';
+  const hasIssues = (condition && condition !== 'healthy') ||
+                    (surfaceData && Object.values(surfaceData).some(v => v && v !== 'healthy'));
 
-  // Width scales with tooth type
-  const w = isMolar ? 38 : isPremolar ? 32 : isCanine ? 28 : 26;
-  const hgt = isMolar ? 62 : isPremolar ? 56 : isCanine ? 60 : 56;
+  // Tooth shape varies by type — drawn as SVG with 3D gradient depth
+  const w = 38;  // viewport width per tooth (fits in grid cell)
+  const hgt = 56;
 
-  const path = toothSvgPath(type, isUpper);
-  const baseColor = cond.color;
-  const strokeColor = selected ? '#0a7c6e' : cond.stroke;
-  const enamelLight = condition === 'healthy' || !condition ? '#ffffff' : baseColor;
-  const enamelDark = condition === 'healthy' || !condition ? '#dfeae5' : cond.stroke;
+  // Color logic
+  const enamelTop = condition && condition !== 'healthy' ? cond.color : '#fefefe';
+  const enamelMid = condition && condition !== 'healthy' ? cond.color : '#f5efe5';
+  const enamelBot = condition && condition !== 'healthy' ? cond.stroke : '#d8c8a8';
+  const rootColor = '#c4a98a';
+  const strokeColor = selected ? '#0a7c6e' : (cond.stroke || '#94a8b3');
 
-  // Render tooth flipped vertically for lower jaw
+  // Build crown path based on tooth type (viewed from outside/buccal)
+  // All paths drawn for UPPER teeth (tip up); flipped for lower
+  let crownPath;
+  if (type === 'incisor') {
+    // Wide flat top, narrowing to neck
+    crownPath = 'M -14 -25 Q -15 -8 -12 5 L 12 5 Q 15 -8 14 -25 L 8 -28 L -8 -28 Z';
+  } else if (type === 'canine') {
+    // Pointed crown
+    crownPath = 'M 0 -28 L -13 -8 Q -12 6 12 6 L 13 -8 Z';
+  } else if (type === 'premolar') {
+    // Two-cusp profile
+    crownPath = 'M -15 -22 Q -14 -26 -10 -25 L -3 -20 L 3 -20 L 10 -25 Q 14 -26 15 -22 Q 16 -5 12 5 L -12 5 Q -16 -5 -15 -22 Z';
+  } else {
+    // Molar — wider, four cusps
+    crownPath = 'M -17 -20 Q -16 -25 -11 -24 L -5 -19 L -1 -22 L 1 -22 L 5 -19 L 11 -24 Q 16 -25 17 -20 Q 18 -5 14 5 L -14 5 Q -18 -5 -17 -20 Z';
+  }
+
+  // Root path
+  const rootPath = type === 'molar'
+    ? 'M -10 5 Q -12 18 -8 24 L -3 26 L 0 25 L 3 26 L 8 24 Q 12 18 10 5 Z'
+    : type === 'canine'
+    ? 'M -7 5 Q -10 22 -3 28 Q 0 30 3 28 Q 10 22 7 5 Z'
+    : type === 'premolar'
+    ? 'M -8 5 Q -10 20 -5 25 Q 0 27 5 25 Q 10 20 8 5 Z'
+    : 'M -7 5 Q -9 20 -4 25 Q 0 27 4 25 Q 9 20 7 5 Z';
+
+  const gradId = 'tg-' + fdi;
   const flipY = isUpper ? 1 : -1;
 
   return h('div', {
-    className: 'tooth3d' + (selected ? ' sel' : '') + (missing ? ' missing' : ''),
+    className: 'clin-tooth' + (selected ? ' sel' : '') + (missing ? ' miss' : '') + (hasIssues ? ' issue' : ''),
     onClick: e => { e.stopPropagation(); onSelect(fdi); },
-    style: {
-      transform: 'translate3d(' + x + 'px,0,' + z + 'px) rotateY(' + angle + 'deg)',
-      width: w + 'px',
-      height: hgt + 'px',
-    },
-    title: 'Tooth #' + fdi + ' · ' + toothName(fdi) + ' · ' + cond.label
+    title: '#' + fdi + ' · ' + toothName(fdi) + ' · ' + cond.label
   },
     h('svg', {
-      width: w, height: hgt,
-      viewBox: '-15 -35 30 70',
-      style: { transform: 'scaleY(' + flipY + ')', overflow: 'visible' },
+      viewBox: '-20 -32 40 65',
+      width: w,
+      height: hgt,
+      style: { transform: 'scaleY(' + flipY + ')', display: 'block', overflow: 'visible' }
     },
-      // Gradient defs for 3D depth illusion
       h('defs', null,
-        h('linearGradient', {id: 'enamel-' + fdi, x1: '0%', y1: '0%', x2: '0%', y2: '100%'},
-          h('stop', {offset: '0%', stopColor: enamelLight}),
-          h('stop', {offset: '50%', stopColor: baseColor}),
-          h('stop', {offset: '100%', stopColor: enamelDark})
+        // Vertical enamel gradient for 3D depth
+        h('linearGradient', {id: gradId, x1: '0%', y1: '0%', x2: '0%', y2: '100%'},
+          h('stop', {offset: '0%', stopColor: enamelTop}),
+          h('stop', {offset: '45%', stopColor: enamelMid}),
+          h('stop', {offset: '100%', stopColor: enamelBot})
         ),
-        h('radialGradient', {id: 'enamel-radial-' + fdi, cx: '50%', cy: '30%', r: '70%'},
-          h('stop', {offset: '0%', stopColor: '#ffffff', stopOpacity: missing ? 0 : 0.5}),
-          h('stop', {offset: '100%', stopColor: baseColor, stopOpacity: 0})
+        // Radial highlight for gloss
+        h('radialGradient', {id: gradId + '-shine', cx: '30%', cy: '25%', r: '50%'},
+          h('stop', {offset: '0%', stopColor: '#ffffff', stopOpacity: missing ? 0 : 0.7}),
+          h('stop', {offset: '100%', stopColor: '#ffffff', stopOpacity: 0})
         )
       ),
-      // Root (drawn first, behind crown)
-      h('path', {
-        d: path.root,
-        fill: missing ? 'transparent' : '#f0e4d6',
-        stroke: missing ? '#e05252' : '#c4a98a',
-        strokeWidth: 0.8,
-        strokeDasharray: missing ? '2 2' : '0',
-        opacity: 0.9
+      // Root
+      !missing && h('path', {
+        d: rootPath,
+        fill: rootColor,
+        opacity: 0.55,
+        stroke: '#a88560',
+        strokeWidth: 0.5
       }),
       // Crown
-      h('path', {
-        d: path.crown,
-        fill: 'url(#enamel-' + fdi + ')',
+      !missing && h('path', {
+        d: crownPath,
+        fill: 'url(#' + gradId + ')',
         stroke: strokeColor,
         strokeWidth: selected ? 1.8 : 1.0,
         strokeLinejoin: 'round'
       }),
-      // Highlight overlay for 3D feel
+      // Gloss overlay
       !missing && h('path', {
-        d: path.crown,
-        fill: 'url(#enamel-radial-' + fdi + ')',
+        d: crownPath,
+        fill: 'url(#' + gradId + '-shine)',
         pointerEvents: 'none'
       }),
-      // Cusp / surface markings
-      isMolar && !missing && h('g', null,
-        h('circle', {cx: -6, cy: -16, r: 1.5, fill: enamelDark, opacity: 0.6}),
-        h('circle', {cx: 6, cy: -16, r: 1.5, fill: enamelDark, opacity: 0.6}),
-        h('circle', {cx: -5, cy: -5, r: 1.3, fill: enamelDark, opacity: 0.6}),
-        h('circle', {cx: 5, cy: -5, r: 1.3, fill: enamelDark, opacity: 0.6}),
-        // Central pit
-        h('circle', {cx: 0, cy: -10, r: 1.0, fill: '#7a6b5a', opacity: 0.5})
+      // Cusp markers (anatomy)
+      !missing && type === 'molar' && h('g', null,
+        h('circle', {cx: -8, cy: -12, r: 1.6, fill: enamelBot, opacity: 0.55}),
+        h('circle', {cx: 8, cy: -12, r: 1.6, fill: enamelBot, opacity: 0.55}),
+        h('circle', {cx: -7, cy: -2, r: 1.4, fill: enamelBot, opacity: 0.55}),
+        h('circle', {cx: 7, cy: -2, r: 1.4, fill: enamelBot, opacity: 0.55}),
+        h('circle', {cx: 0, cy: -7, r: 1.0, fill: '#7a6b5a', opacity: 0.5})
       ),
-      isPremolar && !missing && h('g', null,
-        h('circle', {cx: -4, cy: -22, r: 1.4, fill: enamelDark, opacity: 0.6}),
-        h('circle', {cx: 4, cy: -22, r: 1.4, fill: enamelDark, opacity: 0.6})
+      !missing && type === 'premolar' && h('g', null,
+        h('circle', {cx: -5, cy: -16, r: 1.6, fill: enamelBot, opacity: 0.55}),
+        h('circle', {cx: 5, cy: -16, r: 1.6, fill: enamelBot, opacity: 0.55})
       ),
-      // Condition symbol overlay (centered)
-      cond.symbol && h('text', {
-        x: 0, y: -10,
-        fontSize: isMolar ? 11 : 9,
+      // Missing-tooth indicator
+      missing && h('g', null,
+        h('path', {
+          d: 'M -12 -22 L 12 5 M 12 -22 L -12 5',
+          stroke: '#dc2626', strokeWidth: 2.5, strokeLinecap: 'round'
+        }),
+        h('rect', {
+          x: -14, y: -25, width: 28, height: 32,
+          fill: 'none', stroke: '#dc2626',
+          strokeWidth: 1.5, strokeDasharray: '3 2', rx: 4
+        })
+      ),
+      // Condition symbol overlay
+      !missing && cond.symbol && h('text', {
+        x: 0, y: -8,
+        fontSize: 10,
         textAnchor: 'middle',
         fill: condition === 'cavity' ? '#fff' : '#1a2332',
-        fontWeight: 'bold',
-        style: {transform: 'scaleY(' + flipY + ')'},
+        fontWeight: 700,
+        style: { transform: 'scaleY(' + flipY + ')' }
       }, cond.symbol),
-      // FDI number badge
-      h('text', {
-        x: 0, y: 28,
-        fontSize: 6,
-        textAnchor: 'middle',
-        fill: '#0a7c6e',
-        fontWeight: 'bold',
-        style: {transform: 'scaleY(' + flipY + ')'},
-      }, fdi)
+      // Surface markers — small dots on the appropriate edge
+      surfaceData && Object.entries(surfaceData).map(([surf, cnd]) => {
+        if (!cnd || cnd === 'healthy') return null;
+        const sCond = CONDITIONS[cnd] || cond;
+        let cx = 0, cy = 0;
+        if (surf === 'mesial') { cx = -13; cy = -8; }
+        else if (surf === 'distal') { cx = 13; cy = -8; }
+        else if (surf === 'occlusal' || surf === 'incisal') { cx = 0; cy = -23; }
+        else if (surf === 'buccal' || surf === 'labial') { cx = 0; cy = -2; }
+        else if (surf === 'lingual') { cx = 0; cy = 2; }
+        return h('circle', {
+          key: surf,
+          cx: cx, cy: cy, r: 2.2,
+          fill: sCond.color,
+          stroke: sCond.stroke,
+          strokeWidth: 0.7,
+        });
+      })
     )
   );
 }
@@ -3560,7 +3877,9 @@ function ToothDetailModal({fdi, condition, surfaceData, onClose, onConditionChan
         // SURFACES: per-surface assignment
         view === 'surfaces' && h('div', null,
           h('div', {style: {fontSize: 12, color: 'var(--md)', marginBottom: 12, lineHeight: 1.5}},
-            'Assign conditions to individual tooth surfaces for precise charting.'
+            'Tap a condition button next to each surface to assign it. Click ',
+            h('span', {style: {fontWeight: 700, color: 'var(--gr)'}}, '✓'),
+            ' for healthy.'
           ),
           h('div', {className: 'td-surfaces'},
             meta.surfaces.map(s => {
@@ -3576,10 +3895,15 @@ function ToothDetailModal({fdi, condition, surfaceData, onClose, onConditionChan
                     return h('button', {
                       key: k, type: 'button',
                       className: 'td-surf-pick' + (active ? ' active' : ''),
-                      style: active ? {background: c.color, borderColor: c.stroke} : {},
-                      onClick: () => onSurfaceChange && onSurfaceChange(fdi, s, k),
+                      style: active
+                        ? {background: c.color, borderColor: c.stroke, color: k === 'cavity' ? '#fff' : '#1a2332'}
+                        : {},
+                      onClick: (e) => {
+                        e.stopPropagation();
+                        if (onSurfaceChange) onSurfaceChange(fdi, s, k);
+                      },
                       title: c.label
-                    }, c.symbol || '○')
+                    }, c.symbol || (k === 'healthy' ? '✓' : '●'))
                   })
                 )
               );
@@ -3772,701 +4096,167 @@ function surfaceDescription(s, type){
 
 // Main dental chart (overview)
 function DentalChart3D({teethData, onToothEdit}){
-  const [rotX, setRotX] = useState(-15);
-  const [rotY, setRotY] = useState(0);
-  const [zoom, setZoom] = useState(1);
-  const [drag, setDrag] = useState(null);
   const [selected, setSelected] = useState(null);
-  const stageRef = useRef(null);
 
-  const handlePointerDown = (e) => {
-    const p = e.touches ? e.touches[0] : e;
-    setDrag({startX: p.clientX, startY: p.clientY, baseRX: rotX, baseRY: rotY});
-  };
-  const handlePointerMove = (e) => {
-    if (!drag) return; e.preventDefault();
-    const p = e.touches ? e.touches[0] : e;
-    setRotY(drag.baseRY + (p.clientX - drag.startX) * 0.5);
-    setRotX(Math.max(-60, Math.min(30, drag.baseRX - (p.clientY - drag.startY) * 0.3)));
-  };
-  const handlePointerUp = () => setDrag(null);
+  // FDI standard chart layout:
+  //   Upper arch (Maxilla): Right side (Q1) then left side (Q2) — viewer's perspective
+  //   FDI Q1 = upper right:  18 17 16 15 14 13 12 11   |   21 22 23 24 25 26 27 28  = Q2 upper left
+  //   FDI Q4 = lower right:  48 47 46 45 44 43 42 41   |   31 32 33 34 35 36 37 38  = Q3 lower left
+  // We split into two rows of two halves so the midline is always centered.
 
-  useEffect(() => {
-    if (drag) {
-      window.addEventListener('mousemove', handlePointerMove);
-      window.addEventListener('mouseup', handlePointerUp);
-      window.addEventListener('touchmove', handlePointerMove, {passive: false});
-      window.addEventListener('touchend', handlePointerUp);
-      return () => {
-        window.removeEventListener('mousemove', handlePointerMove);
-        window.removeEventListener('mouseup', handlePointerUp);
-        window.removeEventListener('touchmove', handlePointerMove);
-        window.removeEventListener('touchend', handlePointerUp);
-      };
-    }
-  }, [drag]);
+  const Q1 = [18,17,16,15,14,13,12,11];
+  const Q2 = [21,22,23,24,25,26,27,28];
+  const Q4 = [48,47,46,45,44,43,42,41];
+  const Q3 = [31,32,33,34,35,36,37,38];
 
-  const reset = () => { setRotX(-15); setRotY(0); setZoom(1); };
+  // Stats
+  const conditionsTotal = Object.entries(teethData)
+    .filter(([k,v]) => v && v !== 'healthy' && !k.includes('_surfaces'))
+    .length;
+  const surfacesTotal = Object.entries(teethData)
+    .filter(([k,v]) => k.includes('_surfaces') && v && typeof v === 'object')
+    .reduce((sum,[,v]) => sum + Object.values(v).filter(x => x && x !== 'healthy').length, 0);
 
-  return h('div', {className: 'dchart-wrap'},
-    h('div', {className: 'dchart-3d-container'},
-      h('div', {className: 'dchart-stage', ref: stageRef,
-        onMouseDown: handlePointerDown, onTouchStart: handlePointerDown,
-        style: { cursor: drag ? 'grabbing' : 'grab' }
-      },
-        h('div', {className: 'dchart-scene', style: {
-          transform: 'scale(' + zoom + ') rotateX(' + rotX + 'deg) rotateY(' + rotY + 'deg)'
-        }},
-          h('div', {className: 'jaw upper'},
-            TEETH_UPPER.map((fdi, i) => h(Tooth3D, {
-              key: fdi, fdi, condition: teethData[fdi],
-              selected: selected === fdi, onSelect: setSelected,
-              idx: i, total: TEETH_UPPER.length, isUpper: true
-            }))
-          ),
-          h('div', {className: 'jaw-divider'}),
-          h('div', {className: 'jaw lower'},
-            TEETH_LOWER.map((fdi, i) => h(Tooth3D, {
-              key: fdi, fdi, condition: teethData[fdi],
-              selected: selected === fdi, onSelect: setSelected,
-              idx: i, total: TEETH_LOWER.length, isUpper: false
-            }))
+  const renderTooth = (fdi) => h(ClinicalTooth, {
+    key: fdi,
+    fdi,
+    condition: teethData[fdi],
+    surfaceData: teethData[fdi + '_surfaces'],
+    selected: selected === fdi,
+    onSelect: setSelected,
+  });
+
+  return h('div', {className: 'fdi-chart'},
+    // Chart title bar
+    h('div', {className: 'fdi-title-bar'},
+      h('div', null,
+        h('div', {className: 'fdi-chart-title'}, 'Dental Chart'),
+        h('div', {className: 'fdi-chart-sub'}, 'FDI World Dental Federation notation')
+      ),
+      h('div', {className: 'fdi-stats'},
+        h('div', {className: 'fdi-stat'},
+          h('div', {className: 'fdi-stat-num'}, conditionsTotal),
+          h('div', {className: 'fdi-stat-lbl'}, 'whole-tooth')
+        ),
+        h('div', {className: 'fdi-stat'},
+          h('div', {className: 'fdi-stat-num'}, surfacesTotal),
+          h('div', {className: 'fdi-stat-lbl'}, 'surfaces')
+        ),
+        h('div', {className: 'fdi-stat'},
+          h('div', {className: 'fdi-stat-num'}, 32 - conditionsTotal),
+          h('div', {className: 'fdi-stat-lbl'}, 'healthy')
+        )
+      )
+    ),
+
+    // The main chart - upper arch on top, lower on bottom
+    h('div', {className: 'fdi-arch fdi-upper'},
+      // Quadrant labels (right of viewer = patient's left)
+      h('div', {className: 'fdi-quad-lbl fdi-q1-lbl'}, 'Q1 · Upper Right'),
+      h('div', {className: 'fdi-quad-lbl fdi-q2-lbl'}, 'Q2 · Upper Left'),
+      // Q1 row (8 → 1, right to centerline)
+      h('div', {className: 'fdi-row fdi-q1'},
+        Q1.map(fdi =>
+          h('div', {key: fdi, className: 'fdi-cell'},
+            h('div', {className: 'fdi-num fdi-num-top'}, fdi),
+            renderTooth(fdi)
           )
         )
       ),
-      h('div', {className: 'dchart-ctrls'},
-        h('button', {type: 'button', className: 'dc-btn', onClick: () => setRotY(r => r - 30)}, '⟲'),
-        h('button', {type: 'button', className: 'dc-btn', onClick: () => setZoom(z => Math.max(0.5, z - 0.1))}, '−'),
-        h('button', {type: 'button', className: 'dc-btn', onClick: reset}, h(Svg, {d: IC.reset, size: 13})),
-        h('button', {type: 'button', className: 'dc-btn', onClick: () => setZoom(z => Math.min(2, z + 0.1))}, '+'),
-        h('button', {type: 'button', className: 'dc-btn', onClick: () => setRotY(r => r + 30)}, '⟳')
-      ),
-      h('div', {className: 'dchart-hint'}, '🖱️ Drag to rotate · Click any tooth for full 3D detail')
+      // Centerline divider
+      h('div', {className: 'fdi-midline'}),
+      // Q2 row (1 → 8, centerline to left)
+      h('div', {className: 'fdi-row fdi-q2'},
+        Q2.map(fdi =>
+          h('div', {key: fdi, className: 'fdi-cell'},
+            h('div', {className: 'fdi-num fdi-num-top'}, fdi),
+            renderTooth(fdi)
+          )
+        )
+      )
     ),
 
-    // Tooth detail modal (separate from inline editor)
+    // Bite line separator
+    h('div', {className: 'fdi-bite-line'},
+      h('span', null, 'Occlusal Plane / Bite Line')
+    ),
+
+    // Lower arch
+    h('div', {className: 'fdi-arch fdi-lower'},
+      h('div', {className: 'fdi-quad-lbl fdi-q4-lbl'}, 'Q4 · Lower Right'),
+      h('div', {className: 'fdi-quad-lbl fdi-q3-lbl'}, 'Q3 · Lower Left'),
+      h('div', {className: 'fdi-row fdi-q4'},
+        Q4.map(fdi =>
+          h('div', {key: fdi, className: 'fdi-cell'},
+            renderTooth(fdi),
+            h('div', {className: 'fdi-num fdi-num-bot'}, fdi)
+          )
+        )
+      ),
+      h('div', {className: 'fdi-midline'}),
+      h('div', {className: 'fdi-row fdi-q3'},
+        Q3.map(fdi =>
+          h('div', {key: fdi, className: 'fdi-cell'},
+            renderTooth(fdi),
+            h('div', {className: 'fdi-num fdi-num-bot'}, fdi)
+          )
+        )
+      )
+    ),
+
+    // Tooth detail modal
     selected && h(ToothDetailModal, {
       fdi: selected,
       condition: teethData[selected] || 'healthy',
-      surfaceData: teethData[selected + '_surfaces'],
+      surfaceData: teethData[selected + '_surfaces'] || {},
       onClose: () => setSelected(null),
-      onConditionChange: (fdi, k) => { onToothEdit(fdi, k); }
+      onConditionChange: (fdi, k) => onToothEdit(fdi, k),
+      onSurfaceChange: (fdi, surface, condition) => onToothEdit(fdi, condition, surface)
     }),
 
-    // Stats bar
-    h('div', {className: 'dchart-stats'},
-      Object.entries(teethData).filter(([k, v]) => v && v !== 'healthy' && !k.includes('_surfaces')).length === 0
-        ? h('div', {style: {textAlign: 'center', color: 'var(--md)', fontSize: 12, padding: '8px 0', width: '100%'}}, 'All teeth healthy ✓')
-        : CONDITION_KEYS.filter(k => k !== 'healthy').map(k => {
-            const count = Object.entries(teethData).filter(([key, v]) => v === k && !key.includes('_surfaces')).length;
-            if (count === 0) return null;
-            const c = CONDITIONS[k];
-            return h('div', {key: k, className: 'dcs-item'},
-              h('span', {className: 'dcs-dot', style: {background: c.color, border: '1.5px solid ' + c.stroke}}),
-              h('span', {className: 'dcs-lbl'}, c.label),
-              h('span', {className: 'dcs-num'}, count)
-            );
-          })
+    // Stats by condition
+    h('div', {className: 'fdi-condition-stats'},
+      CONDITION_KEYS.filter(k => k !== 'healthy').map(k => {
+        const count = Object.entries(teethData).filter(([key, v]) => v === k && !key.includes('_surfaces')).length;
+        if (count === 0) return null;
+        const c = CONDITIONS[k];
+        return h('div', {key: k, className: 'fdi-cstat'},
+          h('span', {className: 'fdi-cstat-sw', style: {background: c.color, border: '1.5px solid ' + c.stroke}},
+            c.symbol && h('span', {style: {fontSize: 9, color: k === 'cavity' ? '#fff' : '#1a2332', fontWeight: 700}}, c.symbol)
+          ),
+          h('span', {className: 'fdi-cstat-lbl'}, c.label),
+          h('span', {className: 'fdi-cstat-num'}, count)
+        );
+      })
     ),
 
     // Legend
-    h('div', {className: 'dchart-legend'},
-      h('div', {className: 'dcl-title'}, 'FDI Notation Legend'),
-      h('div', {className: 'dcl-items'},
+    h('div', {className: 'fdi-legend'},
+      h('div', {className: 'fdi-legend-title'}, 'Condition Legend'),
+      h('div', {className: 'fdi-legend-items'},
         CONDITION_KEYS.map(k => {
           const c = CONDITIONS[k];
-          return h('div', {key: k, className: 'dcl-item'},
-            h('div', {className: 'dcl-sw', style: {background: c.color, border: '1.5px solid ' + c.stroke}},
-              c.symbol && h('span', {style: {fontSize: 10, color: k === 'cavity' ? '#fff' : '#1a2332'}}, c.symbol)
+          return h('div', {key: k, className: 'fdi-legend-item'},
+            h('span', {className: 'fdi-legend-sw', style: {background: c.color, border: '1.5px solid ' + c.stroke}},
+              c.symbol && h('span', {style: {fontSize: 9, color: k === 'cavity' ? '#fff' : '#1a2332', fontWeight: 700}}, c.symbol)
             ),
             h('span', null, c.label)
           );
         })
       )
-    )
-  );
-}
-// ═══════════════════════════════════════════════════════════════════════════
-// 📸 PHOTO CAPTURE — Clean rewrite with comprehensive logging
-// ═══════════════════════════════════════════════════════════════════════════
-
-// Logger helper — emits to both console and an in-memory ring buffer
-// the user can see in DevTools or via window.__photoLogs
-if (typeof window !== 'undefined') {
-  window.__photoLogs = window.__photoLogs || [];
-}
-function plog(stage, detail) {
-  const entry = {
-    t: new Date().toISOString().substr(11, 12),
-    stage: stage,
-    detail: detail
-  };
-  if (typeof window !== 'undefined') {
-    window.__photoLogs.push(entry);
-    if (window.__photoLogs.length > 200) window.__photoLogs.shift();
-  }
-  console.log('[📸 photo]', entry.t, stage, detail || '');
-}
-
-// Compress image and return as data URL
-function compressImage(source, maxDim, quality) {
-  maxDim = maxDim || 800;
-  quality = quality || 0.8;
-  plog('compress:start', { sourceType: typeof source, maxDim, quality });
-  return new Promise(function(resolve, reject){
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = function(){
-      let w = img.naturalWidth, hgt = img.naturalHeight;
-      plog('compress:loaded', { w, h: hgt });
-      if (w > hgt) {
-        if (w > maxDim) { hgt = Math.round(hgt * maxDim / w); w = maxDim; }
-      } else {
-        if (hgt > maxDim) { w = Math.round(w * maxDim / hgt); hgt = maxDim; }
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = hgt;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, hgt);
-      try {
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        plog('compress:done', { sizeKB: Math.round(dataUrl.length / 1024) });
-        resolve(dataUrl);
-      } catch (e) {
-        plog('compress:error', e.message);
-        reject(e);
-      }
-    };
-    img.onerror = function(e){
-      plog('compress:image-error', String(e));
-      reject(new Error('Failed to load image into canvas'));
-    };
-    if (typeof source === 'string') {
-      img.src = source;
-    } else {
-      const reader = new FileReader();
-      reader.onload = function(ev){
-        plog('compress:filereader-done', { sizeKB: Math.round(ev.target.result.length / 1024) });
-        img.src = ev.target.result;
-      };
-      reader.onerror = function(){
-        plog('compress:filereader-error');
-        reject(new Error('Failed to read file'));
-      };
-      reader.readAsDataURL(source);
-    }
-  });
-}
-
-// Upload a data URL to Drive via Apps Script. Returns the new fileId.
-async function uploadPhotoToDrive(syncUrl, patientId, dataUrl, oldFileId) {
-  plog('upload:start', { patientId, oldFileId, urlSet: !!syncUrl });
-  if (!syncUrl) {
-    plog('upload:no-sync-url');
-    throw new Error('Sync URL not configured. Open ☁️ Sync page first.');
-  }
-  try {
-    const res = await fetch(syncUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'uploadPhoto', patientId, dataUrl, oldFileId }),
-      redirect: 'follow'
-    });
-    const text = await res.text();
-    plog('upload:response', { status: res.status, len: text.length });
-    let data;
-    try { data = JSON.parse(text); }
-    catch (e) {
-      plog('upload:parse-error', text.substr(0, 100));
-      throw new Error('Bad response from Apps Script');
-    }
-    if (!data.ok) {
-      plog('upload:error', data.error);
-      throw new Error(data.error || 'Upload failed');
-    }
-    plog('upload:success', { fileId: data.fileId });
-    return data.fileId;
-  } catch (err) {
-    plog('upload:exception', err.message);
-    throw err;
-  }
-}
-
-async function fetchPhotoFromDrive(syncUrl, fileId) {
-  if (!syncUrl || !fileId) return null;
-  // In-memory cache
-  if (typeof window !== 'undefined') {
-    window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
-    if (window.__cyrabellPhotoCache[fileId]) return window.__cyrabellPhotoCache[fileId];
-  }
-  try {
-    const sep = syncUrl.includes('?') ? '&' : '?';
-    const res = await fetch(syncUrl + sep + 'action=getPhoto&id=' + encodeURIComponent(fileId), {
-      method: 'GET', redirect: 'follow'
-    });
-    const text = await res.text();
-    const data = JSON.parse(text);
-    if (data.ok && data.dataUrl) {
-      if (typeof window !== 'undefined') window.__cyrabellPhotoCache[fileId] = data.dataUrl;
-      return data.dataUrl;
-    }
-  } catch (e) {
-    plog('fetch:error', e.message);
-  }
-  return null;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// CLEAN PHOTO WIDGET
-// ═══════════════════════════════════════════════════════════════════════════
-// Behavior:
-//  - Single "📸 Add/Change Photo" button opens a chooser modal
-//  - Chooser offers: Camera (live), Take Photo (native), From Files
-//  - Photo selected → compress → preview → call onPhotoChange(dataUrl)
-//  - No event bubbling issues: chooser modal is rendered in document.body via
-//    React portal-like approach using an absolute-positioned div
-//  - All buttons are type="button"
-
-function PhotoCaptureWidget({patient, photoDataUrl, onPhotoChange, syncUrl, addToast}){
-  const [preview, setPreview] = useState(photoDataUrl || null);
-  const [showChooser, setShowChooser] = useState(false);
-  const [showLiveCam, setShowLiveCam] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState('');
-
-  const fileInputRef = useRef(null);
-  const cameraInputRef = useRef(null);
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-
-  // Load existing patient photo from Drive on mount
-  useEffect(() => {
-    plog('widget:mount', { hasPhotoDataUrl: !!photoDataUrl, photoFileId: patient && patient.photoFileId });
-    if (photoDataUrl) {
-      setPreview(photoDataUrl);
-      return;
-    }
-    if (patient && patient.photoFileId && syncUrl) {
-      plog('widget:fetching-existing', patient.photoFileId);
-      fetchPhotoFromDrive(syncUrl, patient.photoFileId).then(url => {
-        if (url) {
-          plog('widget:existing-loaded');
-          setPreview(url);
-        }
-      });
-    }
-    // Cleanup any active stream on unmount
-    return () => {
-      plog('widget:unmount');
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-        streamRef.current = null;
-      }
-    };
-  }, []);
-
-  // Process a file or data URL (compress + preview + notify parent)
-  const processImage = async (source) => {
-    plog('process:start');
-    setBusy(true);
-    setProgress('Processing image…');
-    try {
-      const compressed = await compressImage(source, 800, 0.8);
-      plog('process:setting-preview');
-      setPreview(compressed);
-      plog('process:notifying-parent');
-      onPhotoChange(compressed);
-      plog('process:done');
-      addToast('Photo ready! It will be saved when you click "Add Patient" or "Update".', 'success');
-    } catch (err) {
-      plog('process:error', err.message);
-      addToast('Failed to process photo: ' + err.message, 'error');
-    } finally {
-      setBusy(false);
-      setProgress('');
-    }
-  };
-
-  // ─── File input handler (used for both gallery and native camera) ────────
-  const handleFileSelected = (e) => {
-    plog('file:onChange', { files: e.target.files && e.target.files.length });
-    // Stop the event from doing anything else
-    if (e && e.stopPropagation) e.stopPropagation();
-
-    const file = e.target.files && e.target.files[0];
-    if (!file) {
-      plog('file:no-file');
-      return;
-    }
-    plog('file:selected', { name: file.name, type: file.type, size: file.size });
-
-    if (!file.type || !file.type.startsWith('image/')) {
-      addToast('Please choose an image file', 'error');
-      e.target.value = '';
-      return;
-    }
-
-    // Close chooser before processing
-    setShowChooser(false);
-
-    // Process asynchronously without blocking the event handler
-    processImage(file).finally(() => {
-      // Reset the input so the same file can be re-selected later
-      try { e.target.value = ''; } catch (err) {}
-    });
-  };
-
-  // ─── Live camera (getUserMedia) ──────────────────────────────────────────
-  const startLiveCamera = async () => {
-    plog('camera:start');
-    setShowChooser(false);
-    setShowLiveCam(true);
-
-    // Allow DOM to render <video> first
-    await new Promise(r => setTimeout(r, 100));
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      plog('camera:not-supported');
-      addToast('Camera API not available in this browser', 'error');
-      setShowLiveCam(false);
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1280 } },
-        audio: false
-      });
-      plog('camera:stream-acquired');
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        try {
-          await videoRef.current.play();
-          plog('camera:playing');
-        } catch (e) {
-          plog('camera:play-error', e.message);
-        }
-      }
-    } catch (err) {
-      plog('camera:error', err.message);
-      addToast('Camera access denied: ' + err.message, 'error');
-      setShowLiveCam(false);
-    }
-  };
-
-  const stopLiveCamera = () => {
-    plog('camera:stop');
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-    setShowLiveCam(false);
-  };
-
-  const snapPhoto = async () => {
-    plog('snap:start');
-    if (!videoRef.current) {
-      plog('snap:no-video-ref');
-      return;
-    }
-    const v = videoRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = v.videoWidth || 640;
-    canvas.height = v.videoHeight || 480;
-    plog('snap:canvas', { w: canvas.width, h: canvas.height });
-
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-
-    let rawUrl;
-    try {
-      rawUrl = canvas.toDataURL('image/jpeg', 0.92);
-      plog('snap:url-ready', { sizeKB: Math.round(rawUrl.length / 1024) });
-    } catch (e) {
-      plog('snap:toDataURL-error', e.message);
-      addToast('Failed to capture image: ' + e.message, 'error');
-      return;
-    }
-
-    // Stop camera first, THEN process
-    stopLiveCamera();
-    await processImage(rawUrl);
-  };
-
-  // ─── Remove photo ────────────────────────────────────────────────────────
-  const removePhoto = () => {
-    plog('remove:start');
-    if (!confirm('Remove this photo? It will be deleted when you click Save.')) {
-      plog('remove:cancelled');
-      return;
-    }
-    plog('remove:confirmed');
-    setPreview(null);
-    onPhotoChange('REMOVE');
-    addToast('Photo will be removed when you save', 'info');
-  };
-
-  // ─── Open chooser ────────────────────────────────────────────────────────
-  const openChooser = () => {
-    plog('chooser:open');
-    setShowChooser(true);
-  };
-
-  // ─── RENDER ──────────────────────────────────────────────────────────────
-  return h('div', {className: 'photo-widget'},
-    h('label', null, 'Patient Photo'),
-
-    // Preview area
-    h('div', {className: 'photo-widget-body'},
-      h('div', {className: 'photo-preview'},
-        preview
-          ? h('div', {
-              className: 'photo-preview-img',
-              style: { backgroundImage: 'url(' + preview + ')' }
-            })
-          : h('div', {className: 'photo-preview-empty'},
-              h('span', {style: {fontSize: 36}}, '👤'),
-              h('div', {style: {fontSize: 11, color: 'var(--md)', marginTop: 6}}, 'No photo')
-            ),
-        busy && h('div', {className: 'photo-busy'},
-          h('div', {className: 'photo-spinner'}),
-          h('div', {style: {fontSize: 11, marginTop: 8}}, progress || 'Working…')
-        )
-      ),
-
-      // Actions column
-      h('div', {className: 'photo-actions'},
-        h('button', {
-          type: 'button',
-          className: 'btn bp',
-          onClick: openChooser,
-          disabled: busy
-        }, preview ? '📸 Change Photo' : '📸 Add Photo'),
-
-        preview && h('button', {
-          type: 'button',
-          className: 'btn bd2 bsm',
-          onClick: removePhoto,
-          disabled: busy
-        }, '🗑 Remove'),
-
-        h('div', {style: {fontSize: 11, color: 'var(--md)', marginTop: 8, lineHeight: 1.4}},
-          syncUrl
-            ? '✅ Photo will sync to Google Drive when you save.'
-            : '⚠ Set Sync URL in ☁️ Sync to enable Drive backup.'
-        )
-      )
     ),
 
-    // Hidden file inputs (always rendered, never inside conditional modals)
-    h('input', {
-      ref: fileInputRef,
-      type: 'file',
-      accept: 'image/*',
-      onChange: handleFileSelected,
-      style: { display: 'none' }
-    }),
-    h('input', {
-      ref: cameraInputRef,
-      type: 'file',
-      accept: 'image/*',
-      capture: 'environment',
-      onChange: handleFileSelected,
-      style: { display: 'none' }
-    }),
-
-    // ─── Chooser modal (overlay z-index higher than parent Modal) ──────────
-    showChooser && h('div', {
-      className: 'photo-chooser-ov',
-      // No backdrop close — explicit X button only
-    },
-      h('div', {className: 'photo-chooser-modal'},
-        h('div', {className: 'photo-chooser-header'},
-          h('div', {className: 'mtl'}, '📸 Add Patient Photo'),
-          h('button', {
-            type: 'button',
-            className: 'xcb',
-            onClick: () => { plog('chooser:close'); setShowChooser(false); }
-          }, h(Svg, {d: IC.x, size: 14}))
-        ),
-        h('div', {className: 'photo-chooser-body'},
-
-          // Live Camera (uses webcam + preview)
-          h('button', {
-            type: 'button',
-            className: 'photo-opt',
-            onClick: startLiveCamera
-          },
-            h('div', {className: 'photo-opt-icon', style: {background: '#e8f5f3'}}, '🎥'),
-            h('div', {className: 'photo-opt-text'},
-              h('div', {className: 'photo-opt-title'}, 'Live Camera'),
-              h('div', {className: 'photo-opt-desc'}, 'Use webcam with preview (best on desktop)')
-            )
-          ),
-
-          // Native camera (mobile-style, file input with capture attr)
-          h('button', {
-            type: 'button',
-            className: 'photo-opt',
-            onClick: () => {
-              plog('chooser:native-camera-click');
-              if (cameraInputRef.current) {
-                cameraInputRef.current.click();
-              } else {
-                plog('chooser:no-camera-ref');
-              }
-            }
-          },
-            h('div', {className: 'photo-opt-icon', style: {background: '#e8eeff'}}, '📱'),
-            h('div', {className: 'photo-opt-text'},
-              h('div', {className: 'photo-opt-title'}, 'Device Camera'),
-              h('div', {className: 'photo-opt-desc'}, 'Opens native camera (mobile/tablet)')
-            )
-          ),
-
-          // File picker
-          h('button', {
-            type: 'button',
-            className: 'photo-opt',
-            onClick: () => {
-              plog('chooser:file-click');
-              if (fileInputRef.current) {
-                fileInputRef.current.click();
-              } else {
-                plog('chooser:no-file-ref');
-              }
-            }
-          },
-            h('div', {className: 'photo-opt-icon', style: {background: '#fff7e6'}}, '🖼'),
-            h('div', {className: 'photo-opt-text'},
-              h('div', {className: 'photo-opt-title'}, 'From Gallery / Files'),
-              h('div', {className: 'photo-opt-desc'}, 'Choose an existing image file')
-            )
-          )
-        )
-      )
-    ),
-
-    // ─── Live camera preview modal ─────────────────────────────────────────
-    showLiveCam && h('div', {className: 'photo-livecam-ov'},
-      h('div', {className: 'photo-livecam-modal'},
-        h('div', {className: 'photo-livecam-header'},
-          h('div', {style: {color: '#fff', fontWeight: 600}}, '📸 Position the patient'),
-          h('button', {
-            type: 'button',
-            className: 'xcb',
-            style: {background: 'rgba(255,255,255,.15)', borderColor: 'rgba(255,255,255,.3)', color: '#fff'},
-            onClick: stopLiveCamera
-          }, h(Svg, {d: IC.x, size: 14}))
-        ),
-        h('video', {
-          ref: videoRef,
-          autoPlay: true,
-          playsInline: true,
-          muted: true,
-          style: {width: '100%', display: 'block', maxHeight: '60vh', background: '#000', objectFit: 'cover'}
-        }),
-        h('div', {className: 'photo-livecam-controls'},
-          h('button', {
-            type: 'button',
-            className: 'btn bgh',
-            style: {background: 'rgba(255,255,255,.1)', color: '#fff', borderColor: 'rgba(255,255,255,.2)'},
-            onClick: stopLiveCamera
-          }, 'Cancel'),
-          h('button', {
-            type: 'button',
-            className: 'btn bp',
-            style: {minWidth: 140, fontSize: 14, padding: '12px 20px'},
-            onClick: snapPhoto,
-            disabled: busy
-          }, '📸 Capture')
-        )
-      )
+    // Help line
+    h('div', {className: 'fdi-help'},
+      '💡 Click any tooth to view 3D detail, assign conditions, and mark surfaces.'
     )
   );
 }
 
-function PatForm({patient,onClose,onSave,syncUrl,addToast}){
-  const [f,setF]=useState(patient||{name:'',dob:'',phone:'',email:'',address:'',bloodType:'O+',allergies:'',photoFileId:''});
-  const [pendingPhoto,setPendingPhoto]=useState(null); // null | dataUrl | 'REMOVE'
-  const [saving,setSaving]=useState(false);
-  const s=(k,v)=>setF(x=>({...x,[k]:v}));
 
-  const submit=async()=>{
-    if(!f.name||!f.phone)return;
-    setSaving(true);
-    let updated={...f};
-
-    try {
-      if(pendingPhoto==='REMOVE'){
-        // Delete photo from Drive
-        if(f.photoFileId && syncUrl){
-          try{
-            await fetch(syncUrl,{
-              method:'POST',
-              headers:{'Content-Type':'text/plain;charset=utf-8'},
-              body:JSON.stringify({action:'deletePhoto',fileId:f.photoFileId}),
-              redirect:'follow'
-            });
-          }catch(e){}
-        }
-        updated.photoFileId='';
-      } else if(pendingPhoto && pendingPhoto.startsWith('data:')){
-        // Upload new photo to Drive
-        if(!syncUrl){
-          if(!confirm('No Sync URL configured. Save patient without uploading photo?'))
-          { setSaving(false); return; }
-        } else {
-          try {
-            const fileId = await uploadPhotoToDrive(syncUrl, f.id || 'new', pendingPhoto, f.photoFileId);
-            updated.photoFileId = fileId;
-            // Cache new photo so it shows up immediately
-            if(typeof window !== 'undefined' && window.__cyrabellPhotoCache){
-              window.__cyrabellPhotoCache[fileId] = pendingPhoto;
-            }
-            addToast('Photo uploaded to Google Drive!','success');
-          } catch(err) {
-            addToast('Photo upload failed: '+err.message,'error');
-            // Continue saving the rest
-          }
-        }
-      }
-      onSave(updated);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return h(Modal,{title:patient?'Edit Patient':'Add Patient',onClose,
-    footer:h(Fragment,null,
-      h('button',{className:'btn bgh',onClick:onClose,disabled:saving},'Cancel'),
-      h('button',{className:'btn bp',onClick:submit,disabled:!f.name||!f.phone||saving},
-        saving?'… Saving':(patient?'Update':'Add Patient'))
-    )},
-    h(PhotoCaptureWidget,{
-      patient:f,
-      photoDataUrl:pendingPhoto&&pendingPhoto.startsWith('data:')?pendingPhoto:null,
-      onPhotoChange:setPendingPhoto,
-      syncUrl,addToast
-    }),
-    h(Field,{label:'Full Name *'},h('input',{value:f.name,onChange:e=>s('name',e.target.value),placeholder:'Full Name'})),
-    h('div',{className:'fg2'},
-      h(Field,{label:'Date of Birth'},h('input',{type:'date',value:f.dob,onChange:e=>s('dob',e.target.value)})),
-      h(Field,{label:'Blood Type'},h('select',{value:f.bloodType,onChange:e=>s('bloodType',e.target.value)},BLOOD.map(b=>h('option',{key:b},b))))
-    ),
-    h('div',{className:'fg2'},
-      h(Field,{label:'Phone *'},h('input',{type:'tel',value:f.phone,onChange:e=>s('phone',e.target.value),placeholder:'09XXXXXXXXX'})),
-      h(Field,{label:'Email'},h('input',{type:'email',value:f.email,onChange:e=>s('email',e.target.value),placeholder:'email@example.com'}))
-    ),
-    h(Field,{label:'Address'},h('input',{value:f.address,onChange:e=>s('address',e.target.value),placeholder:'Street, City'})),
-    h(Field,{label:'Allergies / Notes'},h('textarea',{value:f.allergies,onChange:e=>s('allergies',e.target.value),placeholder:'Known allergies or conditions…'}))
-  );
-}
 
 // ─── Patient Photo (avatar) ─────────────────────────────────────────────
 // Shows the patient's photo if photoFileId exists, otherwise initials in a colored circle.
-// Lazy-loads from Google Drive on mount; results cached in window.__cyrabellPhotoCache.
 function PatientPhoto({patient, size, syncUrl}) {
   size = size || 40;
   const [dataUrl, setDataUrl] = useState(null);
@@ -4477,14 +4267,12 @@ function PatientPhoto({patient, size, syncUrl}) {
       setDataUrl(null);
       return;
     }
-    // Check cache
     window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
     const cached = window.__cyrabellPhotoCache[patient.photoFileId];
     if (cached) {
       setDataUrl(cached);
       return;
     }
-    // Fetch from Drive via Apps Script
     let cancelled = false;
     (async () => {
       try {
@@ -4506,7 +4294,6 @@ function PatientPhoto({patient, size, syncUrl}) {
   const initials = name
     ? name.split(' ').filter(Boolean).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('') || '?'
     : '?';
-  // Color hash based on patient ID for consistent colors
   const colors = ['#0a7c6e','#3a7bd5','#c9a84c','#7c3aed','#3aa876','#e8943a','#dc2626'];
   const idStr = S(patient && patient.id);
   let hash = 0;
@@ -4553,12 +4340,34 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
   const infoRows=[['DOB',patient.dob||'—'],['Blood Type',patient.bloodType],['Phone',patient.phone],['Email',patient.email||'—'],['Address',patient.address||'—'],['Allergies',patient.allergies||'—'],['Last Visit',patient.lastVisit],['Balance',patient.balance>0?'₱'+p$(patient.balance)+' (Due)':'Settled']];
   const teethData = patient.teeth || {};
   const conditionCount = Object.values(teethData).filter(v => v && v !== 'healthy').length;
-  const onToothEdit = (fdi, condition) => {
+  const onToothEdit = (fdi, condition, surface) => {
     const newTeeth = {...teethData};
-    if (condition === 'healthy') delete newTeeth[fdi];
-    else newTeeth[fdi] = condition;
-    onUpdateTeeth(patient.id, newTeeth);
-    addToast('Tooth '+fdi+' marked as '+CONDITIONS[condition].label, 'success');
+    if (surface) {
+      // Per-surface condition update
+      const surfaceKey = fdi + '_surfaces';
+      const existingSurfaces = newTeeth[surfaceKey] && typeof newTeeth[surfaceKey] === 'object'
+        ? {...newTeeth[surfaceKey]}
+        : {};
+      if (condition === 'healthy') {
+        delete existingSurfaces[surface];
+      } else {
+        existingSurfaces[surface] = condition;
+      }
+      // Remove the surfaces key entirely if no surfaces remain
+      if (Object.keys(existingSurfaces).length === 0) {
+        delete newTeeth[surfaceKey];
+      } else {
+        newTeeth[surfaceKey] = existingSurfaces;
+      }
+      onUpdateTeeth(patient.id, newTeeth);
+      addToast('Tooth '+fdi+' '+surface+' marked as '+CONDITIONS[condition].label, 'success');
+    } else {
+      // Whole-tooth condition update (existing behavior)
+      if (condition === 'healthy') delete newTeeth[fdi];
+      else newTeeth[fdi] = condition;
+      onUpdateTeeth(patient.id, newTeeth);
+      addToast('Tooth '+fdi+' marked as '+CONDITIONS[condition].label, 'success');
+    }
   };
   return h(Modal,{title:patient.name,sub:patient.id+' · '+patient.phone,xl:true,onClose,footer:h(Fragment,null,
     h('button',{className:'btn bg2',onClick:()=>setShowAIAnalysis(true),style:{marginRight:'auto'}},'🤖 AI Analysis'),
@@ -4687,7 +4496,7 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
 
 // ─── PAYMENTS (unchanged) ─────────────────────────────────────────────────────
 function PayForm({patients,onClose,onSave}){
-  const [f,setF]=useState({patientId:'',patientName:'',service:'',amount:'',method:'Cash',date:new Date().toISOString().split('T')[0]});
+  const [f,setF]=useState({patientId:'',patientName:'',service:'',amount:'',method:'Cash',date:localToday()});
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
   const ok=f.patientId&&f.service&&f.amount;
   return h(Modal,{title:'Record Payment',sub:'Enter payment details',onClose,
@@ -4905,7 +4714,7 @@ function ReminderForm({patients,reminder,onClose,onSave}){
   const [f,setF]=useState(reminder||{
     patientId:'',patientName:'',type:'cleaning',channels:['sms','email'],
     frequency:180,notes:'',active:true,
-    lastSent:new Date().toISOString().split('T')[0],
+    lastSent:localToday(),
   });
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
 
@@ -4934,7 +4743,7 @@ function ReminderForm({patients,reminder,onClose,onSave}){
     if(!f.lastSent)return '—';
     const d=new Date(f.lastSent);
     d.setDate(d.getDate()+(+f.frequency||90));
-    return d.toISOString().split('T')[0];
+    return toLocalDateStr(d);
   })();
 
   return h(Modal,{title:reminder?'Edit Reminder':'New Recurring Reminder',
@@ -5012,7 +4821,7 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
   const [modal,setModal]=useState(false);
   const [edit,setEdit]=useState(null);
 
-  const today=new Date().toISOString().split('T')[0];
+  const today=localToday();
 
   const filtered = reminders.filter(r=>{
     if(tab==='active'&&!r.active)return false;
@@ -5081,7 +4890,7 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
       const newLastSent = today;
       const d=new Date(newLastSent);
       d.setDate(d.getDate()+(+reminder.frequency||90));
-      const newNextDue = d.toISOString().split('T')[0];
+      const newNextDue = toLocalDateStr(d);
       setReminders(prev=>prev.map(r=>r.id===reminder.id?{...r,lastSent:newLastSent,nextDue:newNextDue}:r));
     }
 
@@ -5441,7 +5250,7 @@ function sanitizeDate(s) {
   if (!s) return '';
   if (s instanceof Date) {
     if (s.getFullYear() < 1970) return '';
-    return s.toISOString().split('T')[0];
+    return toLocalDateStr(s);
   }
   if (typeof s === 'string') {
     if (s.indexOf('1899-12-30') === 0) return '';
@@ -5481,7 +5290,7 @@ function checkAvailability(appointments, date, time, service, excludeId) {
     return { available: false, conflicts: [], reason: 'incomplete', message: 'Pick date and time' };
   }
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = toLocalDateStr(now);
   if (date < todayStr) {
     return { available: false, conflicts: [], reason: 'past', message: '⏱ Date is in the past' };
   }
@@ -5647,7 +5456,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
   const addToast2 = (m,t) => {};
   const pending=appointments.filter(a=>a.status==='pending').length;
   const rev=payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
-  const today=new Date().toISOString().split('T')[0];
+  const today=localToday();
   const todayAppts=appointments.filter(a=>a.date===today && a.status!=='cancelled')
     .sort((a,b)=>(a.time||'').localeCompare(b.time||''));
   const recent=[...appointments].sort((a,b)=>dateTimeValue(b.date,b.time)-dateTimeValue(a.date,a.time)).slice(0,5);
@@ -5768,7 +5577,7 @@ function ApptForm({patients,appointments,onClose,onSave}){
       h(Field,{label:'Fee (₱)'},h('input',{type:'number',value:f.fee,onChange:e=>s('fee',+e.target.value)}))
     ),
     h('div',{className:'fg2'},
-      h(Field,{label:'Date *'},h('input',{type:'date',value:f.date,onChange:e=>s('date',e.target.value),min:new Date().toISOString().split('T')[0]})),
+      h(Field,{label:'Date *'},h('input',{type:'date',value:f.date,onChange:e=>s('date',e.target.value),min:localToday()})),
       h(Field,{label:'Dentist'},h('select',{value:f.dentist,onChange:e=>s('dentist',e.target.value)},DENTISTS.map(d=>h('option',{key:d},d))))
     ),
     h(Field,{label:'Time'+(f.service?' · '+(SERVICE_DURATIONS[f.service]||DEFAULT_SLOT_MIN)+' min slot':'')},
@@ -5829,7 +5638,7 @@ function AppointmentCalendar({appointments, onDayClick}){
   }
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = localToday();
   const monthLabel = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   const prevMonth = ()=> setViewMonth(new Date(year, month-1, 1));
@@ -6372,7 +6181,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
         const ws = XLSX.utils.json_to_sheet(rows);
         XLSX.utils.book_append_sheet(wb, ws, name);
       });
-      const stamp = new Date().toISOString().split('T')[0];
+      const stamp = localToday();
       const filename = 'cyrabell-dental-backup-' + stamp + '.xlsx';
       XLSX.writeFile(wb, filename);
       addLog('✅ Saved ' + filename, 'ok');
@@ -6601,7 +6410,7 @@ function ExportPage({appointments,patients,payments}){
       h('button',{key:f,className:'btn bgh',onClick:()=>go(type,f),disabled:!!busy},busy===type+'-'+f?'…':l)
     ))
   );
-  const stats=[['Patients',patients.length,'var(--t)'],['Appointments',appointments.length,'var(--bl)'],['Pending',appointments.filter(a=>a.status==='pending').length,'var(--or)'],['Checked-In Today',appointments.filter(a=>a.arrived&&a.date===new Date().toISOString().split('T')[0]).length,'#d97706'],['Revenue','₱'+p$(payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0)),'var(--go)'],['Outstanding','₱'+p$(patients.reduce((s,p)=>s+p.balance,0)),'var(--re)']];
+  const stats=[['Patients',patients.length,'var(--t)'],['Appointments',appointments.length,'var(--bl)'],['Pending',appointments.filter(a=>a.status==='pending').length,'var(--or)'],['Checked-In Today',appointments.filter(a=>a.arrived&&a.date===localToday()).length,'#d97706'],['Revenue','₱'+p$(payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0)),'var(--go)'],['Outstanding','₱'+p$(patients.reduce((s,p)=>s+p.balance,0)),'var(--re)']];
   return h('div',null,
     h('div',{className:'ph'},h('div',null,h('div',{className:'ptl'},'Export & Reports'),h('div',{className:'psl'},'Download data in multiple formats'))),
     h('div',{className:'eg',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}},
@@ -6724,7 +6533,7 @@ function PublicBooking({onBook,onBack,existingAppointments}){
       h('div',{style:{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,marginBottom:16}},'Service & Schedule'),
       h('div',{className:'fg',style:{marginBottom:12}},h('label',null,'Select Service *'),h('div',{className:'svcg'},SVCS.map(sv=>h('div',{key:sv.name,className:'svcc'+(form.service===sv.name?' sel':''),onClick:()=>s('service',sv.name)},h('div',{className:'svcn'},sv.name),h('div',{className:'svcf'},'₱'+p$(sv.fee)))))),
       h('div',{className:'fg2'},
-        h(Field,{label:'Date *'},h('input',{type:'date',value:form.date,onChange:e=>s('date',e.target.value),min:new Date().toISOString().split('T')[0]})),
+        h(Field,{label:'Date *'},h('input',{type:'date',value:form.date,onChange:e=>s('date',e.target.value),min:localToday()})),
         h(Field,{label:'Dentist'},h('select',{value:form.dentist,onChange:e=>s('dentist',e.target.value)},DENTISTS.map(d=>h('option',{key:d},d))))
       ),
       h('div',{className:'fg',style:{marginBottom:12}},
@@ -6772,9 +6581,9 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
   // It gets set by the Sync page. Re-read on every render is cheap.
   const syncUrl = (function(){ try { return localStorage.getItem('cyrabell_sync_url') || ''; } catch(e) { return ''; } })();
   const pending=appointments.filter(a=>a.status==='pending').length;
-  const today=new Date().toISOString().split('T')[0];
+  const today=localToday();
   const dueRemindersCount=reminders.filter(r=>r.active&&r.nextDue<=today).length;
-  const arrivedCount = appointments.filter(a=>a.arrived&&a.date===new Date().toISOString().split('T')[0]).length;
+  const arrivedCount = appointments.filter(a=>a.arrived&&a.date===localToday()).length;
   const nav=id=>{setPage(id);setSideOpen(false);};
 
   const NAV=[
