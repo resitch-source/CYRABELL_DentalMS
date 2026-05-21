@@ -1723,6 +1723,155 @@ th:hover .sort-icon{opacity:.9}
   .fdi-help{display:none}
 }
 
+
+/* ── PHOTO WIDGET ── */
+.photo-widget-body{
+  display:flex;flex-direction:column;align-items:center;
+  gap:10px;padding:10px;
+  background:var(--cr);border-radius:11px;
+  border:1px solid var(--bd);
+}
+.photo-preview{
+  width:120px;height:120px;border-radius:50%;
+  background:#fff;border:3px solid var(--bd);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.photo-img{width:100%;height:100%;object-fit:cover}
+.photo-empty{display:flex;flex-direction:column;align-items:center;justify-content:center}
+.photo-actions{display:flex;gap:6px}
+
+.patform-photo-section{
+  display:flex;justify-content:center;
+  margin-bottom:14px;padding-bottom:14px;
+  border-bottom:1px solid var(--bd);
+}
+
+/* Chooser modal */
+.photo-chooser-ov{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);
+  display:flex;align-items:center;justify-content:center;z-index:999;
+}
+.photo-chooser-modal{
+  background:#fff;border-radius:14px;padding:16px;
+  width:90%;max-width:380px;
+}
+.photo-chooser-header{
+  font-weight:700;font-size:15px;margin-bottom:12px;
+  padding-bottom:8px;border-bottom:1px solid var(--bd);
+}
+.photo-chooser-body{display:flex;flex-direction:column;gap:8px}
+.photo-chooser-btn{
+  display:flex;align-items:center;gap:14px;
+  padding:14px;border:1px solid var(--bd);
+  background:#fff;border-radius:9px;
+  cursor:pointer;font-family:inherit;text-align:left;
+  transition:all .15s;
+}
+.photo-chooser-btn:hover{background:var(--tp);border-color:var(--t)}
+
+/* Live camera modal */
+.photo-livecam-ov{
+  position:fixed;inset:0;background:#000;z-index:9999;
+  display:flex;flex-direction:column;
+}
+.photo-livecam-modal{
+  flex:1;display:flex;flex-direction:column;
+  width:100%;height:100%;
+}
+.photo-livecam-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px;background:rgba(0,0,0,.85);
+}
+.photo-livecam-video{
+  flex:1;width:100%;background:#000;object-fit:contain;
+}
+.photo-livecam-controls{
+  display:flex;justify-content:center;gap:12px;
+  padding:18px;background:rgba(0,0,0,.85);
+}
+
+
+/* ── FDI gum strips ── */
+.fdi-gum{
+  height:10px;
+  background:linear-gradient(180deg, #ff9b9b 0%, #d96666 50%, #b04545 100%);
+  border-radius:8px;
+  margin:0 12px;
+  position:relative;
+  box-shadow:inset 0 -2px 4px rgba(0,0,0,.15), 0 1px 2px rgba(0,0,0,.1);
+}
+.fdi-gum-upper{
+  background:linear-gradient(180deg, #b04545 0%, #d96666 50%, #ff9b9b 100%);
+  border-radius:8px 8px 4px 4px;
+  margin-bottom:0;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.15), 0 -1px 2px rgba(0,0,0,.1);
+}
+.fdi-gum-lower{
+  border-radius:4px 4px 8px 8px;
+  margin-top:0;
+}
+
+/* View toggle */
+.fdi-view-toggle{
+  display:inline-flex;
+  background:var(--cr);
+  border-radius:9px;
+  padding:3px;
+  border:1px solid var(--bd);
+  gap:2px;
+}
+.fdi-view-btn{
+  padding:6px 12px;
+  border:none;background:transparent;
+  border-radius:7px;
+  font-family:inherit;font-size:11.5px;font-weight:600;
+  color:var(--md);cursor:pointer;
+  transition:all .15s;
+}
+.fdi-view-btn:hover{background:rgba(10,124,110,.08)}
+.fdi-view-btn.act{
+  background:#fff;color:var(--t);
+  box-shadow:0 1px 3px rgba(0,0,0,.1);
+}
+
+.clin-tooth.occlusal{
+  padding:4px 2px;
+}
+
+@media (max-width: 640px){
+  .fdi-view-toggle{order:99;width:100%;justify-content:center}
+  .fdi-view-btn{flex:1}
+}
+
+
+/* ── FDI VIEW TOGGLE (Buccal vs Occlusal) ── */
+.fdi-view-toggle{
+  display:inline-flex;
+  background:var(--cr);
+  border-radius:8px;
+  padding:3px;
+  border:1px solid var(--bd);
+  gap:3px;
+}
+.fdi-vt-btn{
+  padding:6px 11px;
+  border:none;background:none;
+  font-family:inherit;font-size:11.5px;font-weight:600;
+  color:var(--md);cursor:pointer;
+  border-radius:6px;
+  transition:all .15s;
+}
+.fdi-vt-btn.act{
+  background:#fff;
+  color:var(--t);
+  box-shadow:0 1px 3px rgba(0,0,0,.1);
+}
+.fdi-vt-btn:hover:not(.act){color:var(--dk)}
+.clin-tooth.occlusal-view{
+  padding:4px;
+}
+
 @media(max-width:380px){
   .sg4,.sg3{grid-template-columns:1fr}
   .svcg,.ntg,.ig{grid-template-columns:1fr}
@@ -3581,7 +3730,9 @@ function toothSvgPath(type, upper) {
 // Clinical FDI dental chart — professional layout
 // Renders ONE tooth as a 3D-looking SVG with FDI number badge
 
-function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect}){
+function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMode}){
+  // Two view modes: 'buccal' (default - side view) or 'occlusal' (top-down chewing surface)
+  viewMode = viewMode || 'buccal';
   const cond = CONDITIONS[condition || 'healthy'];
   const type = toothType(fdi);
   const isUpper = isUpperTooth(fdi);
@@ -3627,9 +3778,102 @@ function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect}){
     : 'M -7 5 Q -9 20 -4 25 Q 0 27 4 25 Q 9 20 7 5 Z';
 
   const gradId = 'tg-' + fdi;
-  const flipY = isUpper ? 1 : -1;
+  // Anatomical orientation: upper teeth hang DOWN (crown below gum), lower teeth point UP (crown above gum)
+  const flipY = isUpper ? -1 : 1;
 
-  return h('div', {
+  // For occlusal (top) view, show a different SVG layout
+  if (viewMode === 'occlusal') {
+    return h('div', {
+      className: 'clin-tooth occlusal-view' + (selected ? ' sel' : '') + (missing ? ' miss' : '') + (hasIssues ? ' issue' : ''),
+      onClick: e => { e.stopPropagation(); onSelect(fdi); },
+      title: '#' + fdi + ' · ' + toothName(fdi) + ' · ' + cond.label
+    },
+      h('svg', {
+        viewBox: '-20 -16 40 32',
+        width: w,
+        height: 32,
+        style: { display: 'block', overflow: 'visible' }
+      },
+        h('defs', null,
+          h('radialGradient', {id: 'occ-' + fdi, cx: '40%', cy: '35%', r: '65%'},
+            h('stop', {offset: '0%', stopColor: '#ffffff', stopOpacity: missing ? 0 : 0.95}),
+            h('stop', {offset: '50%', stopColor: enamelMid, stopOpacity: missing ? 0 : 1}),
+            h('stop', {offset: '100%', stopColor: enamelBot, stopOpacity: missing ? 0.3 : 1})
+          )
+        ),
+        // Top-down tooth shape varies by type
+        type === 'incisor' && h('rect', {
+          x: -13, y: -3, width: 26, height: 6, rx: 2,
+          fill: missing ? 'transparent' : 'url(#occ-' + fdi + ')',
+          stroke: strokeColor, strokeWidth: 1.2,
+          strokeDasharray: missing ? '3 2' : '0'
+        }),
+        type === 'canine' && h('polygon', {
+          points: '-9,3 0,-8 9,3 0,5',
+          fill: missing ? 'transparent' : 'url(#occ-' + fdi + ')',
+          stroke: strokeColor, strokeWidth: 1.2,
+          strokeDasharray: missing ? '3 2' : '0'
+        }),
+        type === 'premolar' && h('ellipse', {
+          cx: 0, cy: 0, rx: 11, ry: 8,
+          fill: missing ? 'transparent' : 'url(#occ-' + fdi + ')',
+          stroke: strokeColor, strokeWidth: 1.2,
+          strokeDasharray: missing ? '3 2' : '0'
+        }),
+        type === 'molar' && h('rect', {
+          x: -15, y: -10, width: 30, height: 20, rx: 4,
+          fill: missing ? 'transparent' : 'url(#occ-' + fdi + ')',
+          stroke: strokeColor, strokeWidth: 1.2,
+          strokeDasharray: missing ? '3 2' : '0'
+        }),
+        // Cusp markers from above
+        !missing && type === 'molar' && h('g', null,
+          h('circle', {cx: -8, cy: -5, r: 2, fill: '#7a6b5a', opacity: 0.6}),
+          h('circle', {cx: 8, cy: -5, r: 2, fill: '#7a6b5a', opacity: 0.6}),
+          h('circle', {cx: -8, cy: 5, r: 1.8, fill: '#7a6b5a', opacity: 0.6}),
+          h('circle', {cx: 8, cy: 5, r: 1.8, fill: '#7a6b5a', opacity: 0.6}),
+          h('path', {d: 'M 0 -8 L 0 8 M -12 0 L 12 0', stroke: '#7a6b5a', strokeWidth: 0.5, opacity: 0.5})
+        ),
+        !missing && type === 'premolar' && h('g', null,
+          h('circle', {cx: -5, cy: 0, r: 2, fill: '#7a6b5a', opacity: 0.6}),
+          h('circle', {cx: 5, cy: 0, r: 2, fill: '#7a6b5a', opacity: 0.6}),
+          h('path', {d: 'M 0 -6 L 0 6', stroke: '#7a6b5a', strokeWidth: 0.5, opacity: 0.5})
+        ),
+        // Missing X
+        missing && h('path', {
+          d: 'M -14 -10 L 14 10 M 14 -10 L -14 10',
+          stroke: '#dc2626', strokeWidth: 2, strokeLinecap: 'round'
+        }),
+        // Condition symbol
+        !missing && cond.symbol && h('text', {
+          x: 0, y: 4,
+          fontSize: 11, textAnchor: 'middle',
+          fill: condition === 'cavity' ? '#fff' : '#1a2332',
+          fontWeight: 700,
+        }, cond.symbol),
+        // Surface markers
+        surfaceData && Object.entries(surfaceData).map(([surf, cnd]) => {
+          if (!cnd || cnd === 'healthy') return null;
+          const sCond = CONDITIONS[cnd] || cond;
+          let cx = 0, cy = 0;
+          if (surf === 'mesial') { cx = -14; cy = 0; }
+          else if (surf === 'distal') { cx = 14; cy = 0; }
+          else if (surf === 'occlusal' || surf === 'incisal') { cx = 0; cy = 0; }
+          else if (surf === 'buccal' || surf === 'labial') { cx = 0; cy = -12; }
+          else if (surf === 'lingual') { cx = 0; cy = 12; }
+          return h('circle', {
+            key: surf,
+            cx: cx, cy: cy, r: 2.5,
+            fill: sCond.color,
+            stroke: sCond.stroke,
+            strokeWidth: 0.7,
+          });
+        })
+      )
+    );
+  }
+
+    return h('div', {
     className: 'clin-tooth' + (selected ? ' sel' : '') + (missing ? ' miss' : '') + (hasIssues ? ' issue' : ''),
     onClick: e => { e.stopPropagation(); onSelect(fdi); },
     title: '#' + fdi + ' · ' + toothName(fdi) + ' · ' + cond.label
@@ -4097,6 +4341,7 @@ function surfaceDescription(s, type){
 // Main dental chart (overview)
 function DentalChart3D({teethData, onToothEdit}){
   const [selected, setSelected] = useState(null);
+  const [viewMode, setViewMode] = useState('buccal'); // 'buccal' (side) | 'occlusal' (top)
 
   // FDI standard chart layout:
   //   Upper arch (Maxilla): Right side (Q1) then left side (Q2) — viewer's perspective
@@ -4124,6 +4369,7 @@ function DentalChart3D({teethData, onToothEdit}){
     surfaceData: teethData[fdi + '_surfaces'],
     selected: selected === fdi,
     onSelect: setSelected,
+    viewMode: viewMode,
   });
 
   return h('div', {className: 'fdi-chart'},
@@ -4132,6 +4378,21 @@ function DentalChart3D({teethData, onToothEdit}){
       h('div', null,
         h('div', {className: 'fdi-chart-title'}, 'Dental Chart'),
         h('div', {className: 'fdi-chart-sub'}, 'FDI World Dental Federation notation')
+      ),
+      // View toggle
+      h('div', {className: 'fdi-view-toggle'},
+        h('button', {
+          type: 'button',
+          className: 'fdi-view-btn' + (viewMode === 'buccal' ? ' act' : ''),
+          onClick: () => setViewMode('buccal'),
+          title: 'Buccal/labial view (side)'
+        }, '🦷 Side View'),
+        h('button', {
+          type: 'button',
+          className: 'fdi-view-btn' + (viewMode === 'occlusal' ? ' act' : ''),
+          onClick: () => setViewMode('occlusal'),
+          title: 'Occlusal/incisal view (top)'
+        }, '👁 Top View')
       ),
       h('div', {className: 'fdi-stats'},
         h('div', {className: 'fdi-stat'},
@@ -4150,6 +4411,8 @@ function DentalChart3D({teethData, onToothEdit}){
     ),
 
     // The main chart - upper arch on top, lower on bottom
+    // Upper gum strip (above upper teeth - matches real anatomy when looking at patient's mouth)
+    h('div', {className: 'fdi-gum fdi-gum-upper'}),
     h('div', {className: 'fdi-arch fdi-upper'},
       // Quadrant labels (right of viewer = patient's left)
       h('div', {className: 'fdi-quad-lbl fdi-q1-lbl'}, 'Q1 · Upper Right'),
@@ -4203,6 +4466,8 @@ function DentalChart3D({teethData, onToothEdit}){
         )
       )
     ),
+    // Lower gum strip (below lower teeth)
+    h('div', {className: 'fdi-gum fdi-gum-lower'}),
 
     // Tooth detail modal
     selected && h(ToothDetailModal, {
@@ -4253,6 +4518,446 @@ function DentalChart3D({teethData, onToothEdit}){
   );
 }
 
+
+
+
+// ─── Compression helper (downscale + JPEG quality) ─────────────────────
+function compressImage(source, maxDim, quality) {
+  maxDim = maxDim || 800;
+  quality = quality || 0.8;
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, hgt = img.height;
+      if (w > hgt && w > maxDim) { hgt *= maxDim / w; w = maxDim; }
+      else if (hgt > maxDim) { w *= maxDim / hgt; hgt = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = hgt;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, hgt);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = reject;
+    img.src = source;
+  });
+}
+
+// ─── Upload photo to Google Drive via Apps Script ──────────────────────
+async function uploadPhotoToDrive(syncUrl, patientId, dataUrl, oldFileId) {
+  if (!syncUrl) throw new Error('Sync URL not configured');
+  const payload = {action:'uploadPhoto', patientId, dataUrl, oldFileId: oldFileId||''};
+  const res = await fetch(syncUrl, {
+    method:'POST', redirect:'follow',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload)
+  });
+  const text = await res.text();
+  let result;
+  try { result = JSON.parse(text); } catch(e) { throw new Error('Bad response'); }
+  if (!result.ok) throw new Error(result.error || 'Upload failed');
+  return result.fileId;
+}
+
+// ─── Fetch photo from Drive (returns data URL) ─────────────────────────
+async function fetchPhotoFromDrive(syncUrl, fileId) {
+  if (!syncUrl || !fileId) return null;
+  const sep = syncUrl.includes('?') ? '&' : '?';
+  const res = await fetch(syncUrl + sep + 'action=getPhoto&fileId=' + encodeURIComponent(fileId));
+  const text = await res.text();
+  let result;
+  try { result = JSON.parse(text); } catch(e) { return null; }
+  if (!result.ok) return null;
+  return result.dataUrl;
+}
+
+// ─── The capture/upload widget shown inside PatForm ────────────────────
+function PhotoCaptureWidget({patient, photoDataUrl, onPhotoChange, syncUrl, addToast}){
+  const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const [showLiveCam, setShowLiveCam] = useState(false);
+  const [showChooser, setShowChooser] = useState(false);
+  const [facingMode, setFacingMode] = useState('user');
+  const [busy, setBusy] = useState(false);
+  const [loadedFromDrive, setLoadedFromDrive] = useState(false);
+
+  // Load existing photo from Drive on mount
+  useEffect(() => {
+    if (loadedFromDrive) return;
+    if (patient && patient.photoFileId && syncUrl && !photoDataUrl) {
+      window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
+      const cached = window.__cyrabellPhotoCache[patient.photoFileId];
+      if (cached) {
+        onPhotoChange(cached);
+        setLoadedFromDrive(true);
+        return;
+      }
+      (async () => {
+        try {
+          const url = await fetchPhotoFromDrive(syncUrl, patient.photoFileId);
+          if (url) {
+            window.__cyrabellPhotoCache[patient.photoFileId] = url;
+            onPhotoChange(url);
+            setLoadedFromDrive(true);
+          }
+        } catch(e) {}
+      })();
+    }
+  }, [patient && patient.photoFileId, syncUrl]);
+
+  const startCamera = async () => {
+    setShowChooser(false);
+    setShowLiveCam(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facingMode, width: {ideal: 1280}, height: {ideal: 720} }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch (e) {
+      addToast && addToast('Camera access denied or unavailable', 'error');
+      setShowLiveCam(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setShowLiveCam(false);
+  };
+
+  const flipCamera = async () => {
+    const newMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newMode);
+    stopCamera();
+    setTimeout(startCamera, 100);
+  };
+
+  const capture = async () => {
+    if (!videoRef.current) return;
+    setBusy(true);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(videoRef.current, 0, 0);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      const compressed = await compressImage(dataUrl, 800, 0.8);
+      onPhotoChange(compressed);
+      stopCamera();
+    } catch(e) {
+      addToast && addToast('Capture failed: '+e.message, 'error');
+    }
+    setBusy(false);
+  };
+
+  const handleFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setShowChooser(false);
+    setBusy(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const compressed = await compressImage(reader.result, 800, 0.8);
+        onPhotoChange(compressed);
+        setBusy(false);
+      };
+      reader.readAsDataURL(file);
+    } catch(e) {
+      addToast && addToast('File read failed', 'error');
+      setBusy(false);
+    }
+    e.target.value = '';
+  };
+
+  const removePhoto = () => {
+    if (confirm('Remove photo?')) {
+      onPhotoChange('REMOVE');
+    }
+  };
+
+  useEffect(() => () => stopCamera(), []);
+
+  return h('div', {className: 'photo-widget-body'},
+    h('input', {
+      ref: fileInputRef, type: 'file', accept: 'image/*',
+      onChange: handleFile, style: {display: 'none'}
+    }),
+    // Photo preview
+    h('div', {className: 'photo-preview'},
+      photoDataUrl && photoDataUrl !== 'REMOVE'
+        ? h('img', {src: photoDataUrl, alt: 'Patient', className: 'photo-img'})
+        : h('div', {className: 'photo-empty'},
+            h('div', {style: {fontSize: 36}}, '📷'),
+            h('div', {style: {fontSize: 12, color: 'var(--md)', marginTop: 6}}, 'No photo yet')
+          )
+    ),
+    // Buttons
+    h('div', {className: 'photo-actions'},
+      h('button', {
+        type: 'button', className: 'btn bp bsm',
+        onClick: () => setShowChooser(true), disabled: busy
+      }, photoDataUrl && photoDataUrl !== 'REMOVE' ? '📸 Change' : '📸 Add Photo'),
+      photoDataUrl && photoDataUrl !== 'REMOVE' && h('button', {
+        type: 'button', className: 'btn bd2 bsm', onClick: removePhoto
+      }, '✕ Remove')
+    ),
+    // Source chooser modal
+    showChooser && h('div', {className: 'photo-chooser-ov', onClick: () => setShowChooser(false)},
+      h('div', {className: 'photo-chooser-modal', onClick: e => e.stopPropagation()},
+        h('div', {className: 'photo-chooser-header'}, 'Add Patient Photo'),
+        h('div', {className: 'photo-chooser-body'},
+          h('button', {
+            type: 'button', className: 'photo-chooser-btn',
+            onClick: () => { setShowChooser(false); fileInputRef.current.click(); }
+          }, h('span', {style: {fontSize: 26}}, '📁'),
+             h('div', null, h('div', {style: {fontWeight: 600}}, 'Upload from device'),
+                            h('div', {style: {fontSize: 11, color: 'var(--md)'}}, 'JPG, PNG, HEIC')
+             )
+          ),
+          h('button', {
+            type: 'button', className: 'photo-chooser-btn',
+            onClick: startCamera
+          }, h('span', {style: {fontSize: 26}}, '📷'),
+             h('div', null, h('div', {style: {fontWeight: 600}}, 'Take with camera'),
+                            h('div', {style: {fontSize: 11, color: 'var(--md)'}}, 'Front or back camera')
+             )
+          )
+        ),
+        h('button', {type: 'button', className: 'btn bgh bsm', style: {width: '100%', marginTop: 8}, onClick: () => setShowChooser(false)}, 'Cancel')
+      )
+    ),
+    // Live camera modal
+    showLiveCam && h('div', {className: 'photo-livecam-ov'},
+      h('div', {className: 'photo-livecam-modal'},
+        h('div', {className: 'photo-livecam-header'},
+          h('div', {style: {color: '#fff', fontWeight: 600}}, '📸 Position the patient'),
+          h('button', {type: 'button', className: 'btn bgh bsm', onClick: stopCamera}, '✕ Cancel')
+        ),
+        h('video', {
+          ref: videoRef, autoPlay: true, playsInline: true, muted: true,
+          className: 'photo-livecam-video'
+        }),
+        h('div', {className: 'photo-livecam-controls'},
+          h('button', {type: 'button', className: 'btn bgh bsm', onClick: flipCamera}, '🔄 Flip'),
+          h('button', {
+            type: 'button', className: 'btn bp',
+            onClick: capture, disabled: busy
+          }, '📸 Capture')
+        )
+      )
+    )
+  );
+}
+
+// ─── Patient Form Modal ────────────────────────────────────────────────
+function PatForm({patient, onClose, onSave, syncUrl, addToast}){
+  const [f, setF] = useState(patient || {
+    name: '', dob: '', phone: '', email: '', address: '',
+    bloodType: 'O+', allergies: '', photoFileId: ''
+  });
+  const [pendingPhoto, setPendingPhoto] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const s = (k, v) => setF(x => ({...x, [k]: v}));
+
+  const ok = S(f.name).trim() && S(f.phone).trim();
+
+  const handleSave = async () => {
+    if (!ok) {
+      addToast && addToast('Name and phone are required', 'error');
+      return;
+    }
+    setSaving(true);
+    let dataToSave = {...f};
+
+    try {
+      if (pendingPhoto === 'REMOVE') {
+        // Removing photo
+        if (f.photoFileId && syncUrl) {
+          try {
+            await fetch(syncUrl, {
+              method: 'POST', redirect: 'follow',
+              headers: {'Content-Type': 'text/plain;charset=utf-8'},
+              body: JSON.stringify({action: 'deletePhoto', fileId: f.photoFileId})
+            });
+          } catch(e) {}
+        }
+        dataToSave.photoFileId = '';
+      } else if (pendingPhoto && pendingPhoto.startsWith('data:')) {
+        // New photo to upload
+        if (!syncUrl) {
+          addToast && addToast('Sync URL not set — photo will not be saved to Drive', 'error');
+        } else {
+          const patientId = f.id || ('P' + uid());
+          const fileId = await uploadPhotoToDrive(syncUrl, patientId, pendingPhoto, f.photoFileId);
+          dataToSave.photoFileId = fileId;
+          // Cache the new photo
+          window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
+          window.__cyrabellPhotoCache[fileId] = pendingPhoto;
+        }
+      }
+      onSave(dataToSave);
+    } catch(err) {
+      addToast && addToast('Photo upload failed: ' + err.message, 'error');
+    }
+    setSaving(false);
+  };
+
+  return h(Modal, {
+    title: patient ? 'Edit Patient' : 'Add Patient',
+    sub: patient ? 'Update patient record' : 'New patient registration',
+    onClose, large: true,
+    footer: h(Fragment, null,
+      h('button', {className: 'btn bgh', onClick: onClose, disabled: saving}, 'Cancel'),
+      h('button', {
+        className: 'btn bp',
+        onClick: handleSave,
+        disabled: !ok || saving
+      }, saving ? 'Saving…' : (patient ? 'Save Changes' : 'Add Patient'))
+    )
+  },
+    // Photo section at top
+    h('div', {className: 'patform-photo-section'},
+      h(PhotoCaptureWidget, {
+        patient: f,
+        photoDataUrl: pendingPhoto,
+        onPhotoChange: setPendingPhoto,
+        syncUrl, addToast
+      })
+    ),
+    // Form fields
+    h('div', {className: 'fg2'},
+      h(Field, {label: 'Full Name *'},
+        h('input', {type: 'text', value: f.name, onChange: e => s('name', e.target.value), placeholder: 'Juan Dela Cruz'})
+      ),
+      h(Field, {label: 'Phone *'},
+        h('input', {type: 'text', value: f.phone, onChange: e => s('phone', e.target.value), placeholder: '09171234567'})
+      )
+    ),
+    h('div', {className: 'fg2'},
+      h(Field, {label: 'Email'},
+        h('input', {type: 'email', value: f.email, onChange: e => s('email', e.target.value), placeholder: 'juan@example.com'})
+      ),
+      h(Field, {label: 'Date of Birth'},
+        h('input', {type: 'date', value: f.dob, onChange: e => s('dob', e.target.value)})
+      )
+    ),
+    h('div', {className: 'fg2'},
+      h(Field, {label: 'Blood Type'},
+        h('select', {value: f.bloodType, onChange: e => s('bloodType', e.target.value)},
+          ['O+','O-','A+','A-','B+','B-','AB+','AB-'].map(bt =>
+            h('option', {key: bt, value: bt}, bt)
+          )
+        )
+      ),
+      h(Field, {label: 'Address'},
+        h('input', {type: 'text', value: f.address, onChange: e => s('address', e.target.value), placeholder: 'Street, City'})
+      )
+    ),
+    h(Field, {label: 'Allergies / Notes'},
+      h('textarea', {value: f.allergies, onChange: e => s('allergies', e.target.value), placeholder: 'Known allergies or conditions…', rows: 3})
+    )
+  );
+}
+
+
+// ─── Patient Form (Add/Edit) ─────────────────────────────────────────────
+function PatForm({patient, onClose, onSave, syncUrl, addToast}){
+  const [f, setF] = useState(patient || {
+    name:'', dob:'', phone:'', email:'', address:'',
+    bloodType:'O+', allergies:'', photoFileId:''
+  });
+  const [pendingPhoto, setPendingPhoto] = useState(null);
+  const s = (k, v) => setF(x => ({...x, [k]: v}));
+
+  const handleSave = async () => {
+    if (!f.name || !f.phone) {
+      addToast && addToast('Name and phone are required', 'error');
+      return;
+    }
+
+    const final = {...f};
+
+    // Handle photo upload/removal
+    if (pendingPhoto === 'REMOVE') {
+      if (f.photoFileId && syncUrl && typeof deletePhotoFromDrive === 'function') {
+        try { await deletePhotoFromDrive(syncUrl, f.photoFileId); } catch(e) {}
+      }
+      final.photoFileId = '';
+    } else if (pendingPhoto && pendingPhoto !== 'REMOVE') {
+      if (syncUrl && typeof uploadPhotoToDrive === 'function') {
+        try {
+          const result = await uploadPhotoToDrive(
+            syncUrl,
+            f.id || ('P' + Date.now()),
+            pendingPhoto,
+            f.photoFileId
+          );
+          if (result && result.fileId) {
+            final.photoFileId = result.fileId;
+            window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
+            window.__cyrabellPhotoCache[result.fileId] = pendingPhoto;
+          }
+        } catch (err) {
+          addToast && addToast('Photo upload failed: ' + err.message, 'error');
+        }
+      } else {
+        // No sync URL — store base64 inline (will sync later)
+        final.photoDataUrl = pendingPhoto;
+      }
+    }
+
+    onSave(final);
+  };
+
+  return h(Modal, {
+    title: patient ? 'Edit Patient' : 'New Patient',
+    sub: patient ? 'Update patient record' : 'Add a new patient to the system',
+    onClose,
+    large: true,
+    footer: h(Fragment, null,
+      h('button', {className:'btn bgh', onClick: onClose}, 'Cancel'),
+      h('button', {className:'btn bp', onClick: handleSave}, patient ? 'Save Changes' : 'Add Patient')
+    )
+  },
+    // Photo widget at top
+    typeof PhotoCaptureWidget === 'function' && h(PhotoCaptureWidget, {
+      patient: f,
+      photoDataUrl: pendingPhoto,
+      onPhotoChange: setPendingPhoto,
+      syncUrl,
+      addToast
+    }),
+
+    h('div', {className:'fg2'},
+      h(Field, {label:'Full Name *'}, h('input', {value:f.name, onChange:e=>s('name',e.target.value), placeholder:'Juan dela Cruz'})),
+      h(Field, {label:'Date of Birth'}, h('input', {type:'date', value:f.dob, onChange:e=>s('dob',e.target.value)}))
+    ),
+    h('div', {className:'fg2'},
+      h(Field, {label:'Phone *'}, h('input', {value:f.phone, onChange:e=>s('phone',e.target.value), placeholder:'09171234567'})),
+      h(Field, {label:'Email'}, h('input', {type:'email', value:f.email, onChange:e=>s('email',e.target.value), placeholder:'patient@email.com'}))
+    ),
+    h(Field, {label:'Address'},
+      h('input', {value:f.address, onChange:e=>s('address',e.target.value), placeholder:'Street, City, Province'})
+    ),
+    h('div', {className:'fg2'},
+      h(Field, {label:'Blood Type'},
+        h('select', {value:f.bloodType, onChange:e=>s('bloodType',e.target.value)},
+          ['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown'].map(bt =>
+            h('option', {key:bt, value:bt}, bt)
+          )
+        )
+      ),
+      h(Field, {label:'Allergies'},
+        h('input', {value:f.allergies, onChange:e=>s('allergies',e.target.value), placeholder:'e.g. Penicillin, Latex, or "None"'})
+      )
+    )
+  );
+}
 
 
 // ─── Patient Photo (avatar) ─────────────────────────────────────────────
@@ -6432,11 +7137,21 @@ function ExportPage({appointments,patients,payments}){
 // ─── ANALYTICS (unchanged) ────────────────────────────────────────────────────
 function Analytics({appointments,payments,patients}){
   const bm={};payments.filter(p=>p.status==='paid').forEach(p=>{const m=(p.date||'').slice(0,7)||'?';bm[m]=(bm[m]||0)+p.amount;});
-  const bs={};payments.forEach(p=>{bs[p.service]=(bs[p.service]||0)+p.amount;});
+  const bs={};payments.forEach(p=>{const sv=S(p.service)||'Unknown';bs[sv]=(bs[sv]||0)+(+p.amount||0);});
   const top=Object.entries(bs).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const maxR=Math.max(...Object.values(bm),1);
   const issueStats={};
-  patients.forEach(p=>{Object.values(p.teeth||{}).forEach(c=>{if(c&&c!=='healthy')issueStats[c]=(issueStats[c]||0)+1;});});
+  patients.forEach(p => {
+    Object.entries(p.teeth || {}).forEach(([key, value]) => {
+      // Skip surface-condition objects (keys ending in _surfaces store {mesial:'cavity'} etc.)
+      if (key.includes('_surfaces')) return;
+      // Only count valid string conditions
+      if (typeof value !== 'string' || !value || value === 'healthy') return;
+      // Only count conditions that exist in CONDITIONS lookup
+      if (!CONDITIONS[value]) return;
+      issueStats[value] = (issueStats[value] || 0) + 1;
+    });
+  });
   return h('div',null,
     h('div',{className:'ph'},h('div',null,h('div',{className:'ptl'},'Analytics'),h('div',{className:'psl'},'Performance insights and statistics'))),
     h('div',{className:'ag',style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}},
@@ -6455,7 +7170,7 @@ function Analytics({appointments,payments,patients}){
       h('div',{className:'card'},h('div',{className:'ch'},h('div',{className:'ct'},'Dental Conditions')),h('div',{className:'cb'},
         Object.keys(issueStats).length===0?h('div',{className:'empty'},'All patients healthy! 🦷'):
         Object.entries(issueStats).sort((a,b)=>b[1]-a[1]).map(([cond,count])=>{
-          const c=CONDITIONS[cond];
+          const c = CONDITIONS[cond] || {color:'#999', stroke:'#666', label:cond};
           return h('div',{key:cond,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid var(--bd)'}},
             h('div',{style:{display:'flex',alignItems:'center',gap:8}},
               h('div',{style:{width:14,height:14,borderRadius:4,background:c.color,border:'1.5px solid '+c.stroke}}),
