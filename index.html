@@ -2135,6 +2135,23 @@ th:hover .sort-icon{opacity:.9}
   .ocr-btn-grid{grid-template-columns:1fr}
 }
 
+
+/* ── Photo capture widget ── */
+.photo-cam-wrap{position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column}
+.photo-cam-video{flex:1;width:100%;object-fit:cover;display:block}
+.photo-cam-btns{position:absolute;bottom:0;left:0;right:0;padding:16px;background:linear-gradient(transparent,rgba(0,0,0,.8));display:flex;justify-content:center;gap:12px}
+.photo-widget-body{display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px;background:var(--cr);border-radius:10px;border:1.5px solid var(--bd);margin-bottom:14px}
+.photo-preview{width:100px;height:100px;border-radius:50%;overflow:hidden;background:var(--grayLt,#e8edf2);display:flex;align-items:center;justify-content:center;border:3px solid var(--bd);box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.photo-img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;text-align:center}
+.photo-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.photo-chooser-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998;display:flex;align-items:flex-end;justify-content:center}
+.photo-chooser-modal{background:#fff;border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:420px;box-shadow:0 -4px 20px rgba(0,0,0,.15)}
+.photo-chooser-header{font-weight:700;font-size:16px;text-align:center;margin-bottom:16px;color:var(--dk)}
+.photo-chooser-body{display:flex;gap:12px;justify-content:center}
+.photo-chooser-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 12px;border:2px solid var(--bd);border-radius:12px;background:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:var(--dk);transition:all .15s}
+.photo-chooser-btn:hover{border-color:var(--t);background:var(--tp)}
+
 @media(max-width:380px){
   .sg4,.sg3{grid-template-columns:1fr}
   .svcg,.ntg,.ig{grid-template-columns:1fr}
@@ -4805,38 +4822,60 @@ function DentalChart3D({teethData, onToothEdit}){
 
 // ─── Compression helper (downscale + JPEG quality) ─────────────────────
 function compressImage(source, maxDim, quality) {
-  maxDim = maxDim || 800;
-  quality = quality || 0.8;
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      let w = img.width, hgt = img.height;
-      if (w > hgt && w > maxDim) { hgt *= maxDim / w; w = maxDim; }
-      else if (hgt > maxDim) { w *= maxDim / hgt; hgt = maxDim; }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = hgt;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, hgt);
-      resolve(canvas.toDataURL('image/jpeg', quality));
-    };
-    img.onerror = reject;
-    img.src = source;
+  maxDim  = maxDim  || 800;
+  quality = quality || 0.82;
+  return new Promise(resolve => {
+    if (!source || typeof source !== 'string') { resolve(source); return; }
+    try {
+      const img = new Image();
+      const t = setTimeout(() => { console.warn('[Photo] compress timeout'); resolve(source); }, 10000);
+      img.onload = () => {
+        clearTimeout(t);
+        try {
+          let w = img.naturalWidth||img.width||640, h = img.naturalHeight||img.height||480;
+          if (w > maxDim || h > maxDim) {
+            if (w >= h) { h=Math.round(h*maxDim/w); w=maxDim; }
+            else        { w=Math.round(w*maxDim/h); h=maxDim; }
+          }
+          const c = document.createElement('canvas');
+          c.width=Math.max(1,w); c.height=Math.max(1,h);
+          const ctx = c.getContext('2d');
+          if (!ctx) { resolve(source); return; }
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+          const r = c.toDataURL('image/jpeg', quality);
+          resolve(r && r.length>100 ? r : source);
+        } catch(err) { console.warn('[Photo] compress err:',err.message); resolve(source); }
+      };
+      img.onerror = () => { clearTimeout(t); resolve(source); };
+      img.src = source;
+    } catch(err) { resolve(source); }
   });
 }
 
 // ─── Upload photo to Google Drive via Apps Script ──────────────────────
 async function uploadPhotoToDrive(syncUrl, patientId, dataUrl, oldFileId) {
-  if (!syncUrl) throw new Error('Sync URL not configured');
-  const payload = {action:'uploadPhoto', patientId, dataUrl, oldFileId: oldFileId||''};
-  const res = await fetch(syncUrl, {
-    method:'POST', redirect:'follow',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify(payload)
-  });
+  if (!syncUrl)  throw new Error('No sync URL — configure in ☁️ Sync');
+  if (!dataUrl)  throw new Error('No photo data');
+  if (!S(dataUrl).startsWith('data:')) throw new Error('Invalid photo (expected data: URL)');
+  console.log('[Photo] Uploading — patientId:',patientId,'size:',Math.round(dataUrl.length/1024)+'KB');
+  let res;
+  try {
+    res = await fetch(syncUrl, {
+      method:'POST', redirect:'follow',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action:'uploadPhoto', patientId:S(patientId), dataUrl, oldFileId:oldFileId||''})
+    });
+  } catch(e) { throw new Error('Network error: '+e.message); }
+  if (!res.ok) throw new Error('Server error '+res.status);
   const text = await res.text();
   let result;
-  try { result = JSON.parse(text); } catch(e) { throw new Error('Bad response'); }
-  if (!result.ok) throw new Error(result.error || 'Upload failed');
+  try { result = JSON.parse(text); } catch(e) {
+    console.error('[Photo] Non-JSON response:',text.substring(0,200));
+    throw new Error('Invalid response — redeploy Apps Script');
+  }
+  if (!result.ok) throw new Error(result.error||'Upload failed — check Apps Script permissions');
+  if (!result.fileId) throw new Error('No fileId in response');
+  console.log('[Photo] ✅ Uploaded. fileId:',result.fileId);
   return result.fileId;
 }
 
@@ -4871,54 +4910,20 @@ async function fetchPhotoFromDrive(syncUrl, fileId) {
 }
 
 // ─── The capture/upload widget shown inside PatForm ────────────────────
+/**
+ * PhotoCaptureWidget — camera capture + file upload.
+ * ONLY calls onPhotoChange when user explicitly picks a new photo or removes.
+ * Does NOT auto-call onPhotoChange just to display existing Drive photos.
+ * Existing Drive photo display is handled by PatForm's existingPhotoUrl state.
+ */
 function PhotoCaptureWidget({patient, photoDataUrl, onPhotoChange, syncUrl, addToast}){
   const fileInputRef = useRef(null);
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const [showLiveCam, setShowLiveCam] = useState(false);
-  const [showChooser, setShowChooser] = useState(false);
-  const [facingMode, setFacingMode] = useState('user');
-  const [busy, setBusy] = useState(false);
-  const [loadedFromDrive, setLoadedFromDrive] = useState(false);
-
-  // Load existing photo from Drive on mount
-  useEffect(() => {
-    if (loadedFromDrive) return;
-    if (patient && patient.photoFileId && syncUrl && !photoDataUrl) {
-      window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
-      const cached = window.__cyrabellPhotoCache[patient.photoFileId];
-      if (cached) {
-        onPhotoChange(cached);
-        setLoadedFromDrive(true);
-        return;
-      }
-      (async () => {
-        try {
-          const url = await fetchPhotoFromDrive(syncUrl, patient.photoFileId);
-          if (url) {
-            window.__cyrabellPhotoCache[patient.photoFileId] = url;
-            onPhotoChange(url);
-            setLoadedFromDrive(true);
-          }
-        } catch(e) {}
-      })();
-    }
-  }, [patient && patient.photoFileId, syncUrl]);
-
-  const startCamera = async () => {
-    setShowChooser(false);
-    setShowLiveCam(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facingMode, width: {ideal: 1280}, height: {ideal: 720} }
-      });
-      streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
-    } catch (e) {
-      addToast && addToast('Camera access denied or unavailable', 'error');
-      setShowLiveCam(false);
-    }
-  };
+  const videoRef     = useRef(null);
+  const streamRef    = useRef(null);
+  const [showLiveCam,  setShowLiveCam]  = useState(false);
+  const [showChooser,  setShowChooser]  = useState(false);
+  const [facingMode,   setFacingMode]   = useState('environment');
+  const [busy,         setBusy]         = useState(false);
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -4928,408 +4933,232 @@ function PhotoCaptureWidget({patient, photoDataUrl, onPhotoChange, syncUrl, addT
     setShowLiveCam(false);
   };
 
-  const flipCamera = async () => {
-    const newMode = facingMode === 'user' ? 'environment' : 'user';
-    setFacingMode(newMode);
-    stopCamera();
-    setTimeout(startCamera, 100);
+  const startCamera = async (mode) => {
+    const fm = mode || facingMode;
+    setShowChooser(false);
+    setShowLiveCam(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: fm }, width: {ideal:1280}, height: {ideal:720} }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play().catch(()=>{}); }
+    } catch(e) {
+      addToast && addToast('Camera: ' + (e.message||'Access denied'), 'error');
+      setShowLiveCam(false);
+    }
   };
 
-  const capture = async () => {
-    if (!videoRef.current) return;
+  const flipCamera = () => {
+    const nm = facingMode==='user' ? 'environment' : 'user';
+    setFacingMode(nm); stopCamera(); setTimeout(()=>startCamera(nm), 200);
+  };
+
+  const capturePhoto = async () => {
+    if (!videoRef.current || busy) return;
     setBusy(true);
     try {
+      const v = videoRef.current;
       const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(videoRef.current, 0, 0);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-      const compressed = await compressImage(dataUrl, 800, 0.8);
-      onPhotoChange(compressed);
+      canvas.width = v.videoWidth||640; canvas.height = v.videoHeight||480;
+      canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
+      const compressed = await compressImage(canvas.toDataURL('image/jpeg', 0.92), 800, 0.82);
       stopCamera();
-    } catch(e) {
-      addToast && addToast('Capture failed: '+e.message, 'error');
-    }
+      onPhotoChange(compressed);
+    } catch(e) { addToast && addToast('Capture failed: '+(e.message||''), 'error'); }
     setBusy(false);
   };
 
-  const handleFile = async (e) => {
+  const handleFile = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    setShowChooser(false);
-    setBusy(true);
-    try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const compressed = await compressImage(reader.result, 800, 0.8);
+    setShowChooser(false); setBusy(true);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const compressed = await compressImage(ev.target.result, 800, 0.82);
         onPhotoChange(compressed);
-        setBusy(false);
-      };
-      reader.readAsDataURL(file);
-    } catch(e) {
-      addToast && addToast('File read failed', 'error');
+      } catch(err) { addToast && addToast('Image error: '+err.message, 'error'); }
       setBusy(false);
-    }
+    };
+    reader.onerror = () => { addToast && addToast('File read failed','error'); setBusy(false); };
+    reader.readAsDataURL(file);
     e.target.value = '';
   };
 
   const removePhoto = () => {
-    if (confirm('Remove photo?')) {
-      onPhotoChange('REMOVE');
-    }
+    if (confirm('Remove this patient photo?')) onPhotoChange('REMOVE');
   };
 
   useEffect(() => () => stopCamera(), []);
 
-  return h('div', {className: 'photo-widget-body'},
-    h('input', {
-      ref: fileInputRef, type: 'file', accept: 'image/*',
-      onChange: handleFile, style: {display: 'none'}
-    }),
-    // Photo preview
-    h('div', {className: 'photo-preview'},
-      photoDataUrl && photoDataUrl !== 'REMOVE'
-        ? h('img', {src: photoDataUrl, alt: 'Patient', className: 'photo-img'})
-        : h('div', {className: 'photo-empty'},
-            h('div', {style: {fontSize: 36}}, '📷'),
-            h('div', {style: {fontSize: 12, color: 'var(--md)', marginTop: 6}}, 'No photo yet')
+  const hasPhoto = photoDataUrl && photoDataUrl !== 'REMOVE' && S(photoDataUrl).startsWith('data:');
+
+  return h('div', {className:'photo-widget-body'},
+    h('input', {ref:fileInputRef, type:'file', accept:'image/*,image/heic', style:{display:'none'}, onChange:handleFile}),
+    h('div', {className:'photo-preview'},
+      hasPhoto
+        ? h('img', {src:photoDataUrl, alt:'Patient', className:'photo-img', onError:e=>{e.target.style.display='none';}})
+        : h('div', {className:'photo-empty'},
+            h('div', {style:{fontSize:36}}, '📷'),
+            h('div', {style:{fontSize:12,color:'var(--md)',marginTop:6}}, busy?'⏳ Processing…':'No photo yet')
           )
     ),
-    // Buttons
-    h('div', {className: 'photo-actions'},
-      h('button', {
-        type: 'button', className: 'btn bp bsm',
-        onClick: () => setShowChooser(true), disabled: busy
-      }, photoDataUrl && photoDataUrl !== 'REMOVE' ? '📸 Change' : '📸 Add Photo'),
-      photoDataUrl && photoDataUrl !== 'REMOVE' && h('button', {
-        type: 'button', className: 'btn bd2 bsm', onClick: removePhoto
-      }, '✕ Remove')
+    h('div', {className:'photo-actions'},
+      h('button', {type:'button', className:'btn bp bsm', onClick:()=>setShowChooser(true), disabled:busy},
+        busy ? '⏳' : (hasPhoto ? '📸 Change Photo' : '📸 Add Photo')),
+      hasPhoto && h('button', {type:'button', className:'btn bd2 bsm', onClick:removePhoto, disabled:busy}, '✕ Remove')
     ),
-    // Source chooser modal
-    showChooser && h('div', {className: 'photo-chooser-ov', onClick: () => setShowChooser(false)},
-      h('div', {className: 'photo-chooser-modal', onClick: e => e.stopPropagation()},
-        h('div', {className: 'photo-chooser-header'}, 'Add Patient Photo'),
-        h('div', {className: 'photo-chooser-body'},
-          h('button', {
-            type: 'button', className: 'photo-chooser-btn',
-            onClick: () => { setShowChooser(false); fileInputRef.current.click(); }
-          }, h('span', {style: {fontSize: 26}}, '📁'),
-             h('div', null, h('div', {style: {fontWeight: 600}}, 'Upload from device'),
-                            h('div', {style: {fontSize: 11, color: 'var(--md)'}}, 'JPG, PNG, HEIC')
-             )
-          ),
-          h('button', {
-            type: 'button', className: 'photo-chooser-btn',
-            onClick: startCamera
-          }, h('span', {style: {fontSize: 26}}, '📷'),
-             h('div', null, h('div', {style: {fontWeight: 600}}, 'Take with camera'),
-                            h('div', {style: {fontSize: 11, color: 'var(--md)'}}, 'Front or back camera')
-             )
-          )
-        ),
-        h('button', {type: 'button', className: 'btn bgh bsm', style: {width: '100%', marginTop: 8}, onClick: () => setShowChooser(false)}, 'Cancel')
+    showChooser && h('div', {className:'photo-chooser-ov', onClick:()=>setShowChooser(false)},
+      h('div', {className:'photo-chooser-modal', onClick:e=>e.stopPropagation()},
+        h('div', {className:'photo-chooser-header'}, 'Add Patient Photo'),
+        h('div', {className:'photo-chooser-body'},
+          h('button', {type:'button', className:'photo-chooser-btn', onClick:()=>startCamera('environment')},
+            h('span', {style:{fontSize:28}}, '📷'), h('span', null, 'Take Photo')),
+          h('button', {type:'button', className:'photo-chooser-btn', onClick:()=>{setShowChooser(false); fileInputRef.current&&fileInputRef.current.click();}},
+            h('span', {style:{fontSize:28}}, '📁'), h('span', null, 'Upload File'))
+        )
       )
     ),
-    // Live camera modal
-    showLiveCam && h('div', {className: 'photo-livecam-ov'},
-      h('div', {className: 'photo-livecam-modal'},
-        h('div', {className: 'photo-livecam-header'},
-          h('div', {style: {color: '#fff', fontWeight: 600}}, '📸 Position the patient'),
-          h('button', {type: 'button', className: 'btn bgh bsm', onClick: stopCamera}, '✕ Cancel')
-        ),
-        h('video', {
-          ref: videoRef, autoPlay: true, playsInline: true, muted: true,
-          className: 'photo-livecam-video'
-        }),
-        h('div', {className: 'photo-livecam-controls'},
-          h('button', {type: 'button', className: 'btn bgh bsm', onClick: flipCamera}, '🔄 Flip'),
-          h('button', {
-            type: 'button', className: 'btn bp',
-            onClick: capture, disabled: busy
-          }, '📸 Capture')
-        )
+    showLiveCam && h('div', {className:'photo-cam-wrap'},
+      h('video', {ref:videoRef, autoPlay:true, playsInline:true, muted:true, className:'photo-cam-video'}),
+      h('div', {className:'photo-cam-btns'},
+        h('button', {type:'button', className:'btn bgh', onClick:stopCamera}, '✕ Cancel'),
+        h('button', {type:'button', className:'btn bp', onClick:capturePhoto, disabled:busy}, busy?'⏳':'📸 Capture'),
+        h('button', {type:'button', className:'btn bg2', onClick:flipCamera, title:'Flip camera'}, '🔄')
       )
     )
   );
 }
 
-// ─── Patient Form Modal ────────────────────────────────────────────────
+
+/**
+ * PatForm — Add/Edit patient record.
+ *
+ * ROOT CAUSE FIX: Patient ID is generated HERE before calling onSave()
+ * so Drive upload and the saved record use the SAME ID. Previously, IDs
+ * were generated inside save() AFTER handleSave() completed, making
+ * onPhotoUploaded search for a temporary ID that never matched.
+ */
 function PatForm({patient, onClose, onSave, syncUrl, addToast, onPhotoUploaded, prefillData}){
-  // Merge: existing patient data (edit mode) OR prefillData (from OCR scan) OR blank
   const initial = {
-    name: '', dob: '', phone: '', email: '', address: '',
-    bloodType: 'O+', allergies: '', photoFileId: '',
-    ...(patient || {}),
-    ...(prefillData || {})
+    name:'', dob:'', phone:'', email:'', address:'',
+    bloodType:'O+', allergies:'', photoFileId:'',
+    ...(patient||{}),
+    ...(prefillData||{}),
   };
-  const [f, setF] = useState(initial);
-  // pendingPhoto: null = no change | 'data:...' = new photo | 'REMOVE' = delete
-  const [pendingPhoto, setPendingPhoto] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [f, setF]                        = useState(initial);
+  const [pendingPhoto, setPendingPhoto]   = useState(null);
+  // existingPhotoUrl: loaded from Drive for display only — does NOT trigger re-upload
   const [existingPhotoUrl, setExistingPhotoUrl] = useState(
-    // If editing and patient has inline base64, show it immediately
-    (patient && patient.photoDataUrl) || null
+    (patient && patient.photoDataUrl && S(patient.photoDataUrl).startsWith('data:'))
+      ? patient.photoDataUrl : null
   );
+  const set = (k,v) => setF(p=>({...p,[k]:v}));
+  const ok  = S(f.name).trim().length > 0 && S(f.phone).trim().length > 0;
 
-  // Pre-load existing photo from Drive when editing a patient who has a photo
-  useEffect(() => {
-    if (!patient || !patient.photoFileId || !syncUrl) return;
-    if (existingPhotoUrl) return; // already loaded
-
+  // Pre-load Drive photo when editing
+  useEffect(()=>{
+    if (!patient || !patient.photoFileId || !syncUrl || existingPhotoUrl) return;
     let cancelled = false;
-    (async () => {
-      // Check cache first
-      window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
-      const cached = window.__cyrabellPhotoCache[patient.photoFileId];
-      if (cached) {
-        if (!cancelled) setExistingPhotoUrl(cached);
-        return;
-      }
-      // Fetch from Drive
-      try {
-        const url = await fetchPhotoFromDrive(syncUrl, patient.photoFileId);
-        if (!cancelled && url) {
-          window.__cyrabellPhotoCache[patient.photoFileId] = url;
-          setExistingPhotoUrl(url);
-        }
-      } catch (e) {}
-    })();
-    return () => { cancelled = true; };
-  }, [patient && patient.photoFileId, syncUrl]);
-  const s = (k, v) => setF(x => ({...x, [k]: v}));
-
-  const ok = S(f.name).trim() && S(f.phone).trim();
+    window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
+    const cached = window.__cyrabellPhotoCache[patient.photoFileId];
+    if (cached) { setExistingPhotoUrl(cached); return; }
+    fetchPhotoFromDrive(syncUrl, patient.photoFileId)
+      .then(url => { if (!cancelled && url) { window.__cyrabellPhotoCache[patient.photoFileId]=url; setExistingPhotoUrl(url); }})
+      .catch(()=>{});
+    return ()=>{ cancelled=true; };
+  }, [patient && patient.photoFileId]);
 
   const handleSave = () => {
-    if (!ok) {
-      addToast && addToast('Name and phone are required', 'error');
-      return;
-    }
-    const dataToSave = {...f};
+    if (!ok) { addToast && addToast('Name and phone are required','error'); return; }
+
+    // ── CRITICAL: Assign ID NOW before calling onSave or starting upload ──
+    // This ensures Drive upload and the saved record share the same ID.
+    const patientId = f.id || ('P' + String(Date.now()).slice(-6));
+    const dataToSave = { balance:0, lastVisit:'—', teeth:{}, ...f, id: patientId };
 
     if (pendingPhoto === 'REMOVE') {
-      // Remove photo: clear both storage fields, delete from Drive async
-      dataToSave.photoFileId = '';
+      dataToSave.photoFileId  = '';
       dataToSave.photoDataUrl = '';
       if (f.photoFileId) {
-        window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
-        delete window.__cyrabellPhotoCache[f.photoFileId];
+        delete (window.__cyrabellPhotoCache||{})[f.photoFileId];
         if (syncUrl) {
-          fetch(syncUrl, {
-            method:'POST', redirect:'follow',
+          fetch(syncUrl, {method:'POST', redirect:'follow',
             headers:{'Content-Type':'text/plain;charset=utf-8'},
-            body: JSON.stringify({action:'deletePhoto', fileId: f.photoFileId})
-          }).catch(e => console.warn('[Photo] Drive delete failed:', e.message));
+            body: JSON.stringify({action:'deletePhoto', fileId:f.photoFileId})
+          }).catch(e=>console.warn('[Photo] Delete failed:',e.message));
         }
       }
     } else if (pendingPhoto && S(pendingPhoto).startsWith('data:')) {
-      // New photo selected:
-      // 1. Save inline base64 IMMEDIATELY so photo shows right away in the list
+      // Save inline immediately for instant display
       dataToSave.photoDataUrl = pendingPhoto;
+      dataToSave.photoFileId  = f.photoFileId || '';
 
-      // 2. Upload to Drive asynchronously (don't block the save)
       if (syncUrl) {
-        const pid = dataToSave.id || ('P' + String(Date.now()).slice(-6));
-        uploadPhotoToDrive(syncUrl, pid, pendingPhoto, f.photoFileId || '')
+        const snap = pendingPhoto; // closure copy
+        uploadPhotoToDrive(syncUrl, patientId, snap, f.photoFileId||'')
           .then(fileId => {
-            if (!fileId) throw new Error('No fileId returned from Drive');
-            // Update patient record with the Drive file ID
-            if (typeof onPhotoUploaded === 'function') onPhotoUploaded(pid, fileId);
-            window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
-            window.__cyrabellPhotoCache[fileId] = pendingPhoto;
-            console.log('[Photo] Uploaded to Drive. fileId:', fileId);
+            console.log('[Photo] ✅ Drive upload done. patientId:',patientId,'fileId:',fileId);
+            if (typeof onPhotoUploaded === 'function') onPhotoUploaded(patientId, fileId, snap);
+            (window.__cyrabellPhotoCache=window.__cyrabellPhotoCache||{})[fileId]=snap;
           })
           .catch(err => {
-            console.warn('[Photo] Drive upload failed, keeping inline:', err.message);
-            addToast && addToast('Photo saved locally. Drive upload failed: ' + err.message, 'info');
+            console.warn('[Photo] Drive upload failed, keeping inline:',err.message);
+            addToast && addToast('Photo saved locally. Drive upload failed: '+err.message,'info');
           });
-      } else {
-        addToast && addToast('Photo saved locally. Set up Sync to back up to Drive.', 'info');
       }
     }
+    // else: no photo change — f already has photoFileId/photoDataUrl from spread
 
-    // Save patient immediately with whatever photo state we have
-    onSave(dataToSave);
+    onSave(dataToSave); // save immediately — don't wait for Drive upload
   };
 
+  const displayPhoto = (pendingPhoto && pendingPhoto !== 'REMOVE') ? pendingPhoto : existingPhotoUrl;
+
   return h(Modal, {
-    title: patient ? 'Edit Patient' : (prefillData ? '📷 New Patient from Scan' : 'Add Patient'),
-    sub: patient ? 'Update patient record' : (prefillData ? 'Review and confirm extracted data before saving' : 'New patient registration'),
+    title:  patient ? 'Edit Patient' : (prefillData ? '📷 New Patient from Scan' : 'Add Patient'),
+    sub:    patient ? 'Update patient record' : (prefillData ? 'Review extracted data before saving' : 'New patient registration'),
     onClose, large: true,
     footer: h(Fragment, null,
-      h('button', {className: 'btn bgh', onClick: onClose, disabled: saving}, 'Cancel'),
-      h('button', {
-        className: 'btn bp',
-        onClick: handleSave,
-        disabled: !ok || saving
+      h('button', {type:'button', className:'btn bgh', onClick:onClose}, 'Cancel'),
+      h('button', {type:'button', className:'btn bp', onClick:handleSave, disabled:!ok,
+        title:!ok?'Name and phone are required':''
       }, patient ? 'Save Changes' : 'Add Patient')
-    )
+    ),
   },
-    // Photo section at top
-    h('div', {className: 'patform-photo-section'},
+    h('div', {className:'patform-photo-section'},
       h(PhotoCaptureWidget, {
         patient: f,
-        // Show pending (new) photo if selected; fall back to existing photo from Drive
-        photoDataUrl: pendingPhoto || existingPhotoUrl,
+        photoDataUrl: displayPhoto,
         onPhotoChange: url => {
           setPendingPhoto(url);
-          // When explicitly changing, clear the existing photo preview
-          if (url !== 'REMOVE') setExistingPhotoUrl(null);
+          if (url==='REMOVE') setExistingPhotoUrl(null);
         },
-        syncUrl, addToast
+        syncUrl, addToast,
       })
     ),
-    // Form fields
-    h('div', {className: 'fg2'},
-      h(Field, {label: 'Full Name *'},
-        h('input', {type: 'text', value: f.name, onChange: e => s('name', e.target.value), placeholder: 'Juan Dela Cruz'})
-      ),
-      h(Field, {label: 'Phone *'},
-        h('input', {type: 'text', value: f.phone, onChange: e => s('phone', e.target.value), placeholder: '09171234567'})
-      )
+    h('div', {className:'fg2'},
+      h(Field,{label:'Full Name *'}, h('input',{value:f.name,placeholder:'Juan dela Cruz',onChange:e=>set('name',e.target.value)})),
+      h(Field,{label:'Date of Birth'}, h('input',{type:'date',value:f.dob||'',onChange:e=>set('dob',e.target.value)}))
     ),
-    h('div', {className: 'fg2'},
-      h(Field, {label: 'Email'},
-        h('input', {type: 'email', value: f.email, onChange: e => s('email', e.target.value), placeholder: 'juan@example.com'})
-      ),
-      h(Field, {label: 'Date of Birth'},
-        h('input', {type: 'date', value: f.dob, onChange: e => s('dob', e.target.value)})
-      )
+    h('div', {className:'fg2'},
+      h(Field,{label:'Phone *'}, h('input',{value:f.phone,placeholder:'09171234567',onChange:e=>set('phone',e.target.value)})),
+      h(Field,{label:'Email'}, h('input',{type:'email',value:f.email||'',placeholder:'patient@email.com',onChange:e=>set('email',e.target.value)}))
     ),
-    h('div', {className: 'fg2'},
-      h(Field, {label: 'Blood Type'},
-        h('select', {value: f.bloodType, onChange: e => s('bloodType', e.target.value)},
-          ['O+','O-','A+','A-','B+','B-','AB+','AB-'].map(bt =>
-            h('option', {key: bt, value: bt}, bt)
-          )
+    h(Field,{label:'Address'}, h('input',{value:f.address||'',placeholder:'Street, City, Province',onChange:e=>set('address',e.target.value)})),
+    h('div', {className:'fg2'},
+      h(Field,{label:'Blood Type'},
+        h('select',{value:f.bloodType||'O+',onChange:e=>set('bloodType',e.target.value)},
+          ['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown'].map(bt=>h('option',{key:bt,value:bt},bt))
         )
       ),
-      h(Field, {label: 'Address'},
-        h('input', {type: 'text', value: f.address, onChange: e => s('address', e.target.value), placeholder: 'Street, City'})
-      )
-    ),
-    h(Field, {label: 'Allergies / Notes'},
-      h('textarea', {value: f.allergies, onChange: e => s('allergies', e.target.value), placeholder: 'Known allergies or conditions…', rows: 3})
+      h(Field,{label:'Allergies'}, h('input',{value:f.allergies||'',placeholder:'e.g. Penicillin — or "None"',onChange:e=>set('allergies',e.target.value)}))
     )
   );
 }
 
 
-// ─── Patient Form (Add/Edit) ─────────────────────────────────────────────
-function PatForm({patient, onClose, onSave, syncUrl, addToast}){
-  const [f, setF] = useState(patient || {
-    name:'', dob:'', phone:'', email:'', address:'',
-    bloodType:'O+', allergies:'', photoFileId:''
-  });
-  const [pendingPhoto, setPendingPhoto] = useState(null);
-  const s = (k, v) => setF(x => ({...x, [k]: v}));
-
-  const handleSave = async () => {
-    if (!f.name || !f.phone) {
-      addToast && addToast('Name and phone are required', 'error');
-      return;
-    }
-
-    const final = {...f};
-
-    // Handle photo upload/removal
-    if (pendingPhoto === 'REMOVE') {
-      if (f.photoFileId && syncUrl && typeof deletePhotoFromDrive === 'function') {
-        try { await deletePhotoFromDrive(syncUrl, f.photoFileId); } catch(e) {}
-      }
-      final.photoFileId = '';
-    } else if (pendingPhoto && pendingPhoto !== 'REMOVE') {
-      if (syncUrl && typeof uploadPhotoToDrive === 'function') {
-        try {
-          const result = await uploadPhotoToDrive(
-            syncUrl,
-            f.id || ('P' + Date.now()),
-            pendingPhoto,
-            f.photoFileId
-          );
-          if (result && result.fileId) {
-            final.photoFileId = result.fileId;
-            window.__cyrabellPhotoCache = window.__cyrabellPhotoCache || {};
-            window.__cyrabellPhotoCache[result.fileId] = pendingPhoto;
-          }
-        } catch (err) {
-          addToast && addToast('Photo upload failed: ' + err.message, 'error');
-        }
-      } else {
-        // No sync URL — store base64 inline (will sync later)
-        final.photoDataUrl = pendingPhoto;
-      }
-    }
-
-    onSave(final);
-  };
-
-  return h(Modal, {
-    title: patient ? 'Edit Patient' : 'New Patient',
-    sub: patient ? 'Update patient record' : 'Add a new patient to the system',
-    onClose,
-    large: true,
-    footer: h(Fragment, null,
-      h('button', {className:'btn bgh', onClick: onClose}, 'Cancel'),
-      h('button', {
-        className:'btn bp',
-        onClick: handleSave,
-        disabled: !f.name || !f.phone,
-        title: (!f.name || !f.phone) ? 'Name and phone are required' : ''
-      }, patient ? 'Save Changes' : 'Add Patient')
-    )
-  },
-    // Photo widget at top
-    typeof PhotoCaptureWidget === 'function' && h(PhotoCaptureWidget, {
-      patient: f,
-      photoDataUrl: pendingPhoto,
-      onPhotoChange: setPendingPhoto,
-      syncUrl,
-      addToast
-    }),
-
-    h('div', {className:'fg2'},
-      h(Field, {label:'Full Name *'}, h('input', {value:f.name, onChange:e=>s('name',e.target.value), placeholder:'Juan dela Cruz'})),
-      h(Field, {label:'Date of Birth'}, h('input', {type:'date', value:f.dob, onChange:e=>s('dob',e.target.value)}))
-    ),
-    h('div', {className:'fg2'},
-      h(Field, {label:'Phone *'}, h('input', {value:f.phone, onChange:e=>s('phone',e.target.value), placeholder:'09171234567'})),
-      h(Field, {label:'Email'}, h('input', {type:'email', value:f.email, onChange:e=>s('email',e.target.value), placeholder:'patient@email.com'}))
-    ),
-    h(Field, {label:'Address'},
-      h('input', {value:f.address, onChange:e=>s('address',e.target.value), placeholder:'Street, City, Province'})
-    ),
-    h('div', {className:'fg2'},
-      h(Field, {label:'Blood Type'},
-        h('select', {value:f.bloodType, onChange:e=>s('bloodType',e.target.value)},
-          ['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown'].map(bt =>
-            h('option', {key:bt, value:bt}, bt)
-          )
-        )
-      ),
-      h(Field, {label:'Allergies'},
-        h('input', {value:f.allergies, onChange:e=>s('allergies',e.target.value), placeholder:'e.g. Penicillin, Latex, or "None"'})
-      )
-    )
-  );
-}
-
-
-// ─── Patient Photo (avatar) ─────────────────────────────────────────────
-// Shows the patient's photo if photoFileId exists, otherwise initials in a colored circle.
-/**
- * PatientPhoto — displays patient's photo avatar.
- *
- * Priority:
- *   1. photoDataUrl  — inline base64 (no Drive needed, for offline use)
- *   2. photoFileId   — fetch from Google Drive via Apps Script
- *   3. Initials     — colored circle fallback when no photo available
- *
- * @param {object} patient  - Patient record with photoFileId and/or photoDataUrl
- * @param {number} size     - Diameter in px (default 40)
- * @param {string} syncUrl  - Apps Script Web App URL for Drive fetch
- */
 function PatientPhoto({patient, size, syncUrl}) {
   size = size || 40;
   const [dataUrl, setDataUrl] = useState(
@@ -5381,12 +5210,11 @@ function PatientPhoto({patient, size, syncUrl}) {
       }
     })();
     return () => { cancelled = true; };
-  // Deps include photoDataUrl so re-renders when photo is added/changed/removed
   }, [
-    patient && patient.id,
-    patient && patient.photoFileId,
-    patient && patient.photoDataUrl,
-    syncUrl
+    patient ? patient.id : null,
+    patient ? patient.photoFileId : null,
+    patient ? (S(patient.photoDataUrl).substring(0,30)) : null,
+    syncUrl,
   ]);
 
   const name = S(patient && patient.name);
@@ -5863,27 +5691,34 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
   const [showScanner,setShowScanner]=useState(false);    // OCR scanner modal
   const [scanPrefill,setScanPrefill]=useState(null);     // pre-filled data from scan
   const filtered=patients.filter(p=>!search||S(p.name).toLowerCase().includes(S(search).toLowerCase())||S(p.id).includes(S(search)));
-  const save=d=>{
-    if(d.id) {
-      setPatients(p=>p.map(x=>x.id===d.id?{...x,...d}:x));
+  const save = d => {
+    // Determine if this is editing an EXISTING patient or adding a NEW one.
+    // PatForm now always provides d.id (generated inside handleSave for new patients),
+    // so we check if that ID already exists in the current patients list.
+    const isExisting = d.id && patients.some(p => p.id === d.id);
+
+    if (isExisting) {
+      // UPDATE existing patient — merge new data into existing record
+      setPatients(p => p.map(x => x.id === d.id ? {...x, ...d} : x));
+      addToast('Record updated!', 'success');
+      setModal(false); setEdit(null);
     } else {
-      // Check for duplicates by name + phone
-      const existing = findExistingPatient(patients, d);
-      if (existing) {
-        if (confirm('A patient with the same name and phone already exists: "' + existing.name + '" (ID: ' + existing.id + '). Update their record instead of creating a new one?')) {
-          setPatients(p=>p.map(x=>x.id===existing.id?{...x,...d,id:existing.id}:x));
-          addToast('Updated existing patient: '+existing.name, 'success');
+      // ADD new patient — check for duplicates first
+      const duplicate = findExistingPatient(patients, d);
+      if (duplicate) {
+        if (confirm('A patient with the same name and phone already exists: ' + duplicate.name + ' (ID: ' + duplicate.id + '). Update their record instead of creating a new one?')) {
+          setPatients(p => p.map(x => x.id === duplicate.id ? {...x, ...d, id: duplicate.id} : x));
+          addToast('Updated existing patient: ' + duplicate.name, 'success');
           setModal(false); setEdit(null);
           return;
-        } else {
-          // User wants to keep separate — proceed as new
-          setPatients(p=>[{...d,id:'P'+String(Date.now()).slice(-4),balance:0,lastVisit:'—',teeth:{}},...p]);
         }
-      } else {
-        setPatients(p=>[{...d,id:'P'+String(Date.now()).slice(-4),balance:0,lastVisit:'—',teeth:{}},...p]);
       }
+      // Insert as a new patient (use provided id or generate fallback)
+      const newId = d.id || ('P' + String(Date.now()).slice(-6));
+      setPatients(p => [{balance:0, lastVisit:'—', teeth:{}, ...d, id: newId}, ...p]);
+      addToast('Patient added!', 'success');
+      setModal(false); setEdit(null);
     }
-    addToast(d.id?'Record updated!':'Patient added!','success');setModal(false);setEdit(null);
   };
   const updateTeeth = (patientId, newTeeth) => {
     setPatients(prev => prev.map(p => p.id === patientId ? {...p, teeth: newTeeth} : p));
@@ -5953,11 +5788,12 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
       onSave:save,
       syncUrl,
       addToast,
-      onPhotoUploaded:(patientId, fileId)=>{
-        setPatients(prev=>prev.map(p=>
-          p.id===patientId ? {...p, photoFileId:fileId} : p
-        ));
-        console.log('[Photo] Patient state updated with fileId:', fileId, 'for patient:', patientId);
+      onPhotoUploaded:(patientId, fileId, photoDataUrl)=>{
+        setPatients(prev=>prev.map(p=>{
+          if(p.id!==patientId) return p;
+          return {...p, photoFileId:fileId, ...(photoDataUrl?{photoDataUrl}:{})};
+        }));
+        console.log('[Photo] ✅ State updated — id:',patientId,'fileId:',fileId);
       }
     }),
     // OCR Record Card Scanner modal
