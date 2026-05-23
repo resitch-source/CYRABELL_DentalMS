@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#0a7c6e"/>
-<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
 <title>Cyrabell Dental Management System</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -5368,89 +5368,200 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
  * @param {string} syncUrl      Apps Script web app URL (stored in localStorage)
  * @returns {Promise<object>}   extracted patient data object
  */
+/**
+ * extractPatientDataFromCard
+ *
+ * Calls Claude Vision via the Apps Script proxy — but uses a Web Worker
+ * to make the HTTP request. This bypasses gateway restrictions that block
+ * cross-origin requests from the main thread (Origin header issue).
+ *
+ * Why Web Worker?
+ *   Main thread fetch:  sends Origin: https://resitch-source.github.io
+ *                       → gateway sees GitHub→Google cross-origin → BLOCKS IT
+ *   Web Worker fetch:   sends no Origin header (null origin)
+ *                       → gateway allows it (same as sync worker)
+ *
+ * @param {string} imageBase64  data URL or raw base64
+ * @param {string} mimeType     image/jpeg | image/png | image/webp
+ * @param {string} syncUrl      Apps Script web app URL
+ * @returns {Promise<object>}   extracted patient data
+ */
 async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl) {
-  // Require the sync URL — this is how we reach the Apps Script proxy
   if (!syncUrl) {
     throw new Error(
-      'Google Sheets Sync URL is not configured.\n\n' +
-      'To use the Record Card Scanner:\n' +
-      '1. Go to \u2601\ufe0f Sync page in the sidebar\n' +
-      '2. Paste your Apps Script Web App URL\n' +
-      '3. Click Save URL\n\n' +
-      'The scanner uses your Apps Script as a secure proxy to call Claude AI.'
+      'Google Sheets Sync URL not configured.\n\n' +
+      'The Record Card Scanner routes through your Apps Script to call Claude AI.\n' +
+      'Go to ☁️ Sync in the sidebar → paste your Apps Script URL → Save.'
     );
   }
 
-  // Strip the data: prefix — Apps Script only needs the raw base64
-  const base64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
-  if (!base64 || base64.length < 100) {
-    throw new Error('Image data is empty or too small. Please capture a clearer photo.');
-  }
-
-  console.log('[OCR] Sending image to Apps Script proxy. Size:', Math.round(base64.length / 1024), 'KB');
-
-  // POST to Apps Script proxy (server-side, bypasses CORS)
-  let res;
+  // Compress image aggressively before sending
+  // Target: < 25KB base64 — Claude can read card text at 350px resolution
+  let base64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
   try {
-    res = await fetch(syncUrl, {
-      method:   'POST',
-      redirect: 'follow',
-      headers:  { 'Content-Type': 'text/plain;charset=utf-8' },
-      body:     JSON.stringify({
-        action:   'claudeOcr',
-        imageB64: base64,
-        mimeType: mimeType || 'image/jpeg',
-      }),
-    });
-  } catch (networkErr) {
-    throw new Error(
-      'Network error reaching Apps Script: ' + networkErr.message + '\n' +
-      'Check your internet connection and verify the Sync URL is correct.'
-    );
-  }
-
-  if (!res.ok) {
-    throw new Error('Apps Script returned HTTP ' + res.status + '. Try redeploying your Apps Script.');
-  }
-
-  let result;
-  const text = await res.text();
-  try {
-    result = JSON.parse(text);
+    const dataUrl = imageBase64.startsWith('data:')
+      ? imageBase64
+      : ('data:' + (mimeType || 'image/jpeg') + ';base64,' + base64);
+    const compressed = await compressImage(dataUrl, 350, 0.45);
+    base64 = compressed.includes(',') ? compressed.split(',')[1] : compressed;
+    console.log('[OCR] Compressed image:', Math.round(base64.length / 1024), 'KB');
   } catch (e) {
-    throw new Error('Invalid response from Apps Script: ' + text.substring(0, 200));
+    console.warn('[OCR] Compression failed:', e.message);
   }
 
+  const payload = JSON.stringify({
+    action:   'claudeOcr',
+    imageB64: base64,
+    mimeType: mimeType || 'image/jpeg',
+  });
+
+  // ── Run fetch inside a Web Worker (no Origin header = no gateway block) ──
+  // This is the same technique used by the sync worker that successfully
+  // calls Apps Script without being blocked by the network gateway.
+  const result = await new Promise((resolve, reject) => {
+    // Inline worker source — self-contained, no imports needed
+    const workerSrc = `
+self.onmessage = async function(e) {
+  const { syncUrl, payload } = e.data;
+  try {
+    const res = await fetch(syncUrl, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:    payload,
+      redirect:'follow'
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      self.postMessage({ ok: false, error: 'HTTP ' + res.status + ': ' + text.substring(0, 200) });
+      return;
+    }
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch(e) { self.postMessage({ ok: false, error: 'Bad JSON: ' + text.substring(0, 100) }); return; }
+    self.postMessage({ ok: true, result: parsed });
+  } catch(err) {
+    self.postMessage({ ok: false, error: err.message || String(err) });
+  }
+};
+`;
+
+    let worker;
+    let timeout;
+    try {
+      const blob   = new Blob([workerSrc], { type: 'application/javascript' });
+      const blobUrl = URL.createObjectURL(blob);
+      worker = new Worker(blobUrl);
+
+      // 60-second timeout for Claude to process the image
+      timeout = setTimeout(() => {
+        reject(new Error('Request timed out (60s). Apps Script may be slow — try again.'));
+        try { worker.terminate(); URL.revokeObjectURL(blobUrl); } catch(e) {}
+      }, 60000);
+
+      worker.onmessage = (e) => {
+        clearTimeout(timeout);
+        URL.revokeObjectURL(blobUrl);
+        worker.terminate();
+        resolve(e.data);
+      };
+      worker.onerror = (e) => {
+        clearTimeout(timeout);
+        URL.revokeObjectURL(blobUrl);
+        reject(new Error('Worker error: ' + (e.message || 'unknown')));
+      };
+      worker.postMessage({ syncUrl, payload });
+
+    } catch (workerErr) {
+      // Web Workers not supported — fall back to direct fetch
+      console.warn('[OCR] Worker failed, falling back to direct fetch:', workerErr.message);
+      clearTimeout(timeout);
+      fetch(syncUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: payload,
+        redirect: 'follow'
+      })
+        .then(r => r.text().then(t => ({ status: r.status, text: t })))
+        .then(({ status, text }) => {
+          if (status < 200 || status > 299) {
+            resolve({ ok: false, error: 'HTTP ' + status + ': ' + text.substring(0, 200) });
+          } else {
+            try { resolve({ ok: true, result: JSON.parse(text) }); }
+            catch(e) { resolve({ ok: false, error: 'Bad JSON: ' + text.substring(0, 100) }); }
+          }
+        })
+        .catch(err => resolve({ ok: false, error: err.message }));
+    }
+  });
+
+  // ── Handle errors ─────────────────────────────────────────────────────────
   if (!result.ok) {
-    // Provide actionable error messages for common failures
     const err = result.error || 'Unknown error';
-    if (err.includes('ANTHROPIC_API_KEY')) {
+
+    if (err.includes('Gateway') || err.includes('Unauthorized') || err.includes('Access Restricted')) {
       throw new Error(
-        'API key not configured.\n\n' +
-        'In Apps Script:\n' +
-        '1. Click \u2699\ufe0f Project Settings\n' +
-        '2. Scroll to "Script properties"\n' +
-        '3. Add: ANTHROPIC_API_KEY = sk-ant-...\n' +
-        '(Get your key from console.anthropic.com)'
+        'Network gateway blocked the request.\n\n' +
+        'Try: open the app in an Incognito/Private window,\n' +
+        'or try from a different network (mobile data instead of Wi-Fi).\n' +
+        'Error details: ' + err
       );
     }
-    if (err.includes('401') || err.includes('authentication')) {
-      throw new Error('Invalid API key. Check ANTHROPIC_API_KEY in Script Properties.');
+    if (err.includes('ANTHROPIC_API_KEY') || err.includes('not configured')) {
+      throw new Error(
+        'Anthropic API key not set in Apps Script.\n\n' +
+        'In Apps Script editor:\n' +
+        '1. Find the setupApiKey() function\n' +
+        '2. Replace YOUR-KEY-HERE with your actual sk-ant-... key\n' +
+        '3. Click ▶ Run\n' +
+        '4. Redeploy: Deploy > Manage > Edit > New version > Deploy\n\n' +
+        'Get your key: console.anthropic.com/settings/keys'
+      );
     }
-    if (err.includes('429') || err.includes('rate limit')) {
-      throw new Error('Rate limit hit. Wait 30 seconds and try again.');
+    if (err.includes('401') || err.includes('invalid x-api-key') || err.includes('authentication')) {
+      throw new Error(
+        'Invalid API key. Run verifyApiKey() in Apps Script to test it.\n' +
+        'Get a valid key from: console.anthropic.com/settings/keys'
+      );
+    }
+    if (err.includes('429') || err.includes('rate limit') || err.includes('overloaded')) {
+      throw new Error('Claude is busy right now. Please wait 30 seconds and try again.');
     }
     throw new Error('OCR failed: ' + err);
   }
 
-  if (!result.data) {
-    throw new Error('Apps Script returned ok:true but no data field.');
+  const parsed = result.result;
+  if (!parsed) throw new Error('No result returned from Apps Script.');
+
+  // GS returned ok:false inside the parsed JSON
+  if (parsed.ok === false) {
+    const gsErr = parsed.error || 'Unknown error from Apps Script';
+    if (gsErr.includes('ANTHROPIC_API_KEY') || gsErr.includes('not configured')) {
+      throw new Error(
+        'Anthropic API key not set in Apps Script.\n\n' +
+        'Steps:\n' +
+        '1. Open your Apps Script editor\n' +
+        '2. Find setupApiKey() function\n' +
+        '3. Replace YOUR-KEY-HERE with your sk-ant-... key\n' +
+        '4. Click ▶ Run\n' +
+        '5. Redeploy as a new version\n\n' +
+        'Get key: console.anthropic.com/settings/keys'
+      );
+    }
+    if (gsErr.includes('401') || gsErr.includes('invalid x-api-key')) {
+      throw new Error('Invalid Anthropic API key. Get a valid key from console.anthropic.com');
+    }
+    if (gsErr.includes('429') || gsErr.includes('rate limit')) {
+      throw new Error('Claude rate limit hit. Wait 30 seconds and try again.');
+    }
+    throw new Error('Apps Script error: ' + gsErr);
   }
 
-  console.log('[OCR] Extraction successful. Fields found:',
-    Object.entries(result.data).filter(([,v]) => v).map(([k]) => k).join(', '));
+  if (!parsed.data) throw new Error('Apps Script returned ok:true but no data.');
 
-  return result.data;
+  console.log('[OCR] Success! Fields extracted:',
+    Object.entries(parsed.data).filter(([,v]) => v).map(([k]) => k).join(', '));
+
+  return parsed.data;
 }
 
 /**
@@ -5524,9 +5635,12 @@ function RecordCardScanner({onExtracted, onClose}) {
     setStep('processing');
     setErrorMsg('');
     try {
-      // syncUrl is read from localStorage — same URL used for Sheets sync
-      const syncUrl = (() => { try { return localStorage.getItem('cyrabell_sync_url') || ''; } catch(e) { return ''; } })();
-      const result = await extractPatientDataFromCard(dataUrl, mime, syncUrl);
+      const syncUrl = (() => {
+        try { return localStorage.getItem('cyrabell_sync_url') || ''; } catch(e) { return ''; }
+      })();
+      // Pass mimeType correctly — some browsers give image/heic etc.
+      const safeMime = (mime && mime.startsWith('image/')) ? mime : 'image/jpeg';
+      const result = await extractPatientDataFromCard(dataUrl, safeMime, syncUrl);
       // Normalize dates
       ['dob', 'lastVisit'].forEach(k => {
         if (result[k]) result[k] = sanitizeDate(result[k]) || result[k];
