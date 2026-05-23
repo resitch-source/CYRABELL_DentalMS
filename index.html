@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#0a7c6e"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <title>Cyrabell Dental Management System</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -5352,75 +5352,105 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
  * @param {string} imageBase64  - base64 of the image (with or without data: prefix)
  * @param {string} mimeType     - e.g. 'image/jpeg'
  */
-async function extractPatientDataFromCard(imageBase64, mimeType) {
-  // Strip data: prefix if present
+/**
+ * extractPatientDataFromCard — calls Claude Vision via Apps Script proxy.
+ *
+ * WHY A PROXY?
+ * The Anthropic API blocks direct browser requests (CORS policy).
+ * We route through our Google Apps Script backend which runs server-side
+ * and can call any external API without CORS restrictions.
+ *
+ * Flow:
+ *   Browser → POST to Apps Script (action:'claudeOcr') → Apps Script calls Anthropic → returns JSON
+ *
+ * @param {string} imageBase64  data URL or raw base64 string
+ * @param {string} mimeType     e.g. 'image/jpeg'
+ * @param {string} syncUrl      Apps Script web app URL (stored in localStorage)
+ * @returns {Promise<object>}   extracted patient data object
+ */
+async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl) {
+  // Require the sync URL — this is how we reach the Apps Script proxy
+  if (!syncUrl) {
+    throw new Error(
+      'Google Sheets Sync URL is not configured.\n\n' +
+      'To use the Record Card Scanner:\n' +
+      '1. Go to \u2601\ufe0f Sync page in the sidebar\n' +
+      '2. Paste your Apps Script Web App URL\n' +
+      '3. Click Save URL\n\n' +
+      'The scanner uses your Apps Script as a secure proxy to call Claude AI.'
+    );
+  }
+
+  // Strip the data: prefix — Apps Script only needs the raw base64
   const base64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
-
-  const SYSTEM_PROMPT = `You are a dental clinic data entry assistant.
-Your job is to read a patient record card image and extract all patient information.
-Return ONLY a valid JSON object (no markdown, no explanation) with these exact keys:
-{
-  "name": "Full name of patient (string)",
-  "dob": "Date of birth in YYYY-MM-DD format, or empty string",
-  "phone": "Primary phone number, digits and + only",
-  "email": "Email address or empty string",
-  "address": "Full address or empty string",
-  "bloodType": "Blood type like A+, B-, O+, AB+ or empty string",
-  "allergies": "Known allergies or 'None'",
-  "lastVisit": "Date of last visit in YYYY-MM-DD format or empty string",
-  "notes": "Any other clinical notes found on the card"
-}
-If a field is not found, use an empty string.
-Be careful with handwriting — do your best to interpret it correctly.
-For DOB and dates: convert any format (e.g. 'March 15, 1985' or '15/03/85') to YYYY-MM-DD.
-For Philippine phone numbers: normalize to 09XXXXXXXXX format.`;
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: mimeType || 'image/jpeg',
-              data: base64
-            }
-          },
-          {
-            type: 'text',
-            text: 'Please extract all patient information from this dental record card and return it as JSON.'
-          }
-        ]
-      }]
-    })
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error('Claude API error: ' + response.status + ' — ' + err.substring(0, 200));
+  if (!base64 || base64.length < 100) {
+    throw new Error('Image data is empty or too small. Please capture a clearer photo.');
   }
 
-  const data = await response.json();
-  const text = data.content && data.content[0] && data.content[0].text;
-  if (!text) throw new Error('No response from Claude');
+  console.log('[OCR] Sending image to Apps Script proxy. Size:', Math.round(base64.length / 1024), 'KB');
 
-  // Parse JSON — strip any markdown backticks if present
-  const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  // POST to Apps Script proxy (server-side, bypasses CORS)
+  let res;
   try {
-    return JSON.parse(clean);
-  } catch (e) {
-    throw new Error('Could not parse extracted data: ' + clean.substring(0, 200));
+    res = await fetch(syncUrl, {
+      method:   'POST',
+      redirect: 'follow',
+      headers:  { 'Content-Type': 'text/plain;charset=utf-8' },
+      body:     JSON.stringify({
+        action:   'claudeOcr',
+        imageB64: base64,
+        mimeType: mimeType || 'image/jpeg',
+      }),
+    });
+  } catch (networkErr) {
+    throw new Error(
+      'Network error reaching Apps Script: ' + networkErr.message + '\n' +
+      'Check your internet connection and verify the Sync URL is correct.'
+    );
   }
+
+  if (!res.ok) {
+    throw new Error('Apps Script returned HTTP ' + res.status + '. Try redeploying your Apps Script.');
+  }
+
+  let result;
+  const text = await res.text();
+  try {
+    result = JSON.parse(text);
+  } catch (e) {
+    throw new Error('Invalid response from Apps Script: ' + text.substring(0, 200));
+  }
+
+  if (!result.ok) {
+    // Provide actionable error messages for common failures
+    const err = result.error || 'Unknown error';
+    if (err.includes('ANTHROPIC_API_KEY')) {
+      throw new Error(
+        'API key not configured.\n\n' +
+        'In Apps Script:\n' +
+        '1. Click \u2699\ufe0f Project Settings\n' +
+        '2. Scroll to "Script properties"\n' +
+        '3. Add: ANTHROPIC_API_KEY = sk-ant-...\n' +
+        '(Get your key from console.anthropic.com)'
+      );
+    }
+    if (err.includes('401') || err.includes('authentication')) {
+      throw new Error('Invalid API key. Check ANTHROPIC_API_KEY in Script Properties.');
+    }
+    if (err.includes('429') || err.includes('rate limit')) {
+      throw new Error('Rate limit hit. Wait 30 seconds and try again.');
+    }
+    throw new Error('OCR failed: ' + err);
+  }
+
+  if (!result.data) {
+    throw new Error('Apps Script returned ok:true but no data field.');
+  }
+
+  console.log('[OCR] Extraction successful. Fields found:',
+    Object.entries(result.data).filter(([,v]) => v).map(([k]) => k).join(', '));
+
+  return result.data;
 }
 
 /**
@@ -5494,7 +5524,9 @@ function RecordCardScanner({onExtracted, onClose}) {
     setStep('processing');
     setErrorMsg('');
     try {
-      const result = await extractPatientDataFromCard(dataUrl, mime);
+      // syncUrl is read from localStorage — same URL used for Sheets sync
+      const syncUrl = (() => { try { return localStorage.getItem('cyrabell_sync_url') || ''; } catch(e) { return ''; } })();
+      const result = await extractPatientDataFromCard(dataUrl, mime, syncUrl);
       // Normalize dates
       ['dob', 'lastVisit'].forEach(k => {
         if (result[k]) result[k] = sanitizeDate(result[k]) || result[k];
