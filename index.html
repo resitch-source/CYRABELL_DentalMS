@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#0a7c6e"/>
-<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
 <title>Cyrabell Dental Management System</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -2152,6 +2152,328 @@ th:hover .sort-icon{opacity:.9}
 .photo-chooser-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 12px;border:2px solid var(--bd);border-radius:12px;background:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:var(--dk);transition:all .15s}
 .photo-chooser-btn:hover{border-color:var(--t);background:var(--tp)}
 
+
+/* ── MEDICAL DOCUMENTS (Med Cert + Rx) ── */
+.doc-issue-btns{
+  display:flex;gap:6px;margin-left:auto;
+  padding-left:12px;border-left:1px solid var(--bd);
+}
+.doc-preview-wrap{
+  border:1.5px solid var(--bd);
+  border-radius:10px;
+  background:#f8f8f8;
+  padding:8px;
+  max-height:460px;
+  overflow-y:auto;
+  margin-bottom:14px;
+}
+.doc-preview{
+  background:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+  min-height:200px;
+  zoom:0.72;
+  transform-origin:top left;
+}
+.doc-edit-bar{
+  background:var(--cr);
+  border:1px solid var(--bd);
+  border-radius:9px;
+  padding:14px;
+}
+/* Print styles for document pop-ups */
+@media print{
+  .doc-preview-wrap, .doc-edit-bar, .modal-footer{display:none!important}
+}
+
+
+/* ── FILE / X-RAY ATTACHMENTS ── */
+.att-panel{
+  border:1.5px solid var(--bd);
+  border-radius:10px;
+  overflow:hidden;
+  background:#fff;
+  margin-top:10px;
+}
+.att-panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;
+  background:var(--cr);
+  border-bottom:1px solid var(--bd);
+  gap:8px;flex-wrap:wrap;
+}
+.att-count{
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--t);color:#fff;
+  border-radius:10px;font-size:10px;font-weight:700;
+  padding:1px 6px;margin-left:6px;
+}
+.att-empty{
+  padding:20px;text-align:center;color:var(--md);
+}
+.att-list{
+  display:flex;flex-direction:column;gap:0;
+}
+.att-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 12px;
+  border-bottom:1px solid var(--bd);
+  transition:background .12s;
+}
+.att-item:last-child{border-bottom:none;}
+.att-item:hover{background:var(--cr);}
+.att-thumb{
+  width:44px;height:44px;flex-shrink:0;
+  border-radius:7px;overflow:hidden;
+  border:1.5px solid var(--bd);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  background:#f8f8f8;
+}
+.att-thumb:hover{border-color:var(--t);}
+.att-thumb-img{width:44px;height:44px;object-fit:cover;display:block;}
+.att-thumb-icon{font-size:22px;}
+.att-info{flex:1;min-width:0;}
+.att-name{
+  font-size:12.5px;font-weight:600;color:var(--dk);
+  cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  margin-bottom:2px;
+}
+.att-name:hover{color:var(--t);text-decoration:underline;}
+.att-meta{font-size:10.5px;color:var(--md);margin-bottom:3px;}
+.att-note-input{
+  width:100%;border:1px solid var(--bd);border-radius:5px;
+  padding:3px 7px;font-family:inherit;font-size:11px;
+  color:var(--md);background:transparent;
+}
+.att-note-input:focus{outline:none;border-color:var(--t);background:#fff;}
+.att-actions{display:flex;gap:4px;flex-shrink:0;}
+
+/* ── ATTACHMENT VIEWER OVERLAY ── */
+.att-viewer-ov{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.85);
+  z-index:10000;
+  display:flex;align-items:center;justify-content:center;
+}
+.att-viewer-modal{
+  background:#1a1a2e;
+  border-radius:12px;
+  width:92vw;max-width:1100px;
+  max-height:92vh;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+.att-viewer-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;
+  background:#111827;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  gap:8px;flex-wrap:wrap;
+}
+.att-viewer-body{
+  flex:1;overflow:auto;
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:12px;
+  background:#0f0f1a;
+  min-height:300px;
+}
+.att-viewer-img-wrap{
+  max-width:100%;
+}
+.att-viewer-img-wrap img{
+  display:block;
+  max-width:100%;
+  border-radius:4px;
+  box-shadow:0 4px 20px rgba(0,0,0,.4);
+}
+.att-viewer-pdf{
+  width:100%;height:70vh;border:none;border-radius:4px;
+}
+.att-viewer-nopreview{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:40px;color:#fff;text-align:center;
+}
+
+
+/* ── CLINICAL HISTORY TAB ── */
+.hist-tab{display:flex;flex-direction:column;gap:14px;}
+.hist-tab-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.hist-tab-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--dk);}
+.hist-tab-sub{font-size:12px;color:var(--md);margin-top:3px;line-height:1.5;}
+.hist-empty{text-align:center;padding:32px 20px;background:var(--cr);border-radius:12px;border:1.5px dashed var(--bd);}
+.hist-timeline{display:flex;flex-direction:column;gap:10px;}
+
+/* Entry card */
+.hist-entry{
+  border:1.5px solid var(--bd);border-radius:11px;overflow:hidden;
+  background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05);
+}
+.hist-entry-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px;cursor:pointer;gap:10px;
+  background:var(--cr);border-bottom:1px solid transparent;
+  transition:background .15s;
+}
+.hist-entry-header:hover{background:var(--tp);}
+.hist-entry-left{flex:1;min-width:0;}
+.hist-entry-date{font-size:11px;font-weight:700;color:var(--t);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;}
+.hist-entry-name{font-size:14px;font-weight:700;color:var(--dk);}
+.hist-entry-sub{font-size:11.5px;color:var(--md);margin-top:1px;}
+.hist-entry-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.hist-entry-thumb{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1.5px solid var(--bd);cursor:pointer;}
+.hist-entry-thumb:hover{border-color:var(--t);}
+.hist-entry-toggle{font-size:11px;color:var(--md);}
+
+.hist-entry-body{padding:14px;}
+.hist-quick-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.hist-stat{background:var(--tl, var(--tp));border:1px solid var(--bd);border-radius:8px;padding:6px 12px;display:flex;flex-direction:column;align-items:center;}
+.hist-stat-label{font-size:9.5px;color:var(--md);text-transform:uppercase;letter-spacing:.5px;}
+.hist-stat-value{font-size:13px;font-weight:700;color:var(--t);margin-top:1px;}
+
+.hist-two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;}
+@media(max-width:600px){.hist-two-col{grid-template-columns:1fr;}}
+.hist-col{background:var(--cr);border-radius:9px;padding:10px 12px;}
+.hist-col-title{font-size:10.5px;font-weight:700;color:var(--md);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;}
+.hist-row{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--bd);font-size:11px;}
+.hist-row:last-child{border-bottom:none;}
+.hist-row-label{color:var(--md);font-weight:600;white-space:nowrap;flex-shrink:0;}
+.hist-row-value{color:var(--dk);text-align:right;word-break:break-word;}
+
+.hist-notes{background:var(--cr);border-radius:9px;padding:10px 12px;margin-bottom:8px;}
+.hist-notes-text{font-size:12px;color:var(--dk);line-height:1.6;margin-top:4px;white-space:pre-wrap;}
+.hist-entry-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+
+/* Scanner UI */
+.hist-scan-intro{display:flex;flex-direction:column;gap:16px;}
+.hist-scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.hist-scan-opt{
+  border:2px solid var(--bd);border-radius:12px;padding:22px 16px;
+  text-align:center;cursor:pointer;transition:all .15s;background:#fff;
+}
+.hist-scan-opt:hover{border-color:var(--t);background:var(--tp);transform:translateY(-2px);}
+.hist-scan-icon{font-size:32px;margin-bottom:8px;}
+.hist-scan-label{font-weight:700;font-size:14px;color:var(--dk);margin-bottom:4px;}
+.hist-scan-desc{font-size:11.5px;color:var(--md);}
+.hist-scan-what{background:var(--cr);border-radius:10px;padding:14px;}
+.hist-scan-what-title{font-weight:700;font-size:13px;color:var(--dk);margin-bottom:10px;}
+.hist-scan-what-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+@media(max-width:480px){.hist-scan-what-grid{grid-template-columns:repeat(2,1fr);}}
+.hist-scan-what-item{font-size:11px;color:var(--md);}
+
+/* Review layout */
+.hist-review-layout{display:grid;grid-template-columns:220px 1fr;gap:16px;min-height:500px;}
+@media(max-width:640px){.hist-review-layout{grid-template-columns:1fr;}}
+.hist-review-img-col{display:flex;flex-direction:column;gap:10px;}
+.hist-review-img-label{font-size:11px;font-weight:700;color:var(--md);text-transform:uppercase;letter-spacing:.7px;}
+.hist-review-img{width:100%;border-radius:9px;border:1.5px solid var(--bd);object-fit:contain;max-height:280px;}
+.hist-review-form{display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:580px;padding-right:4px;}
+.hist-section{background:#fff;border:1px solid var(--bd);border-radius:10px;overflow:hidden;}
+.hist-section-title{font-size:11.5px;font-weight:700;color:var(--dk);background:var(--cr);padding:8px 12px;border-bottom:1px solid var(--bd);}
+.hist-section-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px;}
+@media(max-width:480px){.hist-section-fields{grid-template-columns:1fr;}}
+.hist-field{display:flex;flex-direction:column;gap:3px;}
+.hist-field-label{font-size:10px;font-weight:700;color:var(--md);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:6px;}
+.hist-field-input{border:1.5px solid var(--bd);border-radius:6px;padding:6px 9px;font-family:inherit;font-size:12px;color:var(--dk);background:#fff;width:100%;}
+.hist-field-input.ocr-filled{border-color:var(--gr);background:linear-gradient(0deg,#f0fdf4,#fff);}
+.hist-field-input:focus{outline:none;border-color:var(--t);}
+textarea.hist-field-input{resize:vertical;min-height:48px;}
+
+
+/* ── PATIENT LIVE SEARCH INPUT ── */
+.psi-wrap{
+  position:relative;
+  width:100%;
+}
+.psi-input-row{
+  position:relative;
+  display:flex;align-items:center;
+}
+.psi-input{
+  width:100%;
+  border:1.5px solid var(--bd);
+  border-radius:8px;
+  padding:9px 36px 9px 12px;
+  font-family:inherit;font-size:13.5px;
+  color:var(--dk);background:#fff;
+  transition:border-color .15s,box-shadow .15s;
+  outline:none;
+}
+.psi-input:focus{
+  border-color:var(--t);
+  box-shadow:0 0 0 3px rgba(10,124,110,.12);
+}
+.psi-input.psi-selected{
+  border-color:var(--gr);
+  background:linear-gradient(0deg,#f0fdf4,#fff);
+}
+.psi-clear,.psi-icon{
+  position:absolute;right:10px;
+  font-size:12px;color:var(--md);
+  background:none;border:none;cursor:pointer;
+  padding:2px;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  width:20px;height:20px;
+}
+.psi-clear:hover{color:var(--re);}
+
+.psi-dropdown{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;
+  background:#fff;
+  border:1.5px solid var(--bd);
+  border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+  z-index:9000;
+  max-height:320px;
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+.psi-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;
+  cursor:pointer;
+  transition:background .1s;
+  border-bottom:1px solid var(--bd);
+}
+.psi-item:last-child{border-bottom:none;}
+.psi-item.psi-hi{background:var(--tp);}
+.psi-avatar{
+  width:34px;height:34px;flex-shrink:0;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;color:#fff;
+  letter-spacing:-0.5px;
+}
+.psi-info{flex:1;min-width:0;}
+.psi-name{
+  font-size:13.5px;font-weight:600;color:var(--dk);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.psi-name mark{
+  background:#fef08a;border-radius:2px;padding:0 1px;color:inherit;
+}
+.psi-sub{
+  font-size:11px;color:var(--md);margin-top:1px;
+}
+.psi-badge-bal{
+  background:#fef3c7;color:#92400e;
+  font-size:10.5px;font-weight:700;
+  padding:2px 7px;border-radius:6px;
+  flex-shrink:0;
+}
+.psi-empty{
+  padding:6px 0;
+}
+.psi-footer{
+  padding:6px 12px;
+  font-size:10.5px;color:var(--lt);
+  border-top:1px solid var(--bd);
+  text-align:center;
+  background:var(--cr);
+}
+@media(max-width:480px){
+  .psi-dropdown{max-height:240px;}
+}
+
 @media(max-width:380px){
   .sg4,.sg3{grid-template-columns:1fr}
   .svcg,.ntg,.ig{grid-template-columns:1fr}
@@ -2622,11 +2944,78 @@ const INIT_REMINDER_LOG = [
   {id:'RL002',reminderId:'R002',patientId:'P002',patientName:'Juan dela Cruz',type:'checkup',channel:'whatsapp',message:'Hi Juan! Time for your routine checkup.',sentAt:daysAgo(160)+' 10:00',status:'sent'},
 ];
 
-const SVCS=[
-  {name:'Teeth Cleaning',fee:800},{name:'Tooth Extraction',fee:1500},{name:'Dental Filling',fee:1200},
-  {name:'Root Canal',fee:5000},{name:'Dental Crown',fee:8000},{name:'Teeth Whitening',fee:3500},
-  {name:'Braces Consult',fee:500},{name:'X-Ray',fee:600},{name:'Dentures',fee:12000},{name:'Dental Implant',fee:25000},
+// ── ICDS Professional Fees (Philippine Dental Association - Iligan City Dental Society)
+// Updated: July 9, 2022 — agreed during 2nd General Monthly Meeting
+// Grouped by category. Fee = minimum; many services have "up" pricing.
+const SVCS = [
+  // CONSULTATION
+  {name:'Consultation',                              fee:500,   cat:'Consultation'},
+
+  // PROPHYLAXIS
+  {name:'Oral Prophylaxis / Scaling & Polishing',   fee:1500,  cat:'Prophylaxis'},
+  {name:'Topical Fluoride Application',             fee:1500,  cat:'Prophylaxis'},
+
+  // ROOT CANAL
+  {name:'Root Canal — 1 Canal',                     fee:7000,  cat:'Root Canal'},
+  {name:'Root Canal — 2 Canals',                    fee:10000, cat:'Root Canal'},
+  {name:'Root Canal — 3 Canals',                    fee:15000, cat:'Root Canal'},
+
+  // POST & CORE
+  {name:'Post & Core — Prefabricated',              fee:2500,  cat:'Post & Core'},
+  {name:'Post & Core — Fabricated',                 fee:4000,  cat:'Post & Core'},
+
+  // SURGERY
+  {name:'Normal Exodontia (Extraction)',            fee:1000,  cat:'Surgery'},
+  {name:'Odontectomy',                              fee:10000, cat:'Surgery'},
+  {name:'Gingivectomy',                             fee:4000,  cat:'Surgery'},
+  {name:'Alveolectomy',                             fee:8000,  cat:'Surgery'},
+  {name:'Apicoectomy',                              fee:8000,  cat:'Surgery'},
+
+  // TOOTH RESTORATION / FILLING
+  {name:'Temporary Filling',                        fee:1000,  cat:'Restoration'},
+  {name:'Permanent Filling',                        fee:1500,  cat:'Restoration'},
+
+  // VENEERS
+  {name:'Direct Veneer',                            fee:7000,  cat:'Veneers'},
+  {name:'Indirect Veneer',                          fee:20000, cat:'Veneers'},
+
+  // CROWN & BRIDGE
+  {name:'Crown — Acrylic',                          fee:6000,  cat:'Crown & Bridge'},
+  {name:'Crown — Porcelain Fused to Metal',         fee:8000,  cat:'Crown & Bridge'},
+  {name:'Crown — Porcelain Fused to Special Metals',fee:20000, cat:'Crown & Bridge'},
+  {name:'Crown — All Porcelain',                    fee:20000, cat:'Crown & Bridge'},
+  {name:'Crown — Tilite',                           fee:15000, cat:'Crown & Bridge'},
+  {name:'Recementation',                            fee:1000,  cat:'Crown & Bridge'},
+
+  // DENTURES
+  {name:'Complete Denture — Acrylic (up & down)',   fee:20000, cat:'Dentures'},
+  {name:'Complete Denture — Ivocap (up & down)',    fee:50000, cat:'Dentures'},
+  {name:'RPD Acrylic — 1st Pontic',                 fee:2500,  cat:'Dentures'},
+  {name:'RPD Acrylic — Additional Pontic',          fee:1000,  cat:'Dentures'},
+  {name:'RPD — One Piece Metal Framework',          fee:12000, cat:'Dentures'},
+  {name:'RPD Valplast/Flexite — Unilateral',        fee:15000, cat:'Dentures'},
+  {name:'RPD Valplast/Flexite — Bilateral',         fee:20000, cat:'Dentures'},
+  {name:'Denture Repair',                           fee:2500,  cat:'Dentures'},
+  {name:'Denture Reline',                           fee:3500,  cat:'Dentures'},
+  {name:'Denture Rebase',                           fee:5000,  cat:'Dentures'},
+  {name:"Hawley's Retainer (up & down)",            fee:15000, cat:'Dentures'},
+
+  // BLEACHING
+  {name:'Bleaching',                                fee:15000, cat:'Bleaching'},
+
+  // OTHER (commonly requested)
+  {name:'X-Ray (Periapical)',                       fee:300,   cat:'Diagnostics'},
+  {name:'X-Ray (Panoramic)',                        fee:800,   cat:'Diagnostics'},
+  {name:'Orthodontic Braces — Consultation',        fee:500,   cat:'Orthodontics'},
+  {name:'Orthodontic Braces — Monthly Adjustment',  fee:500,   cat:'Orthodontics'},
 ];
+
+// Group services by category for the select dropdown
+const SVCS_BY_CAT = SVCS.reduce((acc, sv) => {
+  if (!acc[sv.cat]) acc[sv.cat] = [];
+  acc[sv.cat].push(sv);
+  return acc;
+}, {});
 const BLOOD=['A+','A-','B+','B-','AB+','AB-','O+','O-'];
 const METHODS=['Cash','GCash','Maya','Bank Transfer','Credit Card','Debit Card','PhilHealth'];
 const TIMES=['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
@@ -3094,16 +3483,57 @@ async function sendNotification(channel, patient, message, syncUrl) {
 //   - Even distribution (don't bunch all morning)
 //   - Service duration estimates
 const SERVICE_DURATIONS = {
-  'Teeth Cleaning': 45,
-  'Tooth Extraction': 60,
-  'Dental Filling': 45,
-  'Root Canal': 90,
-  'Dental Crown': 60,
-  'Teeth Whitening': 60,
-  'Braces Consult': 30,
-  'X-Ray': 20,
-  'Dentures': 90,
-  'Dental Implant': 120,
+  // Consultation
+  'Consultation': 30,
+  // Prophylaxis
+  'Oral Prophylaxis / Scaling & Polishing': 45,
+  'Topical Fluoride Application': 20,
+  // Root Canal
+  'Root Canal — 1 Canal': 90,
+  'Root Canal — 2 Canals': 120,
+  'Root Canal — 3 Canals': 120,
+  // Post & Core
+  'Post & Core — Prefabricated': 60,
+  'Post & Core — Fabricated': 60,
+  // Surgery
+  'Normal Exodontia (Extraction)': 45,
+  'Odontectomy': 90,
+  'Gingivectomy': 60,
+  'Alveolectomy': 60,
+  'Apicoectomy': 60,
+  // Restoration
+  'Temporary Filling': 30,
+  'Permanent Filling': 45,
+  // Veneers
+  'Direct Veneer': 60,
+  'Indirect Veneer': 60,
+  // Crown & Bridge
+  'Crown — Acrylic': 60,
+  'Crown — Porcelain Fused to Metal': 60,
+  'Crown — Porcelain Fused to Special Metals': 60,
+  'Crown — All Porcelain': 60,
+  'Crown — Tilite': 60,
+  'Recementation': 30,
+  // Dentures
+  'Complete Denture — Acrylic (up & down)': 90,
+  'Complete Denture — Ivocap (up & down)': 90,
+  'RPD Acrylic — 1st Pontic': 60,
+  'RPD Acrylic — Additional Pontic': 30,
+  'RPD — One Piece Metal Framework': 60,
+  'RPD Valplast/Flexite — Unilateral': 60,
+  'RPD Valplast/Flexite — Bilateral': 90,
+  'Denture Repair': 45,
+  'Denture Reline': 45,
+  'Denture Rebase': 60,
+  "Hawley's Retainer (up & down)": 60,
+  // Bleaching
+  'Bleaching': 90,
+  // Diagnostics
+  'X-Ray (Periapical)': 15,
+  'X-Ray (Panoramic)': 20,
+  // Orthodontics
+  'Orthodontic Braces — Consultation': 30,
+  'Orthodontic Braces — Monthly Adjustment': 30,
 };
 const SLOT_TIMES = ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
 
@@ -3492,6 +3922,8 @@ function dateOffsetStr(n) {
 // Defensive string coercion — handles null, undefined, numbers, etc.
 // Sheets sometimes returns "09171234567" as a Number, which has no .includes/.toLowerCase
 const S = (v) => (v === null || v === undefined) ? '' : String(v);
+/** safe(arr) — returns arr if Array, else []. Prevents crashes on null data. */
+const safe = (arr) => Array.isArray(arr) ? arr : [];
 
 
 // Normalize a name for comparison: lowercase, trim, collapse whitespace
@@ -5260,8 +5692,1115 @@ function PatientPhoto({patient, size, syncUrl}) {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📄 DENTAL DOCUMENTS — Medical Certificate & Prescription
+// Matches actual Colao, Arnold A. Dental Clinic letterhead exactly.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Clinic constants (matching the real letterheads) ─────────────────────
+const CLINIC_INFO = {
+  name:       'COLAO, ARNOLD A. DENTAL CLINIC',
+  specialty:  'General Dentistry / Orthodontics',
+  address:    'Rm 301, Eltanal Building, Roxas Avenue, Iligan City',
+  tel:        '(063) 221-0033',
+  cel:        '09709197795',
+  hours:      '9:00 AM to 5:00 PM  |  Monday to Saturday',
+  doctor:     'COLAO, ARNOLD D.M.D.',
+  license:    '0040566',
+};
+
+/**
+ * MedCertModal — issues and prints a Dental Medical Certificate.
+ * Matches the official COLAO, ARNOLD A, DENTAL CLINIC certification format.
+ */
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📎 FILE / X-RAY ATTACHMENT SYSTEM
+// Attach images, X-rays, PDFs to patients and appointments.
+// Files stored as base64 in the record. Syncs to Sheets/Drive.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * AttachmentViewer — view a single attached file.
+ * Supports: images (JPEG/PNG/GIF), PDF embed, and downloads.
+ */
+function AttachmentViewer({file, onClose}) {
+  const isImage = file.type && file.type.startsWith('image/');
+  const isPdf   = file.type === 'application/pdf';
+  const [zoom, setZoom] = useState(1);
+
+  return h('div', {className:'att-viewer-ov', onClick:onClose},
+    h('div', {className:'att-viewer-modal', onClick:e=>e.stopPropagation()},
+      h('div', {className:'att-viewer-header'},
+        h('div', {style:{fontWeight:700,fontSize:14,color:'var(--dk)'}}, file.name || 'Attachment'),
+        h('div', {style:{display:'flex',gap:8}},
+          isImage && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(z=>Math.max(0.3,z-0.2))},'−'),
+          isImage && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(1)},'1:1'),
+          isImage && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(z=>Math.min(4,z+0.2))},'+'),
+          h('a',{href:file.dataUrl,download:file.name||'attachment',className:'btn bg2 bsm'},'⬇ Download'),
+          h('button',{type:'button',className:'btn bgh bsm',onClick:onClose},'✕ Close')
+        )
+      ),
+      h('div', {className:'att-viewer-body'},
+        isImage && h('div', {className:'att-viewer-img-wrap', style:{overflow:'auto'}},
+          h('img',{
+            src: file.dataUrl,
+            alt: file.name,
+            style:{transform:`scale(${zoom})`,transformOrigin:'top left',display:'block',maxWidth:zoom===1?'100%':'none'},
+          })
+        ),
+        isPdf && h('iframe',{src:file.dataUrl,className:'att-viewer-pdf',title:file.name}),
+        !isImage && !isPdf && h('div',{className:'att-viewer-nopreview'},
+          h('div',{style:{fontSize:48}},'📄'),
+          h('div',{style:{marginTop:12,color:'var(--md)',fontSize:14}},file.name),
+          h('a',{href:file.dataUrl,download:file.name,className:'btn bp'},'\u2b07 Download')
+        )
+      )
+    )
+  );
+}
+
+/**
+ * AttachmentPanel — manage attachments for a patient or appointment.
+ * Props:
+ *   attachments   - array of {id, name, type, dataUrl, note, date}
+ *   onAdd         - called with new attachment object
+ *   onRemove      - called with attachment id
+ *   onUpdateNote  - called with (id, note)
+ *   label         - heading text (default: "Attachments")
+ *   compact       - if true, shows smaller layout
+ */
+function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, compact}) {
+  const fileRef  = useRef(null);
+  const [viewing, setViewing] = useState(null);
+  const [busy,    setBusy]    = useState(false);
+  const [noteEdit, setNoteEdit] = useState({}); // id → string
+
+  const atts = safe(attachments);
+
+  const handleFiles = async (e) => {
+    const files = e.target.files;
+    if (!files || !files.length) return;
+    setBusy(true);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      // Limit to 8MB per file
+      if (file.size > 8 * 1024 * 1024) {
+        alert(file.name + ' is too large (max 8 MB). Please compress or crop the image first.');
+        continue;
+      }
+      await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const att = {
+            id:      'ATT-' + Date.now() + '-' + i,
+            name:    file.name,
+            type:    file.type || 'application/octet-stream',
+            size:    file.size,
+            dataUrl: ev.target.result,
+            note:    '',
+            date:    localToday(),
+          };
+          onAdd && onAdd(att);
+          resolve();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    setBusy(false);
+    e.target.value = '';
+  };
+
+  // File type icon
+  const fileIcon = (type) => {
+    if (!type) return '📄';
+    if (type.startsWith('image/')) return '🖼';
+    if (type === 'application/pdf') return '📑';
+    return '📄';
+  };
+
+  const fmt = (bytes) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return bytes + 'B';
+    if (bytes < 1024*1024) return Math.round(bytes/1024) + 'KB';
+    return (bytes/(1024*1024)).toFixed(1) + 'MB';
+  };
+
+  return h('div', {className:'att-panel'},
+    h('div', {className:'att-panel-header'},
+      h('div', {style:{fontWeight:700,fontSize:13,color:'var(--dk)'}},
+        '📎 ', label || 'Attachments',
+        atts.length > 0 && h('span',{className:'att-count'},atts.length)
+      ),
+      h('button', {
+        type:'button', className:'btn bp bsm',
+        onClick:()=>fileRef.current&&fileRef.current.click(),
+        disabled:busy,
+        title:'Attach X-ray, photo, PDF, or any clinical file'
+      }, busy ? '⏳' : '+ Attach File'),
+      h('input',{
+        ref:fileRef, type:'file',
+        accept:'image/*,application/pdf,.pdf,.jpg,.jpeg,.png,.heic,.gif',
+        multiple:true,
+        style:{display:'none'},
+        onChange:handleFiles,
+      })
+    ),
+
+    // Empty state
+    atts.length === 0 && h('div', {className:'att-empty'},
+      h('div', {style:{fontSize:30,marginBottom:6}}, '📎'),
+      h('div', {style:{color:'var(--md)',fontSize:12.5}},
+        'No attachments yet. Add X-rays, clinical photos, or PDFs.'
+      )
+    ),
+
+    // Attachment list
+    atts.length > 0 && h('div', {className:'att-list'},
+      atts.map(att =>
+        h('div', {key:att.id, className:'att-item'},
+          // Thumbnail or icon
+          h('div', {
+            className:'att-thumb',
+            onClick:()=>setViewing(att),
+            title:'Click to view',
+          },
+            att.type && att.type.startsWith('image/')
+              ? h('img',{src:att.dataUrl,alt:att.name,className:'att-thumb-img'})
+              : h('div',{className:'att-thumb-icon'},fileIcon(att.type))
+          ),
+          // Info
+          h('div', {className:'att-info'},
+            h('div', {className:'att-name',onClick:()=>setViewing(att),title:'Click to view'},
+              S(att.name).length > 28 ? S(att.name).substring(0,25)+'...' : att.name
+            ),
+            h('div', {className:'att-meta'},
+              att.date && h('span',null,att.date),
+              att.size && h('span',null,' · '+fmt(att.size))
+            ),
+            // Inline note editor
+            h('input',{
+              className:'att-note-input',
+              value: noteEdit[att.id] !== undefined ? noteEdit[att.id] : (att.note||''),
+              placeholder:'Note (e.g. Tooth #36 PA X-ray)…',
+              onChange: e => setNoteEdit(prev=>({...prev,[att.id]:e.target.value})),
+              onBlur: e => {
+                const note = e.target.value;
+                if (note !== att.note) onUpdateNote && onUpdateNote(att.id, note);
+                setNoteEdit(prev => { const n={...prev}; delete n[att.id]; return n; });
+              },
+            })
+          ),
+          // Actions
+          h('div', {className:'att-actions'},
+            h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewing(att),title:'View'},'👁'),
+            h('a',{href:att.dataUrl,download:att.name||'file',className:'btn bgh bsm',title:'Download'},'⬇'),
+            h('button',{type:'button',className:'btn bd2 bsm',onClick:()=>onRemove&&onRemove(att.id),title:'Remove'},'✕')
+          )
+        )
+      )
+    ),
+
+    // Viewer
+    viewing && h(AttachmentViewer, {file:viewing, onClose:()=>setViewing(null)})
+  );
+}
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📋 CLINICAL HISTORY SYSTEM
+// Scan old examination record cards and store as timestamped history entries.
+// Each entry contains: scan image thumbnail + all extracted clinical fields.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * ClinicalHistoryScanner — scans a Patient's Examination Record Chart.
+ * Extracts full clinical data: demographics, occlusion, medical history,
+ * dental chart annotations, medications, and general condition.
+ *
+ * @param {function} onSaved  - called with the new history entry object
+ * @param {function} onClose  - close the modal
+ * @param {object}   patient  - current patient (for context)
+ */
+function ClinicalHistoryScanner({onSaved, onClose, patient}) {
+  const [step,     setStep]     = useState('capture');
+  const [imageUrl, setImageUrl] = useState(null);
+  const [mimeType, setMimeType] = useState('image/jpeg');
+  const [extracted,setExtracted]= useState(null);
+  const [editData, setEditData] = useState({});
+  const [errorMsg, setErrorMsg] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const fileRef  = useRef(null);
+  const videoRef = useRef(null);
+  const streamRef= useRef(null);
+
+  const stopCam = () => {
+    if (streamRef.current) { streamRef.current.getTracks().forEach(t=>t.stop()); streamRef.current=null; }
+  };
+
+  const startCam = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode:{ideal:'environment'}, width:{ideal:1920} }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) { videoRef.current.srcObject=stream; videoRef.current.play(); }
+    } catch(e) { setErrorMsg('Camera: '+(e.message||'Access denied')); }
+  };
+
+  const captureFrame = async () => {
+    if (!videoRef.current) return;
+    const v=videoRef.current;
+    const canvas=document.createElement('canvas');
+    canvas.width=v.videoWidth||1280; canvas.height=v.videoHeight||960;
+    canvas.getContext('2d').drawImage(v,0,0,canvas.width,canvas.height);
+    const dataUrl=canvas.toDataURL('image/jpeg',0.92);
+    stopCam();
+    setImageUrl(dataUrl); setMimeType('image/jpeg');
+    await runExtraction(dataUrl,'image/jpeg');
+  };
+
+  const handleFile = (e) => {
+    const file = e.target.files&&e.target.files[0];
+    if (!file) return;
+    const mime = file.type||'image/jpeg';
+    const reader = new FileReader();
+    reader.onload = async(ev) => {
+      const dataUrl = ev.target.result;
+      setImageUrl(dataUrl); setMimeType(mime);
+      await runExtraction(dataUrl, mime);
+    };
+    reader.readAsDataURL(file);
+    e.target.value='';
+  };
+
+  const runExtraction = async (dataUrl, mime) => {
+    setStep('processing'); setErrorMsg('');
+    const syncUrl = (() => { try { return localStorage.getItem('cyrabell_sync_url')||''; } catch(e){return '';} })();
+    try {
+      // Use 'examination' scanType for full record chart extraction
+      const result = await extractPatientDataFromCard(dataUrl, mime, syncUrl, 'examination');
+      setExtracted(result);
+      setEditData({...result, scanDate: localToday()});
+      setStep('review');
+    } catch(err) {
+      setErrorMsg(err.message||'Extraction failed');
+      setStep('error');
+    }
+  };
+
+  const ed = (k,v) => setEditData(p=>({...p,[k]:v}));
+
+  const handleSave = () => {
+    // Create a history entry with the scan image + all extracted data
+    const entry = {
+      id:          'HIST-' + Date.now(),
+      scanDate:    editData.scanDate || localToday(),
+      scanImageUrl: imageUrl,        // thumbnail of original card
+      type:        'examination_record',
+      patientName: editData.name || S(patient&&patient.name),
+      // Clinical data
+      ...editData,
+    };
+    onSaved(entry);
+  };
+
+  useEffect(() => () => stopCam(), []);
+
+  // ── CAPTURE step ────────────────────────────────────────────────────
+  if (step==='capture') return h(Modal,{
+    title:'📋 Scan Examination Record',
+    sub:'Scan a Patient\'s Examination Record Chart to add to clinical history',
+    onClose, footer:null, xl:true,
+  },
+    h('div',{className:'hist-scan-intro'},
+      h('div',{className:'hist-scan-grid'},
+        h('div',{className:'hist-scan-opt',onClick:startCam},
+          h('div',{className:'hist-scan-icon'},'📷'),
+          h('div',{className:'hist-scan-label'},'Use Camera'),
+          h('div',{className:'hist-scan-desc'},'Photograph the record card directly')
+        ),
+        h('div',{className:'hist-scan-opt',onClick:()=>fileRef.current&&fileRef.current.click()},
+          h('div',{className:'hist-scan-icon'},'📁'),
+          h('div',{className:'hist-scan-label'},'Upload Scan'),
+          h('div',{className:'hist-scan-desc'},'JPG, PNG, or PDF of scanned card')
+        )
+      ),
+      h('div',{className:'hist-scan-what'},
+        h('div',{className:'hist-scan-what-title'},'🔍 What gets extracted:'),
+        h('div',{className:'hist-scan-what-grid'},
+          ['Patient demographics','Occlusion & periodontal','Oral hygiene status',
+           'Denture information','Physician & medications','Blood pressure','Chronic ailments',
+           'Allergies','Previous bleeding history','General condition','Dental chart markings','Clinical notes'
+          ].map(item => h('div',{key:item,className:'hist-scan-what-item'},'✓ '+item))
+        )
+      ),
+      h('input',{ref:fileRef,type:'file',accept:'image/*',style:{display:'none'},onChange:handleFile}),
+      // Camera view
+      h('video',{ref:videoRef,autoPlay:true,playsInline:true,muted:true,
+        style:{display:videoRef.current&&streamRef.current?'block':'none',width:'100%',borderRadius:8,marginTop:12}
+      }),
+      streamRef.current && h('div',{style:{display:'flex',gap:8,marginTop:8}},
+        h('button',{type:'button',className:'btn bgh',onClick:stopCam},'✕ Cancel Camera'),
+        h('button',{type:'button',className:'btn bp',onClick:captureFrame},'📸 Capture')
+      )
+    )
+  );
+
+  // ── PROCESSING step ─────────────────────────────────────────────────
+  if (step==='processing') return h(Modal,{
+    title:'🔍 Analyzing Record Card…',
+    sub:'Claude AI is reading the examination record',
+    onClose, footer:null,
+  },
+    h('div',{className:'ocr-processing'},
+      imageUrl && h('img',{src:imageUrl,alt:'Scanning',className:'ocr-preview-img'}),
+      h('div',{className:'ocr-spinner-wrap'},
+        h('div',{className:'ocr-spinner'}),
+        h('div',{className:'ocr-processing-text'},
+          h('div',{style:{fontWeight:700,fontSize:15,marginBottom:6}},'Reading examination record…'),
+          h('div',{style:{fontSize:12,color:'var(--md)',lineHeight:1.6}},
+            'Extracting: patient info, occlusion, periodontal condition, ',
+            'medical history, medications, and dental chart annotations.'
+          )
+        )
+      )
+    )
+  );
+
+  // ── ERROR step ──────────────────────────────────────────────────────
+  if (step==='error') return h(Modal,{
+    title:'⚠ Extraction Failed',
+    sub:'Could not read the record card',
+    onClose,
+    footer:h(Fragment,null,
+      h('button',{className:'btn bgh',onClick:onClose},'Cancel'),
+      h('button',{className:'btn bp',onClick:()=>{setStep('capture');setImageUrl(null);}},
+        '↻ Try again')
+    ),
+  },
+    h('div',{className:'ocr-error'},
+      h('div',{className:'ocr-error-icon'},'⚠'),
+      h('div',{className:'ocr-error-msg'},errorMsg),
+      imageUrl && h('img',{src:imageUrl,alt:'',className:'ocr-preview-img'})
+    )
+  );
+
+  // ── REVIEW step ─────────────────────────────────────────────────────
+  if (step==='review') {
+    const sections = [
+      { title:'👤 Patient Demographics', fields:[
+        {k:'name',l:'Name'},{k:'age',l:'Age'},{k:'sex',l:'Sex'},
+        {k:'maritalStatus',l:'Marital Status'},{k:'occupation',l:'Occupation'},
+        {k:'address',l:'Home Address'},{k:'telephone',l:'Telephone'},
+        {k:'mobileNo',l:'Mobile'},{k:'date',l:'Record Date',t:'date'},
+      ]},
+      { title:'🦷 Clinical Findings', fields:[
+        {k:'occlusion',l:'Occlusion'},{k:'periodontalCondition',l:'Periodontal Condition'},
+        {k:'oralHygiene',l:'Oral Hygiene'},{k:'dentureUpper',l:'Denture Upper (Since)'},
+        {k:'dentureLower',l:'Denture Lower (Since)'},{k:'abnormalities',l:'Abnormalities'},
+        {k:'generalCondition',l:'General Condition'},
+      ]},
+      { title:'⚕️ Medical History', fields:[
+        {k:'physician',l:'Physician'},{k:'bloodPressure',l:'Blood Pressure'},
+        {k:'allergies',l:'Allergies'},{k:'chronicAilments',l:'Chronic Ailments'},
+        {k:'previousHistoryOfBleeding',l:'History of Bleeding'},
+        {k:'drugsBeingTaken',l:'Drugs Being Taken'},
+        {k:'natureOfTreatment',l:'Nature of Treatment'},
+      ]},
+      { title:'📝 Additional Notes', fields:[
+        {k:'dentalChartNotes',l:'Dental Chart Annotations',area:true},
+        {k:'teethConditions',l:'Tooth Conditions Observed',area:true},
+        {k:'clinicalNotes',l:'Clinical Notes',area:true},
+      ]},
+    ];
+
+    return h(Modal,{
+      title:'✅ Review Extracted Record',
+      sub:'Verify the information before saving to clinical history',
+      onClose, xl:true,
+      footer:h(Fragment,null,
+        h('button',{className:'btn bgh',onClick:onClose},'Cancel'),
+        h('button',{className:'btn bg2',onClick:()=>{setStep('capture');setImageUrl(null);}},'↻ Rescan'),
+        h('button',{className:'btn bp',onClick:handleSave},'💾 Save to History')
+      ),
+    },
+      h('div',{className:'hist-review-layout'},
+        // Left: scan thumbnail
+        h('div',{className:'hist-review-img-col'},
+          h('div',{className:'hist-review-img-label'},'📷 Original Card'),
+          h('img',{src:imageUrl,alt:'Scanned record',className:'hist-review-img'}),
+          h(Field,{label:'Record Date'},
+            h('input',{type:'date',value:editData.scanDate||localToday(),
+              onChange:e=>ed('scanDate',e.target.value)})
+          )
+        ),
+        // Right: editable fields grouped by section
+        h('div',{className:'hist-review-form'},
+          sections.map(sec =>
+            h('div',{key:sec.title,className:'hist-section'},
+              h('div',{className:'hist-section-title'},sec.title),
+              h('div',{className:'hist-section-fields'},
+                sec.fields.map(fi =>
+                  h('div',{key:fi.k,className:'hist-field'},
+                    h('label',{className:'hist-field-label'},
+                      fi.l,
+                      extracted[fi.k] && h('span',{className:'ocr-extracted-badge'},'✓ found')
+                    ),
+                    fi.area
+                      ? h('textarea',{
+                          className:'hist-field-input'+(extracted[fi.k]?' ocr-filled':''),
+                          value:editData[fi.k]||'',rows:2,
+                          onChange:e=>ed(fi.k,e.target.value)
+                        })
+                      : h('input',{
+                          type:fi.t||'text',
+                          className:'hist-field-input'+(extracted[fi.k]?' ocr-filled':''),
+                          value:editData[fi.k]||'',
+                          onChange:e=>ed(fi.k,e.target.value)
+                        })
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    );
+  }
+  return null;
+}
+
+/**
+ * ClinicalHistoryEntry — renders a single history record card in the timeline.
+ */
+function ClinicalHistoryEntry({entry, onDelete, idx}) {
+  const [expanded, setExpanded] = useState(idx===0); // first entry open by default
+  const [viewingImg, setViewingImg] = useState(false);
+
+  const clinicalFields = [
+    ['Occlusion',            entry.occlusion],
+    ['Periodontal',          entry.periodontalCondition],
+    ['Oral Hygiene',         entry.oralHygiene],
+    ['Denture Upper',        entry.dentureUpper],
+    ['Denture Lower',        entry.dentureLower],
+    ['Abnormalities',        entry.abnormalities],
+    ['General Condition',    entry.generalCondition],
+  ].filter(([,v]) => v && S(v).trim());
+
+  const medFields = [
+    ['Physician',        entry.physician],
+    ['Blood Pressure',   entry.bloodPressure],
+    ['Allergies',        entry.allergies],
+    ['Chronic Ailments', entry.chronicAilments],
+    ['Bleeding Hx',      entry.previousHistoryOfBleeding],
+    ['Medications',      entry.drugsBeingTaken],
+    ['Treatment',        entry.natureOfTreatment],
+  ].filter(([,v]) => v && S(v).trim());
+
+  return h('div',{className:'hist-entry'},
+    // Header (always visible)
+    h('div',{className:'hist-entry-header',onClick:()=>setExpanded(e=>!e)},
+      h('div',{className:'hist-entry-left'},
+        h('div',{className:'hist-entry-date'},
+          '📋 ', entry.scanDate || 'Unknown date'
+        ),
+        h('div',{className:'hist-entry-name'},
+          entry.name || 'Patient Record'
+        ),
+        entry.occupation && h('div',{className:'hist-entry-sub'}, entry.occupation)
+      ),
+      h('div',{className:'hist-entry-right'},
+        entry.scanImageUrl && h('img',{
+          src:entry.scanImageUrl,
+          alt:'Scan thumbnail',
+          className:'hist-entry-thumb',
+          onClick:e=>{e.stopPropagation();setViewingImg(true);}
+        }),
+        h('div',{className:'hist-entry-toggle'},expanded?'▲':'▼')
+      )
+    ),
+
+    // Expanded content
+    expanded && h('div',{className:'hist-entry-body'},
+      // Quick stats row
+      h('div',{className:'hist-quick-stats'},
+        entry.bloodPressure && h('div',{className:'hist-stat'},
+          h('span',{className:'hist-stat-label'},'BP'),
+          h('span',{className:'hist-stat-value'},entry.bloodPressure)
+        ),
+        entry.oralHygiene && h('div',{className:'hist-stat'},
+          h('span',{className:'hist-stat-label'},'Oral Hygiene'),
+          h('span',{className:'hist-stat-value'},entry.oralHygiene)
+        ),
+        entry.occlusion && h('div',{className:'hist-stat'},
+          h('span',{className:'hist-stat-label'},'Occlusion'),
+          h('span',{className:'hist-stat-value'},entry.occlusion)
+        )
+      ),
+
+      // Two column grid: Clinical | Medical
+      h('div',{className:'hist-two-col'},
+        clinicalFields.length > 0 && h('div',{className:'hist-col'},
+          h('div',{className:'hist-col-title'},'🦷 Clinical Findings'),
+          clinicalFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},
+            h('div',{className:'hist-row-label'},l),
+            h('div',{className:'hist-row-value'},v)
+          ))
+        ),
+        medFields.length > 0 && h('div',{className:'hist-col'},
+          h('div',{className:'hist-col-title'},'⚕️ Medical History'),
+          medFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},
+            h('div',{className:'hist-row-label'},l),
+            h('div',{className:'hist-row-value'},v)
+          ))
+        )
+      ),
+
+      // Clinical notes
+      entry.clinicalNotes && h('div',{className:'hist-notes'},
+        h('div',{className:'hist-col-title'},'📝 Clinical Notes'),
+        h('div',{className:'hist-notes-text'},entry.clinicalNotes)
+      ),
+      entry.dentalChartNotes && h('div',{className:'hist-notes'},
+        h('div',{className:'hist-col-title'},'🦷 Dental Chart Annotations'),
+        h('div',{className:'hist-notes-text'},entry.dentalChartNotes)
+      ),
+      entry.teethConditions && h('div',{className:'hist-notes'},
+        h('div',{className:'hist-col-title'},'🔍 Observed Tooth Conditions'),
+        h('div',{className:'hist-notes-text'},entry.teethConditions)
+      ),
+
+      // Actions
+      h('div',{className:'hist-entry-actions'},
+        entry.scanImageUrl && h('button',{
+          type:'button',className:'btn bg2 bsm',
+          onClick:()=>setViewingImg(true)
+        },'🖼 View Original Scan'),
+        h('button',{
+          type:'button',className:'btn bd2 bsm',
+          onClick:()=>{if(confirm('Delete this history entry?'))onDelete(entry.id);}
+        },'🗑 Delete Entry')
+      )
+    ),
+
+    // Full-size image viewer
+    viewingImg && entry.scanImageUrl && h('div',{
+      className:'att-viewer-ov',
+      onClick:()=>setViewingImg(false)
+    },
+      h('div',{className:'att-viewer-modal',onClick:e=>e.stopPropagation()},
+        h('div',{className:'att-viewer-header'},
+          h('div',{style:{color:'#fff',fontWeight:700}},'📋 Examination Record — '+entry.scanDate),
+          h('div',{style:{display:'flex',gap:8}},
+            h('a',{href:entry.scanImageUrl,download:'exam-record-'+entry.scanDate+'.jpg',
+              className:'btn bg2 bsm'},'⬇ Download'),
+            h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)},'✕ Close')
+          )
+        ),
+        h('div',{className:'att-viewer-body'},
+          h('img',{src:entry.scanImageUrl,alt:'Exam record',style:{maxWidth:'100%',borderRadius:4}})
+        )
+      )
+    )
+  );
+}
+
+/**
+ * ClinicalHistoryTab — the full "📋 History" tab in PatProfile.
+ * Shows a timeline of scanned examination records.
+ */
+function ClinicalHistoryTab({patient, history, onAddEntry, onDeleteEntry}) {
+  const [showScanner, setShowScanner] = useState(false);
+  const entries = safe(history).slice().sort((a,b) =>
+    (b.scanDate||'').localeCompare(a.scanDate||'')
+  );
+
+  return h('div',{className:'hist-tab'},
+    // Header
+    h('div',{className:'hist-tab-header'},
+      h('div',null,
+        h('div',{className:'hist-tab-title'},'📋 Clinical History'),
+        h('div',{className:'hist-tab-sub'},
+          'Scanned examination records and clinical history from physical cards'
+        )
+      ),
+      h('button',{
+        type:'button',className:'btn bp',
+        onClick:()=>setShowScanner(true),
+        title:'Scan and add a physical Patient Examination Record Chart'
+      },'📷 Scan Record Card')
+    ),
+
+    // Empty state
+    entries.length===0 && h('div',{className:'hist-empty'},
+      h('div',{style:{fontSize:52,marginBottom:12}},'📋'),
+      h('div',{style:{fontWeight:700,fontSize:16,marginBottom:8,color:'var(--dk)'}},'No History Records Yet'),
+      h('div',{style:{color:'var(--md)',fontSize:13,marginBottom:20,lineHeight:1.6}},
+        'Scan physical patient examination record cards to build a ',
+        'complete clinical history. Claude AI will extract all clinical ',
+        'data, medical history, and dental chart annotations automatically.'
+      ),
+      h('button',{
+        type:'button',className:'btn bp',
+        onClick:()=>setShowScanner(true)
+      },'📷 Scan Your First Record Card')
+    ),
+
+    // Timeline of entries
+    entries.length>0 && h('div',{className:'hist-timeline'},
+      entries.map((entry,i) =>
+        h(ClinicalHistoryEntry,{
+          key:entry.id,
+          entry,
+          idx:i,
+          onDelete:onDeleteEntry,
+        })
+      )
+    ),
+
+    // Scanner modal
+    showScanner && h(ClinicalHistoryScanner,{
+      patient,
+      onClose:()=>setShowScanner(false),
+      onSaved:(entry)=>{
+        onAddEntry(entry);
+        setShowScanner(false);
+      }
+    })
+  );
+}
+
+
+function MedCertModal({patient, onClose}) {
+  const today = localToday();
+  const fmtDate = (d) => {
+    if (!d) return '';
+    const dt = parseLocalDate(d);
+    if (!dt) return d;
+    return dt.toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' });
+  };
+
+  const [procedure, setProcedure] = useState('');
+  const [certDate,  setCertDate]  = useState(today);
+  const [ptrNo,     setPtrNo]     = useState('');
+
+  const patName    = S(patient && patient.name);
+  const patAddress = S(patient && patient.address);
+  const age        = patient && patient.dob
+    ? (() => {
+        const bd = parseLocalDate(patient.dob);
+        if (!bd) return '';
+        return String(new Date().getFullYear() - bd.getFullYear());
+      })()
+    : '';
+
+  const handlePrint = () => {
+    const win = window.open('', '_blank', 'width=794,height=1123');
+    win.document.write(buildMedCertHTML({
+      patName, patAddress, age, procedure, certDate, ptrNo,
+    }));
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 600);
+  };
+
+  return h(Modal, {
+    title: '📄 Medical Certificate',
+    sub: 'Colao, Arnold A. Dental Clinic — Dental Certification',
+    onClose, large: true,
+    footer: h(Fragment, null,
+      h('button', {type:'button', className:'btn bgh', onClick:onClose}, 'Cancel'),
+      h('button', {type:'button', className:'btn bp', onClick:handlePrint}, '🖨 Print Certificate')
+    ),
+  },
+    // Live preview
+    h('div', {className:'doc-preview-wrap'},
+      h('div', {
+        className: 'doc-preview',
+        dangerouslySetInnerHTML: { __html: buildMedCertHTML({patName, patAddress, age, procedure, certDate, ptrNo, preview:true}) }
+      })
+    ),
+    // Edit fields below preview
+    h('div', {className:'doc-edit-bar'},
+      h('div', {className:'fg2'},
+        h(Field, {label:'Dental Procedure / Certification text'},
+          h('textarea', {
+            value: procedure,
+            onChange: e => setProcedure(e.target.value),
+            placeholder: 'e.g. dental extraction of tooth #36, dental cleaning and prophylaxis, orthodontic braces adjustment...',
+            rows: 3,
+            style: {width:'100%', resize:'vertical'},
+          })
+        ),
+        h(Field, {label:'Certificate Date'},
+          h('input', {type:'date', value:certDate, onChange:e=>setCertDate(e.target.value)})
+        )
+      ),
+      h(Field, {label:'PTR No. (optional)'},
+        h('input', {value:ptrNo, placeholder:'e.g. 1234567', onChange:e=>setPtrNo(e.target.value)})
+      )
+    )
+  );
+}
+
+/**
+ * RxModal — issues and prints a Dental Prescription (Rx pad format).
+ * Matches the official Colao, Arnold A. Dental Clinic Rx letterhead exactly.
+ */
+function RxModal({patient, onClose}) {
+  const today = localToday();
+  const [rx,      setRx]      = useState('');
+  const [rxDate,  setRxDate]  = useState(today);
+  const [ptrNo,   setPtrNo]   = useState('');
+
+  const patName    = S(patient && patient.name);
+  const patAddress = S(patient && patient.address);
+  const age        = patient && patient.dob
+    ? (() => {
+        const bd = parseLocalDate(patient.dob);
+        if (!bd) return '';
+        return String(new Date().getFullYear() - bd.getFullYear());
+      })()
+    : '';
+
+  const handlePrint = () => {
+    const win = window.open('', '_blank', 'width=794,height=1123');
+    win.document.write(buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo}));
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 600);
+  };
+
+  return h(Modal, {
+    title: '💊 Prescription (Rx)',
+    sub: 'Colao, Arnold A. Dental Clinic — Dental Prescription',
+    onClose, large: true,
+    footer: h(Fragment, null,
+      h('button', {type:'button', className:'btn bgh', onClick:onClose}, 'Cancel'),
+      h('button', {type:'button', className:'btn bp', onClick:handlePrint}, '🖨 Print Prescription')
+    ),
+  },
+    h('div', {className:'doc-preview-wrap'},
+      h('div', {
+        className: 'doc-preview',
+        dangerouslySetInnerHTML: { __html: buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview:true}) }
+      })
+    ),
+    h('div', {className:'doc-edit-bar'},
+      h('div', {className:'fg2'},
+        h(Field, {label:'Prescription (Rx)'},
+          h('textarea', {
+            value: rx,
+            onChange: e => setRx(e.target.value),
+            placeholder: 'e.g.\nAmoxicillin 500mg cap\nSig: 1 cap TID x 7 days\n\nMefenamic Acid 500mg\nSig: 1 tab q6h PRN pain\n\nMetronidazole 500mg\nSig: 1 tab TID x 5 days',
+            rows: 7,
+            style: {width:'100%', resize:'vertical', fontFamily:'monospace', fontSize:13},
+          })
+        ),
+        h(Field, {label:'Date'},
+          h('input', {type:'date', value:rxDate, onChange:e=>setRxDate(e.target.value)})
+        )
+      ),
+      h(Field, {label:'PTR No. (optional)'},
+        h('input', {value:ptrNo, placeholder:'e.g. 1234567', onChange:e=>setPtrNo(e.target.value)})
+      )
+    )
+  );
+}
+
+// ── HTML builders for print output ────────────────────────────────────────
+
+function buildMedCertHTML({patName, patAddress, age, procedure, certDate, ptrNo, preview}) {
+  const fmtDateLong = (d) => {
+    if (!d) return '________________';
+    try {
+      return new Date(d + 'T00:00:00').toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'});
+    } catch(e) { return d; }
+  };
+
+  const procedureLines = procedure
+    ? procedure.split('\n').map(l => '<div>' + (l||'&nbsp;') + '</div>').join('')
+    : '<div>&nbsp;</div><div>&nbsp;</div><div>&nbsp;</div>';
+
+  const css = `
+    @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&family=Arial+Bold&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 12pt;
+      color: #000;
+      background: #fff;
+      padding: 40px 50px;
+      max-width: 794px;
+      margin: 0 auto;
+    }
+    .header-band {
+      background: linear-gradient(135deg, #b8d4e8 0%, #d0e8f8 50%, #b8d4e8 100%);
+      padding: 16px 20px 10px;
+      text-align: center;
+      border-radius: 2px;
+      margin-bottom: 4px;
+      position: relative;
+    }
+    .tooth-icon {
+      font-size: 36px;
+      display: block;
+      margin: 0 auto 4px;
+    }
+    .clinic-name {
+      font-size: 18pt;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      font-family: 'Arial Black', Arial, sans-serif;
+      text-transform: uppercase;
+    }
+    .clinic-specialty {
+      font-size: 12pt;
+      font-weight: bold;
+      font-style: italic;
+    }
+    .clinic-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 14px;
+      font-size: 10pt;
+      border-top: 1.5px solid #333;
+      border-bottom: 1.5px solid #333;
+      padding: 6px 0;
+    }
+    .clinic-meta-left { text-align:left; line-height:1.7; }
+    .clinic-meta-right { text-align:right; line-height:1.7; }
+    .cert-date { text-align:right; margin:30px 0 20px; font-size:11pt; }
+    .cert-body { margin:20px 0; font-size:11pt; line-height:2; }
+    .cert-body .line { border-bottom: 1px solid #000; min-height:24px; margin:4px 0; }
+    .cert-body .line-sm { font-size:9pt; color:#555; margin-bottom:2px; }
+    .cert-procedure { margin:8px 0 8px 0; }
+    .cert-procedure-line {
+      border-bottom: 1px solid #333;
+      min-height: 28px;
+      padding-bottom: 2px;
+      font-size: 11pt;
+      line-height: 1.8;
+    }
+    .cert-closing { margin-top:20px; font-size:11pt; }
+    .sig-block { margin-top:60px; text-align:right; font-size:11pt; }
+    .sig-block .doctor { font-weight:bold; }
+    .sig-block .license { font-size:10pt; }
+    @media print {
+      body { padding:20px 30px; }
+      .no-print { display:none; }
+    }
+  `;
+
+  return `<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>Dental Certification — ${patName || 'Patient'}</title>
+<style>${css}</style>
+</head><body>
+<div class="header-band">
+  <span class="tooth-icon">🦷</span>
+  <div class="clinic-name">${CLINIC_INFO.name}</div>
+  <div class="clinic-specialty">${CLINIC_INFO.specialty}</div>
+</div>
+<div class="clinic-meta">
+  <div class="clinic-meta-left">
+    ${CLINIC_INFO.address}<br>
+    Tel. No. ${CLINIC_INFO.tel}<br>
+    Cel. No. ${CLINIC_INFO.cel}
+  </div>
+  <div class="clinic-meta-right">
+    Clinic Hours:<br>
+    9:00 AM – 5:00 PM<br>
+    Monday to Saturday
+  </div>
+</div>
+
+<div class="cert-date">${fmtDateLong(certDate)}</div>
+
+<div class="cert-body">
+  <p>To whom it may concern:</p>
+  <br>
+  <p>&nbsp;&nbsp;&nbsp;&nbsp;This is to certify that&nbsp;
+    <strong>${patName || '________________________________'}</strong>
+    of&nbsp;<span style="font-size:9pt;color:#555">(address)</span>&nbsp;
+    <strong>${patAddress || '____________________________'}</strong>
+    &nbsp;had undergone / is scheduled for
+  </p>
+  <div class="cert-procedure">
+    ${procedure
+      ? procedure.split('\n').map(l => `<div class="cert-procedure-line">${l||'&nbsp;'}</div>`).join('')
+      : '<div class="cert-procedure-line">&nbsp;</div><div class="cert-procedure-line">&nbsp;</div><div class="cert-procedure-line">&nbsp;</div>'
+    }
+    <div class="cert-procedure-line">&nbsp;</div>
+    .
+  </div>
+  <br>
+  <p>This certification is issued for whatever purpose it may serve.</p>
+</div>
+
+<div class="sig-block">
+  <div class="doctor">${CLINIC_INFO.doctor}</div>
+  <div class="license">License No.: ${CLINIC_INFO.license}</div>
+  <div class="license">PTR No.: ${ptrNo || '___________'}</div>
+</div>
+</body></html>`;
+}
+
+function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
+  const fmtDateLong = (d) => {
+    if (!d) return '';
+    try {
+      return new Date(d + 'T00:00:00').toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'});
+    } catch(e) { return d; }
+  };
+
+  const rxLines = rx
+    ? rx.split('\n').map(l => `<div class="rx-line">${l||'&nbsp;'}</div>`).join('')
+    : Array(10).fill('<div class="rx-line">&nbsp;</div>').join('');
+
+  const css = `
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 11pt;
+      color: #000;
+      background: #fff;
+      padding: 30px 40px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .rx-wrapper {
+      border: 2px solid #000;
+      padding: 20px 24px 30px;
+    }
+    .clinic-name {
+      font-size: 16pt;
+      font-weight: 900;
+      font-family: 'Arial Black', Arial, sans-serif;
+      text-align: center;
+      letter-spacing: 0.3px;
+    }
+    .clinic-specialty {
+      font-size: 11pt;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .clinic-address, .clinic-contact, .clinic-hours {
+      text-align: center;
+      font-size: 10pt;
+      line-height: 1.6;
+    }
+    .patient-info {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid #000;
+    }
+    .patient-field {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      font-size: 10.5pt;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #000;
+    }
+    .patient-field label { font-weight:bold; white-space:nowrap; }
+    .patient-field span { flex:1; min-width:80px; }
+    .rx-symbol {
+      font-size: 56pt;
+      font-family: 'Times New Roman', Times, serif;
+      font-style: italic;
+      font-weight: bold;
+      line-height: 1;
+      margin: 14px 0 4px;
+    }
+    .rx-body {
+      min-height: 260px;
+      padding: 4px 0;
+    }
+    .rx-line {
+      border-bottom: 1px solid #ccc;
+      min-height: 26px;
+      padding: 2px 0;
+      font-size: 11pt;
+      line-height: 1.6;
+      font-family: monospace;
+    }
+    .rx-date { text-align:right; font-size:10pt; margin-top:10px; color:#333; }
+    .sig-block {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 10px;
+      border-top: 1px solid #000;
+      font-size: 10.5pt;
+    }
+    .sig-block .doctor { font-weight:bold; font-size:11pt; }
+    @media print {
+      body { padding:15px 20px; }
+    }
+  `;
+
+  return `<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>Prescription — ${patName || 'Patient'}</title>
+<style>${css}</style>
+</head><body>
+<div class="rx-wrapper">
+  <div class="clinic-name">${CLINIC_INFO.name}</div>
+  <div class="clinic-specialty">${CLINIC_INFO.specialty}</div>
+  <div class="clinic-address">${CLINIC_INFO.address}</div>
+  <div class="clinic-contact">
+    ☎ ${CLINIC_INFO.tel} &nbsp;&nbsp;&nbsp; 📱 (063) ${CLINIC_INFO.cel}
+  </div>
+  <div class="clinic-hours">Clinic Hours: ${CLINIC_INFO.hours}</div>
+
+  <div class="patient-info">
+    <div class="patient-field">
+      <label>Name:</label>
+      <span>${patName || ''}</span>
+    </div>
+    <div class="patient-field">
+      <label>Age:</label>
+      <span>${age || ''}</span>
+    </div>
+    <div class="patient-field">
+      <label>Address:</label>
+      <span>${patAddress || ''}</span>
+    </div>
+    <div class="patient-field">
+      <label>Sex:</label>
+      <span></span>
+    </div>
+  </div>
+
+  <div class="rx-symbol">R<sub>x</sub></div>
+
+  <div class="rx-body">
+    ${rxLines}
+  </div>
+
+  <div class="rx-date">${fmtDateLong(rxDate)}</div>
+
+  <div class="sig-block">
+    <div class="doctor">${CLINIC_INFO.doctor}</div>
+    <div>License No.: ${CLINIC_INFO.license}</div>
+    <div>PTR No.: ${ptrNo || '___________'}</div>
+  </div>
+</div>
+</body></html>`;
+}
+
+
 function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl}){
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
+  const [showMedCert,    setShowMedCert]    = useState(false);
+  const [showRx,         setShowRx]         = useState(false);
   const [tab,setTab]=useState('info');
   const ini=patient.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const infoRows=[['DOB',patient.dob||'—'],['Blood Type',patient.bloodType],['Phone',patient.phone],['Email',patient.email||'—'],['Address',patient.address||'—'],['Allergies',patient.allergies||'—'],['Last Visit',patient.lastVisit],['Balance',patient.balance>0?'₱'+p$(patient.balance)+' (Due)':'Settled']];
@@ -5314,10 +6853,15 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
       )
     ),
     h('div',{className:'tabs'},
-      ['info','dental','appointments','payments'].map(t=>{
-        const labels = {info:'Info', dental:'🦷 Dental Chart'+(conditionCount>0?' ('+conditionCount+')':''), appointments:'Appointments', payments:'Payments'};
+      ['info','dental','appointments','payments','attachments','history'].map(t=>{
+        const labels = {info:'Info', dental:'🦷 Dental Chart'+(conditionCount>0?' ('+conditionCount+')':''), appointments:'Appointments', payments:'Payments', attachments:'📎 Files'+(safe(patient.attachments).length>0?' ('+safe(patient.attachments).length+')':''), history:'📋 History'+(safe(patient.history).length>0?' ('+safe(patient.history).length+')':'')};
         return h('button',{key:t,className:'tab'+(tab===t?' act':''),onClick:()=>setTab(t)},labels[t]);
-      })
+      }),
+      // ── Document issue buttons ──────────────────────────────────────
+      h('div',{className:'doc-issue-btns'},
+        h('button',{type:'button',className:'btn bg2 bsm',onClick:()=>setShowMedCert(true),title:'Issue Dental Medical Certificate'},'📄 Med Cert'),
+        h('button',{type:'button',className:'btn bg2 bsm',onClick:()=>setShowRx(true),title:'Issue Dental Prescription'},'💊 Rx')
+      )
     ),
     tab==='info'&&h('div',{className:'ig'},infoRows.map(([l,v])=>h('div',{key:l},h('div',{className:'ilb'},l),h('div',{className:'ivl'},v)))),
     tab==='dental'&&h(DentalChart3D,{teethData,onToothEdit}),
@@ -5336,7 +6880,38 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Date'),h('span',{className:'mc-val'},p.date))
       )))
     ),
-    showAIAnalysis && h(AIAssistant,{appointments:appts,patients:[patient],payments:pays,addToast,onClose:()=>setShowAIAnalysis(false),defaultTab:'analyze'})
+    showAIAnalysis && h(AIAssistant,{appointments:appts,patients:[patient],payments:pays,addToast,onClose:()=>setShowAIAnalysis(false),defaultTab:'analyze'}),
+    tab==='attachments' && h(AttachmentPanel, {
+      attachments: safe(patient.attachments),
+      label: 'Patient Files & X-Rays',
+      onAdd: att => {
+        const updated = [...safe(patient.attachments), att];
+        onUpdateTeeth(patient.id, patient.teeth, updated);
+      },
+      onRemove: id => {
+        const updated = safe(patient.attachments).filter(a => a.id !== id);
+        onUpdateTeeth(patient.id, patient.teeth, updated);
+      },
+      onUpdateNote: (id, note) => {
+        const updated = safe(patient.attachments).map(a => a.id===id ? {...a,note} : a);
+        onUpdateTeeth(patient.id, patient.teeth, updated);
+      },
+    }),
+    tab==='history' && h(ClinicalHistoryTab, {
+      patient: patient,
+      history: safe(patient.history),
+      onAddEntry: entry => {
+        const updated = [...safe(patient.history), entry];
+        // Store history alongside teeth and attachments
+        onUpdateTeeth(patient.id, patient.teeth, patient.attachments, updated);
+      },
+      onDeleteEntry: id => {
+        const updated = safe(patient.history).filter(e => e.id !== id);
+        onUpdateTeeth(patient.id, patient.teeth, patient.attachments, updated);
+      },
+    }),
+    showMedCert && h(MedCertModal, {patient:patient, onClose:()=>setShowMedCert(false)}),
+    showRx      && h(RxModal,      {patient:patient, onClose:()=>setShowRx(false)})
   );
 }
 
@@ -5386,7 +6961,7 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
  * @param {string} syncUrl      Apps Script web app URL
  * @returns {Promise<object>}   extracted patient data
  */
-async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl) {
+async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanType) {
   if (!syncUrl) {
     throw new Error(
       'Google Sheets Sync URL not configured.\n\n' +
@@ -5413,6 +6988,7 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl) {
     action:   'claudeOcr',
     imageB64: base64,
     mimeType: mimeType || 'image/jpeg',
+    scanType: scanType || 'basic',   // 'basic' | 'examination'
   });
 
   // ── Run fetch inside a Web Worker (no Origin header = no gateway block) ──
@@ -5965,8 +7541,28 @@ function PayForm({patients,onClose,onSave}){
   const ok=f.patientId&&f.service&&f.amount;
   return h(Modal,{title:'Record Payment',sub:'Enter payment details',onClose,
     footer:h(Fragment,null,h('button',{className:'btn bgh',onClick:onClose},'Cancel'),h('button',{className:'btn bg2',onClick:()=>ok&&onSave(f),disabled:!ok},'Record'))},
-    h(Field,{label:'Patient *'},h('select',{value:f.patientId,onChange:e=>{const p=patients.find(x=>x.id===e.target.value);s('patientId',e.target.value);s('patientName',p?p.name:'');}},h('option',{value:''},'Select patient…'),patients.map(p=>h('option',{key:p.id,value:p.id},p.name)))),
-    h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>{s('service',e.target.value);const sv=SVCS.find(x=>x.name===e.target.value);if(sv)s('amount',sv.fee);}},h('option',{value:''},'Select service…'),SVCS.map(sv=>h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee))))),
+    h(Field,{label:'Patient *'},
+      h(PatientSearchInput, {
+        patients: patients,
+        value: f.patientName,
+        placeholder: 'Type patient name or phone number…',
+        required: true,
+        onSelect: (p) => {
+          if (p) {
+            s('patientId',   p.id);
+            s('patientName', p.name);
+          } else {
+            s('patientId', '');
+            s('patientName', '');
+          }
+        }
+      })
+    ),
+    h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>{s('service',e.target.value);const sv=SVCS.find(x=>x.name===e.target.value);if(sv)s('amount',sv.fee);}},h('option',{value:''},'Select service…'),Object.entries(SVCS_BY_CAT).map(([cat, svcs]) =>
+        h('optgroup', {key:cat, label:cat},
+          svcs.map(sv => h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
+        )
+      ))),
     h('div',{className:'fg2'},
       h(Field,{label:'Amount (₱)'},h('input',{type:'number',value:f.amount,onChange:e=>s('amount',+e.target.value),placeholder:'0'})),
       h(Field,{label:'Method'},h('select',{value:f.method,onChange:e=>s('method',e.target.value)},METHODS.map(m=>h('option',{key:m},m))))
@@ -6218,10 +7814,16 @@ function ReminderForm({patients,reminder,onClose,onSave}){
         reminder?'Update Reminder':'Create Reminder')
     )},
     h(Field,{label:'Patient *'},
-      h('select',{value:f.patientId,onChange:e=>hp(e.target.value)},
-        h('option',{value:''},'Select patient…'),
-        patients.map(p=>h('option',{key:p.id,value:p.id},p.name+' · '+p.phone))
-      )
+      h(PatientSearchInput, {
+        patients: patients,
+        value: f.patientName,
+        placeholder: 'Type patient name or phone…',
+        required: true,
+        onSelect: (p) => {
+          if (p) hp(p.id);
+          else { s('patientId',''); s('patientName',''); }
+        }
+      })
     ),
     h(Field,{label:'Reminder Type *'},
       h('div',{className:'rmnd-type-grid'},
@@ -7014,6 +8616,227 @@ function ApptDetail({a,onClose}){
 }
 
 // ApptForm — book/edit appointment with availability validation
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔍 PATIENT LIVE SEARCH INPUT
+// Replaces plain <select> patient dropdowns with a searchable input.
+// As you type, filters patients by name, phone, or ID in real time.
+// Selecting a patient fires onSelect(patient) with the full patient object.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * PatientSearchInput — live-search patient selector.
+ *
+ * @param {Patient[]} patients      - full patients array
+ * @param {string}    value         - currently selected patient name (controlled)
+ * @param {function}  onSelect      - called with full patient object when selected
+ * @param {string}    placeholder   - input placeholder text
+ * @param {boolean}   required      - shows * indicator
+ */
+function PatientSearchInput({patients, value, onSelect, placeholder, required}) {
+  const [query,     setQuery]     = useState(value || '');
+  const [open,      setOpen]      = useState(false);
+  const [hiIdx,     setHiIdx]     = useState(0);    // highlighted index
+  const [dirty,     setDirty]     = useState(false); // user has typed since last selection
+  const inputRef  = useRef(null);
+  const listRef   = useRef(null);
+  const wrapRef   = useRef(null);
+
+  // Sync external value changes (e.g. form reset)
+  useEffect(() => {
+    if (!dirty) setQuery(value || '');
+  }, [value]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+        setDirty(false);
+        // If user typed but didn't select, revert to current value
+        if (dirty) setQuery(value || '');
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [dirty, value]);
+
+  // Filter patients by query
+  const q = S(query).trim().toLowerCase();
+  const filtered = !q
+    ? patients.slice(0, 8)  // show first 8 when empty (recent)
+    : patients.filter(p =>
+        S(p.name).toLowerCase().includes(q) ||
+        S(p.phone).replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
+        S(p.id).toLowerCase().includes(q)
+      ).slice(0, 10);
+
+  const handleInput = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    setDirty(true);
+    setOpen(true);
+    setHiIdx(0);
+    // If cleared, deselect
+    if (!val.trim()) onSelect && onSelect(null);
+  };
+
+  const handleSelect = (patient) => {
+    setQuery(patient.name);
+    setDirty(false);
+    setOpen(false);
+    setHiIdx(0);
+    onSelect && onSelect(patient);
+    // Keep focus on input after selection
+    setTimeout(() => inputRef.current && inputRef.current.blur(), 50);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!open && (e.key === 'ArrowDown' || e.key === 'Enter')) {
+      setOpen(true);
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHiIdx(i => Math.min(i + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHiIdx(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filtered[hiIdx]) handleSelect(filtered[hiIdx]);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+      setDirty(false);
+      setQuery(value || '');
+    }
+  };
+
+  // Scroll highlighted item into view
+  useEffect(() => {
+    if (!listRef.current) return;
+    const items = listRef.current.querySelectorAll('.psi-item');
+    if (items[hiIdx]) {
+      items[hiIdx].scrollIntoView({ block: 'nearest' });
+    }
+  }, [hiIdx]);
+
+  // Color hash for initials avatar
+  const avatarColor = (name) => {
+    const colors = ['#0a7c6e','#3a7bd5','#7c3aed','#e8943a','#3aa876','#c9a84c','#dc2626'];
+    let h = 0;
+    for (let i = 0; i < (name||'').length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffff;
+    return colors[Math.abs(h) % colors.length];
+  };
+
+  const initials = (name) => {
+    return S(name).split(' ').filter(Boolean).slice(0, 2)
+      .map(w => w.charAt(0).toUpperCase()).join('') || '?';
+  };
+
+  const isSelected = value && !dirty && query === value;
+
+  return h('div', { ref: wrapRef, className: 'psi-wrap' },
+    // Input row
+    h('div', { className: 'psi-input-row' },
+      h('input', {
+        ref: inputRef,
+        type: 'text',
+        className: 'psi-input' + (isSelected ? ' psi-selected' : ''),
+        value: query,
+        placeholder: placeholder || (required ? 'Search patient name, phone… *' : 'Search patient name or phone…'),
+        onChange: handleInput,
+        onFocus: () => { setOpen(true); setHiIdx(0); },
+        onKeyDown: handleKeyDown,
+        autoComplete: 'off',
+        spellCheck: false,
+      }),
+      // Clear button
+      query && h('button', {
+        type: 'button',
+        className: 'psi-clear',
+        onClick: () => {
+          setQuery('');
+          setDirty(false);
+          setOpen(false);
+          onSelect && onSelect(null);
+          inputRef.current && inputRef.current.focus();
+        },
+        tabIndex: -1,
+      }, '✕'),
+      // Search icon
+      !query && h('span', { className: 'psi-icon' }, '🔍')
+    ),
+
+    // Dropdown list
+    open && h('div', { ref: listRef, className: 'psi-dropdown' },
+      filtered.length === 0
+        ? h('div', { className: 'psi-empty' },
+            h('div', { style: { fontSize: 13, color: 'var(--md)', padding: '10px 12px' } },
+              q
+                ? '🔍 No patient found for "' + q + '"'
+                : 'Start typing to search…'
+            )
+          )
+        : filtered.map((p, i) =>
+            h('div', {
+              key: p.id,
+              className: 'psi-item' + (i === hiIdx ? ' psi-hi' : ''),
+              onMouseEnter: () => setHiIdx(i),
+              onMouseDown: (e) => { e.preventDefault(); handleSelect(p); },
+            },
+              // Avatar
+              h('div', {
+                className: 'psi-avatar',
+                style: { background: avatarColor(p.name) }
+              }, initials(p.name)),
+              // Info
+              h('div', { className: 'psi-info' },
+                h('div', { className: 'psi-name' },
+                  // Highlight matched part
+                  q ? highlightMatch(p.name, q) : p.name
+                ),
+                h('div', { className: 'psi-sub' },
+                  S(p.phone) || S(p.id),
+                  p.lastVisit && p.lastVisit !== '—' && ' · Last: ' + p.lastVisit
+                )
+              ),
+              // Balance badge
+              (p.balance && p.balance > 0) && h('div', { className: 'psi-badge-bal' },
+                '₱' + p$(p.balance)
+              )
+            )
+          ),
+      // Total count hint
+      filtered.length > 0 && h('div', { className: 'psi-footer' },
+        filtered.length < patients.filter(p =>
+          !q || S(p.name).toLowerCase().includes(q) ||
+          S(p.phone).includes(q)
+        ).length
+          ? (patients.filter(p => S(p.name).toLowerCase().includes(q)||S(p.phone).includes(q)).length - filtered.length) + ' more — keep typing to narrow'
+          : filtered.length + ' patient' + (filtered.length !== 1 ? 's' : '')
+      )
+    )
+  );
+}
+
+/**
+ * Highlight the matching substring in a patient name.
+ */
+function highlightMatch(text, query) {
+  if (!query || !text) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return [
+    text.substring(0, idx),
+    h('mark', { key: 'hl', style: { background: '#fef08a', borderRadius: 2, padding: '0 1px' } },
+      text.substring(idx, idx + query.length)
+    ),
+    text.substring(idx + query.length),
+  ];
+}
+
+
 function ApptForm({patients,appointments,onClose,onSave}){
   const [f,setF]=useState({patientId:'',patientName:'',service:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:'',fee:'',phone:'',email:''});
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
@@ -7024,7 +8847,7 @@ function ApptForm({patients,appointments,onClose,onSave}){
     ? checkAvailability(appointments || [], f.date, f.time, f.service)
     : null;
   const isAvailable = !check || check.available;
-  const ok = f.patientId && f.service && f.date && f.time && isAvailable;
+  const ok = f.patientId && f.patientName && f.service && f.date && f.time && isAvailable;
 
   const showSuggestions = f.service && f.date && check && !check.available;
   const suggestions = showSuggestions
@@ -7036,9 +8859,31 @@ function ApptForm({patients,appointments,onClose,onSave}){
       h('button',{className:'btn bgh',onClick:onClose},'Cancel'),
       h('button',{className:'btn bp',onClick:()=>ok&&onSave(f),disabled:!ok,title:!ok&&check?check.message:''},'Book')
     )},
-    h(Field,{label:'Patient *'},h('select',{value:f.patientId,onChange:e=>hp(e.target.value)},h('option',{value:''},'Select patient…'),patients.map(p=>h('option',{key:p.id,value:p.id},p.name)))),
+    h(Field,{label:'Patient *'},
+      h(PatientSearchInput, {
+        patients: patients,
+        value: f.patientName,
+        placeholder: 'Type patient name or phone number…',
+        required: true,
+        onSelect: (p) => {
+          if (p) {
+            s('patientId',   p.id);
+            s('patientName', p.name);
+            s('phone',       p.phone || '');
+            s('email',       p.email || '');
+          } else {
+            s('patientId', '');
+            s('patientName', '');
+          }
+        }
+      })
+    ),
     h('div',{className:'fg2'},
-      h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>hsv(e.target.value)},h('option',{value:''},'Select…'),SVCS.map(sv=>h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)+' · '+(SERVICE_DURATIONS[sv.name]||DEFAULT_SLOT_MIN)+' min')))),
+      h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>hsv(e.target.value)},h('option',{value:''},'Select…'),Object.entries(SVCS_BY_CAT).map(([cat, svcs]) =>
+        h('optgroup', {key:cat, label:cat},
+          svcs.map(sv => h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
+        )
+      ))),
       h(Field,{label:'Fee (₱)'},h('input',{type:'number',value:f.fee,onChange:e=>s('fee',+e.target.value)}))
     ),
     h('div',{className:'fg2'},
@@ -7072,7 +8917,14 @@ function ApptForm({patients,appointments,onClose,onSave}){
         ))
       )
     ),
-    h(Field,{label:'Notes'},h('textarea',{value:f.notes,onChange:e=>s('notes',e.target.value),placeholder:'Notes or concerns…'}))
+    h(Field,{label:'Notes'},h('textarea',{value:f.notes,onChange:e=>s('notes',e.target.value),placeholder:'Notes or concerns…'})),
+    h(AttachmentPanel, {
+      attachments: safe(f.attachments),
+      label: 'X-Rays & Clinical Photos',
+      onAdd: att => s('attachments', [...safe(f.attachments), att]),
+      onRemove: id => s('attachments', safe(f.attachments).filter(a=>a.id!==id)),
+      onUpdateNote: (id, note) => s('attachments', safe(f.attachments).map(a=>a.id===id?{...a,note}:a)),
+    })
   );
 }
 
