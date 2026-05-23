@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#0a7c6e"/>
-<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
 <title>Cyrabell Dental Management System</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -2819,7 +2819,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 const INIT_P=[
-  {id:'P001',name:'Maria Santos',dob:'1985-03-12',phone:'09171234567',email:'maria@email.com',address:'123 Rizal St, Iligan City',bloodType:'O+',allergies:'Penicillin',lastVisit:'2025-12-10',balance:2500,teeth:{18:'cavity',26:'filling',36:'crown',46:'missing'},photoFileId:''},
+  {id:'P001',name:'Maria Santos',dob:'1985-03-12',phone:'09171234567',email:'maria@email.com',address:'123 Rizal St, Iligan City',occupation:'Teacher',sex:'Female',maritalStatus:'Married',bloodType:'O+',allergies:'Penicillin',lastVisit:'2025-12-10',balance:2500,teeth:{18:'cavity',26:'filling',36:'crown',46:'missing'},photoFileId:''},
   {id:'P002',name:'Juan dela Cruz',dob:'1990-07-22',phone:'09281234567',email:'juan@email.com',address:'456 Bonifacio Ave, Iligan City',bloodType:'A+',allergies:'None',lastVisit:'2026-01-15',balance:0,teeth:{16:'root_canal',24:'cavity'},photoFileId:''},
   {id:'P003',name:'Ana Reyes',dob:'1995-05-18',phone:'09351234567',email:'ana@email.com',address:'789 Mabini St, Iligan City',bloodType:'B+',allergies:'None',lastVisit:'2026-02-20',balance:0,teeth:{},photoFileId:''},
 ];
@@ -5580,11 +5580,30 @@ function PatForm({patient, onClose, onSave, syncUrl, addToast, onPhotoUploaded, 
     ),
     h(Field,{label:'Address'}, h('input',{value:f.address||'',placeholder:'Street, City, Province',onChange:e=>set('address',e.target.value)})),
     h('div', {className:'fg2'},
+      h(Field,{label:'Occupation'},
+        h('input',{value:f.occupation||'',placeholder:'e.g. Teacher, Nurse, Engineer…',onChange:e=>set('occupation',e.target.value)})
+      ),
+      h(Field,{label:'Marital Status'},
+        h('select',{value:f.maritalStatus||'',onChange:e=>set('maritalStatus',e.target.value)},
+          h('option',{value:''},'— Select —'),
+          ['Single','Married','Widowed','Separated','Divorced'].map(ms=>h('option',{key:ms,value:ms},ms))
+        )
+      )
+    ),
+    h('div', {className:'fg2'},
+      h(Field,{label:'Sex'},
+        h('select',{value:f.sex||'',onChange:e=>set('sex',e.target.value)},
+          h('option',{value:''},'— Select —'),
+          ['Male','Female'].map(s=>h('option',{key:s,value:s},s))
+        )
+      ),
       h(Field,{label:'Blood Type'},
         h('select',{value:f.bloodType||'O+',onChange:e=>set('bloodType',e.target.value)},
           ['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown'].map(bt=>h('option',{key:bt,value:bt},bt))
         )
-      ),
+      )
+    ),
+    h('div', {className:'fg2'},
       h(Field,{label:'Allergies'}, h('input',{value:f.allergies||'',placeholder:'e.g. Penicillin — or "None"',onChange:e=>set('allergies',e.target.value)}))
     )
   );
@@ -6803,7 +6822,7 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
   const [showRx,         setShowRx]         = useState(false);
   const [tab,setTab]=useState('info');
   const ini=patient.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  const infoRows=[['DOB',patient.dob||'—'],['Blood Type',patient.bloodType],['Phone',patient.phone],['Email',patient.email||'—'],['Address',patient.address||'—'],['Allergies',patient.allergies||'—'],['Last Visit',patient.lastVisit],['Balance',patient.balance>0?'₱'+p$(patient.balance)+' (Due)':'Settled']];
+  const infoRows=[['DOB',patient.dob||'—'],['Sex',patient.sex||'—'],['Blood Type',patient.bloodType],['Occupation',patient.occupation||'—'],['Marital Status',patient.maritalStatus||'—'],['Phone',patient.phone],['Email',patient.email||'—'],['Address',patient.address||'—'],['Allergies',patient.allergies||'—'],['Last Visit',patient.lastVisit],['Balance',patient.balance>0?'₱'+p$(patient.balance)+' (Due)':'Settled']];
   const teethData = patient.teeth || {};
   const conditionCount = Object.values(teethData).filter(v => v && v !== 'healthy').length;
   const onToothEdit = (fdi, condition, surface) => {
@@ -7028,11 +7047,15 @@ self.onmessage = async function(e) {
       const blobUrl = URL.createObjectURL(blob);
       worker = new Worker(blobUrl);
 
-      // 60-second timeout for Claude to process the image
+      // 180-second timeout — Gemini auto-retries on rate limit can take up to 2 minutes
       timeout = setTimeout(() => {
-        reject(new Error('Request timed out (60s). Apps Script may be slow — try again.'));
+        reject(new Error(
+          'Request timed out (3 min). The AI is taking longer than usual.\n\n' +
+          'This can happen when Gemini rate-limits and retries.\n' +
+          'Please try scanning again — it should work now.'
+        ));
         try { worker.terminate(); URL.revokeObjectURL(blobUrl); } catch(e) {}
-      }, 60000);
+      }, 180000);
 
       worker.onmessage = (e) => {
         clearTimeout(timeout);
@@ -7082,15 +7105,17 @@ self.onmessage = async function(e) {
         'Error details: ' + err
       );
     }
-    if (err.includes('ANTHROPIC_API_KEY') || err.includes('not configured')) {
+    if (err.includes('No AI API key') || err.includes('ANTHROPIC_API_KEY') || err.includes('not configured')) {
       throw new Error(
-        'Anthropic API key not set in Apps Script.\n\n' +
-        'In Apps Script editor:\n' +
-        '1. Find the setupApiKey() function\n' +
-        '2. Replace YOUR-KEY-HERE with your actual sk-ant-... key\n' +
-        '3. Click ▶ Run\n' +
-        '4. Redeploy: Deploy > Manage > Edit > New version > Deploy\n\n' +
-        'Get your key: console.anthropic.com/settings/keys'
+        '🔑 No AI API key configured.\n\n' +
+        '✅ FREE OPTION — Google Gemini:\n' +
+        '1. Go to aistudio.google.com/app/apikey\n' +
+        '2. Click "Create API Key" (free, no credit card)\n' +
+        '3. In Apps Script → Project Settings → Script properties\n' +
+        '4. Add: GEMINI_API_KEY = AIza...\n' +
+        '5. Run setupGeminiKey() to save it\n' +
+        '6. Redeploy as new version\n\n' +
+        'Free tier: 15 scans/min, 1500/day — enough for a clinic.'
       );
     }
     if (err.includes('401') || err.includes('invalid x-api-key') || err.includes('authentication')) {
@@ -7099,8 +7124,18 @@ self.onmessage = async function(e) {
         'Get a valid key from: console.anthropic.com/settings/keys'
       );
     }
+    if (err.includes('credit balance') || err.includes('402') || err.includes('too low')) {
+      throw new Error(
+        'Anthropic credit balance too low.\n\n' +
+        'Switch to Gemini (FREE):\n' +
+        '1. Get free key: aistudio.google.com/app/apikey\n' +
+        '2. In Apps Script Script properties:\n' +
+        '   Add GEMINI_API_KEY = AIza...\n' +
+        '3. Run setupGeminiKey() then redeploy'
+      );
+    }
     if (err.includes('429') || err.includes('rate limit') || err.includes('overloaded')) {
-      throw new Error('Claude is busy right now. Please wait 30 seconds and try again.');
+      throw new Error('AI service is busy. Wait 1 minute and try again. (Gemini free: 15/min limit)');
     }
     throw new Error('OCR failed: ' + err);
   }
