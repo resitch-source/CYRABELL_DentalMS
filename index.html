@@ -7873,9 +7873,64 @@ function RecordCardScanner({onExtracted, onClose}) {
     )
   );
 }
+// ── MAIN APP COMPONENT ─────────────────────────────────────────────────────
+function App() {
+    // Initialize state using the constants defined earlier in your file
+    const [patients, setPatients] = useState(INIT_P);
+    const [appts, setAppts]       = useState(INIT_A);
+    const [user, setUser]         = useState(null);
+    const [mode, setMode]         = useState('login'); // 'login', 'kiosk', 'dashboard'
 
+    // Helper to show toasts (alerts)
+    const addToast = (msg, type='info') => {
+        // For a simple fix, we use alert. If you have a Toast component, use it here.
+        if(type === 'error') console.error(msg); 
+        else console.log(msg); 
+        // alert(msg); // Uncomment if you want popups
+    };
 
+    // 1. Kiosk Mode View
+    if (mode === 'kiosk') {
+        return h(KioskMode, {
+            appointments: appts,
+            onCheckIn: (id) => {
+                setAppts(prev => prev.map(a => a.id === id ? {...a, arrived: true} : a));
+                addToast('Patient checked in successfully', 'success');
+            },
+            onExit: () => setMode('login'),
+            addToast: addToast
+        });
+    }
 
+    // 2. Logged In View (Dashboard)
+    // Note: Your Dashboard component code seems to be missing from the file.
+    // This block prevents a white screen by showing a placeholder.
+    if (user) {
+        return h('div', {style:{padding:40, fontFamily:'var(--font), sans-serif', textAlign:'center'}}, 
+            h('h1', {style:{color:'var(--t)'}}, 'Welcome, ' + user.name),
+            h('p', {style:{color:'var(--md)', marginBottom:20}}, 'You are logged in as ' + user.role),
+            h('p', {style:{color:'var(--re)', marginBottom:20}}, '⚠️ The main Dashboard code was missing from the uploaded file.'),
+            h('div', {style:{display:'flex', gap:10, justifyContent:'center'}},
+                h('button', {className:'btn bgh', onClick:()=>setMode('login')}, 'Logout'),
+                h('button', {className:'btn bp', onClick:()=>setMode('kiosk')}, 'Open Kiosk Mode')
+            )
+        );
+    }
+
+    // 3. Login View (Default)
+    return h(LoginScreen, {
+        onAuth: (u) => {
+            setUser(u);
+            setMode('dashboard');
+        },
+        onPickKiosk: () => setMode('kiosk'),
+        onPublicBooking: () => alert('Public booking form not implemented yet.')
+    });
+}
+
+// ── RENDER THE APP ──────────────────────────────────────────────────────────
+// This is the missing line that puts the app onto the screen!
+ReactDOM.render(h(App), document.getElementById('root'));
 
 
 </script>
