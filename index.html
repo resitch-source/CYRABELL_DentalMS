@@ -2482,6 +2482,174 @@ textarea.hist-field-input{resize:vertical;min-height:48px;}
   .login-choose{grid-template-columns:1fr}
 }
 
+
+
+/* ── LOGS VIEWER ── */
+.logs-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.logs-stat{flex:1;min-width:90px;
+  background:#fff;border:1.5px solid var(--bd);border-radius:10px;
+  padding:10px 12px;text-align:center;}
+.logs-stat-num{font-size:22px;font-weight:700;color:var(--dk);line-height:1;}
+.logs-stat-lbl{font-size:10.5px;color:var(--md);text-transform:uppercase;letter-spacing:.5px;margin-top:4px;}
+.logs-stat-error .logs-stat-num{color:#dc2626;}
+.logs-stat-warn  .logs-stat-num{color:#d97706;}
+.logs-stat-info  .logs-stat-num{color:#2563eb;}
+.logs-stat-event .logs-stat-num{color:#7c3aed;}
+.logs-filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+.logs-search{flex:1;min-width:200px;
+  border:1.5px solid var(--bd);border-radius:8px;
+  padding:7px 12px;font-family:inherit;font-size:13px;
+  background:#fff;outline:none;}
+.logs-search:focus{border-color:var(--t);}
+.logs-select{border:1.5px solid var(--bd);border-radius:8px;
+  padding:7px 10px;background:#fff;font-family:inherit;font-size:12.5px;
+  outline:none;cursor:pointer;}
+.logs-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--md);cursor:pointer;}
+.logs-list{display:flex;flex-direction:column;gap:3px;
+  background:#fff;border:1.5px solid var(--bd);border-radius:10px;
+  padding:6px;max-height:600px;overflow-y:auto;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;}
+.log-row{padding:6px 8px;border-radius:6px;
+  cursor:pointer;font-size:11.5px;
+  border-left:3px solid var(--bd);
+  transition:background .1s;}
+.log-row:hover{background:var(--cr);}
+.log-row-error{border-left-color:#dc2626;background:#fef2f2;}
+.log-row-warn{border-left-color:#d97706;background:#fffbeb;}
+.log-row-info{border-left-color:#2563eb;}
+.log-row-event{border-left-color:#7c3aed;background:#faf5ff;}
+.log-row-main{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.log-icon{font-size:10px;width:14px;flex-shrink:0;}
+.log-time{color:var(--md);font-size:10px;flex-shrink:0;font-variant-numeric:tabular-nums;}
+.log-source{background:rgba(0,0,0,.06);color:var(--dk);
+  font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;
+  text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;}
+.log-msg{flex:1;min-width:0;color:var(--dk);word-break:break-word;}
+.log-detail{margin-top:6px;margin-left:22px;padding-top:6px;
+  border-top:1px dashed var(--bd);}
+.log-detail-text{font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size:11px;color:var(--md);
+  white-space:pre-wrap;word-break:break-all;
+  background:#f9fafb;padding:8px;border-radius:6px;
+  max-height:300px;overflow-y:auto;margin:0;}
+* ── PAGE SHELL ─────────────────────────────────────────────────────────── */
+.page{padding:20px;display:flex;flex-direction:column;gap:0;min-height:0;flex:1;overflow-y:auto;}
+* ── DASHBOARD ───────────────────────────────────────────────────────────── */
+.db-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;width:100%;}
+.db-card{background:#fff;border:1.5px solid var(--bd);border-radius:12px;padding:16px 14px;text-align:center;box-shadow:var(--sh);}
+.db-card:hover{border-color:var(--t);box-shadow:var(--shl);}
+.db-num{font-size:28px;font-weight:800;color:var(--t);font-variant-numeric:tabular-nums;line-height:1.1;}
+.db-lbl{font-size:11px;color:var(--md);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+.db-today{background:#fff;border:1.5px solid var(--bd);border-radius:12px;padding:16px;margin-top:4px;box-shadow:var(--sh);}
+.db-appt-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--bd);}
+.db-appt-row:last-child{border-bottom:none;}
+.db-appt-time{font-size:12px;font-weight:700;color:var(--t);min-width:60px;flex-shrink:0;}
+.db-appt-info{flex:1;min-width:0;}
+* ── TABLE LAYOUT ────────────────────────────────────────────────────────── */
+.tbl-wrap{background:#fff;border:1.5px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:var(--sh);}
+.tbl-wrap table{width:100%;border-collapse:collapse;}
+.tbl-wrap th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--md);background:var(--cr);border-bottom:1.5px solid var(--bd);}
+.tbl-wrap td{padding:11px 14px;font-size:13px;border-bottom:1px solid var(--bd);color:var(--dk);}
+.tbl-wrap tr:last-child td{border-bottom:none;}
+.tr-click{cursor:pointer;transition:background .12s;}
+.tr-click:hover{background:var(--tp);}
+.td-name{font-weight:600;color:var(--dk);}
+* ── STATUS BADGES ───────────────────────────────────────────────────────── */
+.status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:capitalize;letter-spacing:.3px;}
+.status-pending{background:#fef3c7;color:#92400e;}
+.status-confirmed{background:#d1fae5;color:#065f46;}
+.status-completed{background:#dbeafe;color:#1e40af;}
+.status-cancelled{background:#fee2e2;color:#991b1b;}
+.status-paid{background:#d1fae5;color:#065f46;}
+.status-sent{background:#dbeafe;color:#1e40af;}
+* ── APPOINTMENTS ────────────────────────────────────────────────────────── */
+.autoconfirm-banner{display:flex;align-items:center;gap:12px;background:var(--tp);border:1.5px solid rgba(10,124,110,.2);border-radius:10px;padding:10px 14px;margin-bottom:14px;flex-wrap:wrap;}
+.vt-grp{display:flex;border:1.5px solid var(--bd);border-radius:8px;overflow:hidden;}
+.vt-act{background:var(--t);color:#fff;}
+* Time slot grid */
+.tsg{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;padding:4px 0;}
+.tsl-ok:hover{background:#dcfce7;border-color:var(--t);}
+.tsl-con{background:#fef2f2;border-color:#fca5a5;color:#991b1b;cursor:not-allowed;opacity:.7;}
+.tsl-dis{background:var(--cr);border-color:var(--bd);color:var(--md);cursor:not-allowed;opacity:.5;}
+.tsl-sel{background:var(--t)!important;border-color:var(--t)!important;color:#fff!important;box-shadow:0 2px 8px rgba(10,124,110,.3);}
+* Calendar */
+.cal-wrap{background:#fff;border:1.5px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:var(--sh);}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bd);background:var(--cr);}
+.cal-title{font-weight:700;font-size:15px;color:var(--dk);}
+.cal-hdr{padding:8px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--md);text-transform:uppercase;letter-spacing:.5px;background:var(--cr);border-bottom:1px solid var(--bd);}
+.cal-cell:hover{background:var(--tp);}
+.cal-today{background:rgba(10,124,110,.06);}
+.cal-blank{border-right:1px solid var(--bd);border-bottom:1px solid var(--bd);}
+.cal-pill{font-size:10px;padding:2px 5px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;background:var(--tp);color:var(--t);}
+.cal-pill-confirmed{background:#d1fae5;color:#065f46;}
+.cal-pill-pending{background:#fef3c7;color:#92400e;}
+.cal-pill-cancelled{background:#fee2e2;color:#991b1b;text-decoration:line-through;}
+* Conflict analysis */
+.analysis-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:16px;}
+.conflict-row{padding:10px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;margin-bottom:8px;font-size:12.5px;}
+.no-conflicts{padding:20px;text-align:center;color:var(--gr);font-weight:600;font-size:14px;background:#f0fdf4;border-radius:8px;}
+* ── REMINDERS ───────────────────────────────────────────────────────────── */
+.rem-list{display:flex;flex-direction:column;gap:10px;}
+.rem-card{background:#fff;border:1.5px solid var(--bd);border-radius:12px;padding:14px 16px;box-shadow:var(--sh);}
+.rem-card:hover{border-color:var(--t);}
+.rem-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.rem-type{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t);margin-bottom:3px;}
+.rem-patient{font-weight:700;font-size:14px;color:var(--dk);}
+.rem-due{font-size:12px;margin-top:3px;}
+* ── SYNC ────────────────────────────────────────────────────────────────── */
+.sync-wrap{display:flex;flex-direction:column;gap:14px;max-width:700px;}
+* ── EXPORT ──────────────────────────────────────────────────────────────── */
+.export-wrap{display:flex;flex-direction:column;gap:14px;max-width:600px;}
+* ── ANALYTICS ───────────────────────────────────────────────────────────── */
+.an-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
+.an-card{background:#fff;border:1.5px solid var(--bd);border-radius:12px;padding:16px 14px;text-align:center;box-shadow:var(--sh);}
+.an-num{font-size:26px;font-weight:800;color:var(--t);line-height:1.1;}
+.an-lbl{font-size:11px;color:var(--md);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+.an-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.an-section{background:#fff;border:1.5px solid var(--bd);border-radius:12px;padding:16px;box-shadow:var(--sh);}
+.an-section-title{font-weight:700;font-size:14px;color:var(--dk);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--bd);}
+.an-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd);}
+.an-row:last-child{border-bottom:none;}
+.an-row-label{font-size:13px;color:var(--dk);flex:1;}
+.an-bar-wrap{width:100px;height:8px;background:var(--cr);border-radius:4px;overflow:hidden;}
+.an-bar{height:100%;background:linear-gradient(90deg,var(--t),var(--tl));border-radius:4px;transition:width .4s;}
+.an-count{font-size:13px;font-weight:700;color:var(--dk);min-width:28px;text-align:right;}
+* ── PUBLIC BOOKING ──────────────────────────────────────────────────────── */
+.pub-wrap{min-height:100vh;background:var(--cr);padding:24px 16px;display:flex;flex-direction:column;align-items:center;}
+.pub-header{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:500px;margin-bottom:16px;box-shadow:var(--sh);}
+.pub-success{background:#fff;border-radius:14px;padding:32px;width:100%;max-width:500px;text-align:center;box-shadow:var(--sh);}
+.pub-err{background:#fef2f2;color:#dc2626;padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;width:100%;max-width:500px;}
+* ── PATIENT SEARCH INPUT ────────────────────────────────────────────────── */
+.psi-wrap{position:relative;width:100%;}
+.psi-selected{border-color:var(--t);background:var(--tp);}
+.psi-clear{position:absolute;right:10px;background:none;border:none;cursor:pointer;color:var(--md);font-size:13px;padding:2px;line-height:1;}
+.psi-icon{position:absolute;right:10px;color:var(--md);font-size:13px;pointer-events:none;}
+.psi-item:hover,.psi-hi{background:var(--tp);}
+/* ── History tab: attached record card ───────────────────────────────────── */
+.hist-entry-attached{
+  background:#fff;
+  border:1.5px solid var(--bd);
+  border-left:4px solid var(--t);
+  border-radius:10px;
+  margin-bottom:8px;
+  overflow:hidden;
+}
+.hist-entry-attached .hist-entry-header{
+  padding:12px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+/* Attach button in history header */
+.hist-tab-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:16px;
+}
 </style>
 </head>
 <body>
@@ -3179,7 +3347,125 @@ const NEXARCH_LOGO = 'data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUND
   window.__cyrabellShowError = showError;
 })();
 
-const {createElement:h,useState,useEffect,useCallback,useRef,Fragment}=React;
+const {createElement:h,useState,useEffect,useCallback,useRef,Fragment,useMemo}=React;
+
+(function installLogging() {
+  if (window.__cyrabellLogsInstalled) return;
+  window.__cyrabellLogsInstalled = true;
+
+  // Circular buffer — last 500 log entries (kept small to avoid memory bloat)
+  const MAX_LOGS = 500;
+  window.__cyrabellLogs = [];
+
+  // Counter for unique IDs
+  let logSeq = 0;
+
+  function pushLog(level, source, message, detail) {
+    const entry = {
+      id: ++logSeq,
+      time: new Date().toISOString(),
+      level: level,            // 'info' | 'warn' | 'error' | 'event'
+      source: source || '',    // tag like 'sync', 'photo', 'ocr', 'reminder', 'ui'
+      message: String(message || '').substring(0, 1000),
+      detail: detail ? String(detail).substring(0, 2000) : '',
+      url: location.href,
+    };
+    window.__cyrabellLogs.push(entry);
+    if (window.__cyrabellLogs.length > MAX_LOGS) {
+      window.__cyrabellLogs.shift();
+    }
+    // Persist errors to localStorage so they survive a reload (last 50 only)
+    if (level === 'error') {
+      try {
+        const persisted = JSON.parse(localStorage.getItem('cyrabell_error_log') || '[]');
+        persisted.push(entry);
+        while (persisted.length > 50) persisted.shift();
+        localStorage.setItem('cyrabell_error_log', JSON.stringify(persisted));
+      } catch(e) {/* ignore quota errors */}
+    }
+    // Notify any listening UI
+    try {
+      window.dispatchEvent(new CustomEvent('cyrabell-log', {detail: entry}));
+    } catch(e) {}
+    return entry;
+  }
+
+  // Restore persisted error logs from previous session (so we don't lose history)
+  try {
+    const persisted = JSON.parse(localStorage.getItem('cyrabell_error_log') || '[]');
+    persisted.forEach(e => window.__cyrabellLogs.push(e));
+  } catch(e) {/* ignore */}
+
+  // Public helper: log an event from app code with structured detail
+  // Usage: logEvent('sync', 'pull-success', {rows: 42})
+  window.logEvent = function(source, message, detail) {
+    pushLog('event', source, message, typeof detail === 'object' ? JSON.stringify(detail) : detail);
+  };
+  window.logInfo = function(source, message, detail) {
+    pushLog('info', source, message, typeof detail === 'object' ? JSON.stringify(detail) : detail);
+  };
+  window.logWarn = function(source, message, detail) {
+    pushLog('warn', source, message, typeof detail === 'object' ? JSON.stringify(detail) : detail);
+  };
+  window.logError = function(source, message, detail) {
+    pushLog('error', source, message, typeof detail === 'object' ? JSON.stringify(detail) : detail);
+  };
+
+  // ── Wrap console methods to capture everything ─────────────────────────
+  const origLog = console.log.bind(console);
+  const origWarn = console.warn.bind(console);
+  const origError = console.error.bind(console);
+  const origInfo = console.info ? console.info.bind(console) : origLog;
+
+  function extractSource(args) {
+    // First arg often looks like '[source] message' — extract the tag
+    const first = String(args[0] || '');
+    const m = first.match(/^\[([^\]]+)\]/);
+    return m ? m[1] : '';
+  }
+
+  console.log = function(...args) {
+    pushLog('info', extractSource(args), args.map(a => typeof a === 'object' ? JSON.stringify(a).substring(0,200) : String(a)).join(' '));
+    origLog.apply(console, args);
+  };
+  console.info = function(...args) {
+    pushLog('info', extractSource(args), args.map(a => typeof a === 'object' ? JSON.stringify(a).substring(0,200) : String(a)).join(' '));
+    origInfo.apply(console, args);
+  };
+  console.warn = function(...args) {
+    pushLog('warn', extractSource(args), args.map(a => typeof a === 'object' ? JSON.stringify(a).substring(0,200) : String(a)).join(' '));
+    origWarn.apply(console, args);
+  };
+  console.error = function(...args) {
+    pushLog('error', extractSource(args), args.map(a => typeof a === 'object' ? JSON.stringify(a).substring(0,200) : String(a)).join(' '));
+    origError.apply(console, args);
+  };
+
+  // ── Window-level error trapping ────────────────────────────────────────
+  window.addEventListener('error', function(e) {
+    pushLog('error', 'window', e.message || 'Unknown error',
+      (e.filename ? e.filename + ':' + e.lineno + ':' + e.colno : '') +
+      (e.error && e.error.stack ? '\n' + e.error.stack.substring(0, 1500) : '')
+    );
+  });
+
+  window.addEventListener('unhandledrejection', function(e) {
+    let detail = '';
+    try {
+      if (e.reason instanceof Error) {
+        detail = e.reason.message + '\n' + (e.reason.stack || '').substring(0, 1500);
+      } else {
+        detail = JSON.stringify(e.reason).substring(0, 1500);
+      }
+    } catch(err) { detail = String(e.reason); }
+    pushLog('error', 'promise', 'Unhandled rejection', detail);
+  });
+
+  // Boot log entry
+  pushLog('event', 'boot', 'Application starting', 'UA: ' + navigator.userAgent.substring(0, 200));
+})();
+
+
 const p$=n=>Number(n||0).toLocaleString();
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 
@@ -3927,6 +4213,8 @@ const safe = (arr) => Array.isArray(arr) ? arr : [];
 
 
 // Normalize a name for comparison: lowercase, trim, collapse whitespace
+
+
 function normName(n) {
   return S(n).toLowerCase().trim().replace(/\s+/g, ' ');
 }
@@ -5806,7 +6094,7 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, com
       const file = files[i];
       // Limit to 8MB per file
       if (file.size > 8 * 1024 * 1024) {
-        alert(file.name + ' is too large (max 8 MB). Please compress or crop the image first.');
+        addToast && addToast(file.name + ' is too large (max 8MB). Please compress it first.', 'error'); setBusy(false);
         continue;
       }
       await new Promise(resolve => {
@@ -6219,6 +6507,103 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
     ['Treatment',        entry.natureOfTreatment],
   ].filter(([,v]) => v && S(v).trim());
 
+  // Attached records (no AI extraction) show a compact file card
+  if (entry.type === 'attached_record' || entry.type === 'appointment_record') {
+    const isAppt = entry.type === 'appointment_record';
+    const atts   = safe(entry.attachments);
+    const isImg = S(entry.fileType).startsWith('image/');
+    const isPdf = entry.fileType === 'application/pdf';
+    return h('div',{className:'hist-entry hist-entry-attached'},
+      h('div',{className:'hist-entry-header',style:{cursor:'default'}},
+        h('div',{className:'hist-entry-left',style:{display:'flex',alignItems:'center',gap:12}},
+          entry.scanImageUrl && isImg && h('img',{
+            src:entry.scanImageUrl,
+            alt:entry.label,
+            className:'hist-entry-thumb',
+            style:{cursor:'pointer'},
+            onClick:e=>{e.stopPropagation();setViewingImg(true);}
+          }),
+          !isImg && h('div',{style:{fontSize:32}},isPdf?'📑':'📄'),
+          h('div',null,
+            h('div',{className:'hist-entry-date'},
+              isAppt ? '📅 ' : '📎 ',
+              entry.scanDate||'Unknown date'
+            ),
+            h('div',{className:'hist-entry-name'},entry.label||'Attached Record'),
+            h('div',{className:'hist-entry-sub',style:{fontSize:11}},
+              isAppt
+                ? ('Service record' + (entry.dentist?' · '+entry.dentist:'') + (atts.length?' · '+atts.length+' file(s)':''))
+                : ('Attached file' + (entry.fileSize?' · '+Math.round(entry.fileSize/1024)+'KB':''))
+            )
+          )
+        ),
+        h('div',{className:'hist-entry-right',style:{display:'flex',gap:6,flexWrap:'wrap'}},
+          isImg && entry.scanImageUrl && h('button',{
+            type:'button',className:'btn bgh bsm',
+            onClick:e=>{e.stopPropagation();setViewingImg(true);}
+          },'👁 View'),
+          !isAppt && entry.scanImageUrl && h('a',{
+            href:entry.scanImageUrl, download:entry.label||'record',
+            className:'btn bgh bsm', onClick:e=>e.stopPropagation()
+          },'⬇'),
+          h('button',{
+            type:'button',className:'btn bd2 bsm',
+            onClick:e=>{e.stopPropagation();if(confirm('Delete?'))onDelete(entry.id);}
+          },'✕')
+        )
+      ),
+      // For appointment records: show all attached files as mini gallery
+      isAppt && atts.length > 0 && h('div',{
+        className:'hist-appt-files',
+        style:{padding:'8px 12px 12px',borderTop:'1px solid var(--bd)',background:'var(--cr)'}
+      },
+        h('div',{style:{fontSize:11,fontWeight:700,color:'var(--md)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.5px'}},
+          '📎 Attached Files ('+ atts.length +')'
+        ),
+        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+          atts.map((att,i) => {
+            const isAttImg = S(att.type).startsWith('image/');
+            return h('div',{key:att.id||i,
+              style:{
+                display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+                background:'#fff',border:'1.5px solid var(--bd)',borderRadius:8,
+                padding:'6px',cursor:'pointer',minWidth:80,maxWidth:100,
+              },
+              title:att.name,
+              onClick:()=>{ if(att.dataUrl) window.open(att.dataUrl,'_blank'); }
+            },
+              isAttImg && att.dataUrl
+                ? h('img',{src:att.dataUrl,alt:att.name,style:{width:60,height:60,objectFit:'cover',borderRadius:4}})
+                : h('div',{style:{fontSize:28,lineHeight:1.2}},S(att.type)==='application/pdf'?'📑':'📄'),
+              h('div',{style:{fontSize:10,color:'var(--md)',textAlign:'center',wordBreak:'break-all',maxWidth:80}},
+                S(att.name).length > 14 ? att.name.substring(0,12)+'…' : att.name
+              ),
+              att.note && h('div',{style:{fontSize:9,color:'var(--t)',textAlign:'center'}},att.note)
+            );
+          })
+        )
+      ),
+
+      viewingImg && entry.scanImageUrl && h('div',{
+        className:'att-viewer-ov',onClick:()=>setViewingImg(false)
+      },
+        h('div',{className:'att-viewer-modal',onClick:e=>e.stopPropagation()},
+          h('div',{className:'att-viewer-header'},
+            h('div',{style:{fontWeight:700,fontSize:14,color:'var(--dk)'}},entry.label||'Record'),
+            h('div',{style:{display:'flex',gap:8}},
+              h('a',{href:entry.scanImageUrl,download:entry.label,className:'btn bg2 bsm'},'⬇ Download'),
+              h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)},'✕ Close')
+            )
+          ),
+          h('div',{className:'att-viewer-body'},
+            isImg && h('img',{src:entry.scanImageUrl,alt:entry.label,style:{maxWidth:'100%',borderRadius:4}}),
+            isPdf && h('iframe',{src:entry.scanImageUrl,style:{width:'100%',height:'70vh',border:'none'}})
+          )
+        )
+      )
+    );
+  }
+
   return h('div',{className:'hist-entry'},
     // Header (always visible)
     h('div',{className:'hist-entry-header',onClick:()=>setExpanded(e=>!e)},
@@ -6332,10 +6717,48 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
  * Shows a timeline of scanned examination records.
  */
 function ClinicalHistoryTab({patient, history, onAddEntry, onDeleteEntry}) {
-  const [showScanner, setShowScanner] = useState(false);
+  const [showScanner,  setShowScanner]  = useState(false);
+  const [attachBusy,   setAttachBusy]   = useState(false);
+  const fileRef = useRef(null);
   const entries = safe(history).slice().sort((a,b) =>
     (b.scanDate||'').localeCompare(a.scanDate||'')
   );
+
+  // Direct file attach — creates a history entry from a local file
+  // without AI extraction (just archives the file)
+  const handleDirectAttach = async (e) => {
+    const files = e.target.files;
+    if (!files || !files.length) return;
+    setAttachBusy(true);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.size > 15 * 1024 * 1024) {
+        console.warn('[history] file too large:', file.name);
+        continue;
+      }
+      await new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const entry = {
+            id:           'HIST-' + Date.now() + '-' + i,
+            type:         'attached_record',
+            status:       'archived',
+            scanDate:     localToday(),
+            label:        file.name,
+            scanImageUrl: ev.target.result,  // full dataUrl stored locally
+            fileType:     file.type || 'image/jpeg',
+            fileSize:     file.size,
+            // No clinical fields extracted — manual entry
+          };
+          onAddEntry && onAddEntry(entry);
+          resolve();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    setAttachBusy(false);
+    e.target.value = '';
+  };
 
   return h('div',{className:'hist-tab'},
     // Header
@@ -6346,11 +6769,28 @@ function ClinicalHistoryTab({patient, history, onAddEntry, onDeleteEntry}) {
           'Scanned examination records and clinical history from physical cards'
         )
       ),
-      h('button',{
-        type:'button',className:'btn bp',
-        onClick:()=>setShowScanner(true),
-        title:'Scan and add a physical Patient Examination Record Chart'
-      },'📷 Scan Record Card')
+      h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+        // Direct file attach button
+        h('button',{
+          type:'button', className:'btn bg2',
+          onClick:()=>fileRef.current&&fileRef.current.click(),
+          disabled:attachBusy,
+          title:'Attach a photo or PDF of a physical record card without AI extraction'
+        }, attachBusy ? '⏳ Attaching…' : '📎 Attach Record'),
+        h('input',{
+          ref:fileRef, type:'file',
+          accept:'image/*,application/pdf,.pdf,.jpg,.jpeg,.png,.heic',
+          multiple:true,
+          style:{display:'none'},
+          onChange:handleDirectAttach,
+        }),
+        // AI scan button
+        h('button',{
+          type:'button',className:'btn bp',
+          onClick:()=>setShowScanner(true),
+          title:'Scan and extract clinical data using AI'
+        },'📷 Scan + Extract AI')
+      )
     ),
 
     // Empty state
@@ -6816,7 +7256,11 @@ function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
 }
 
 
-function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl}){
+function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl}){
+  // Local copy so file/history updates reflect instantly without waiting for parent re-render
+  const [localPat, setLocalPat] = useState(patientProp);
+  // Sync if parent sends a fresh patient (e.g. after full refresh)
+  const patient = localPat;
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
   const [showMedCert,    setShowMedCert]    = useState(false);
   const [showRx,         setShowRx]         = useState(false);
@@ -6844,12 +7288,16 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
       } else {
         newTeeth[surfaceKey] = existingSurfaces;
       }
+      // Update local state immediately so chart re-renders without closing modal
+      setLocalPat(p => ({...p, teeth: newTeeth}));
       onUpdateTeeth(patient.id, newTeeth);
       addToast('Tooth '+fdi+' '+surface+' marked as '+CONDITIONS[condition].label, 'success');
     } else {
-      // Whole-tooth condition update (existing behavior)
+      // Whole-tooth condition update
       if (condition === 'healthy') delete newTeeth[fdi];
       else newTeeth[fdi] = condition;
+      // Update local state immediately so chart re-renders without closing modal
+      setLocalPat(p => ({...p, teeth: newTeeth}));
       onUpdateTeeth(patient.id, newTeeth);
       addToast('Tooth '+fdi+' marked as '+CONDITIONS[condition].label, 'success');
     }
@@ -6905,14 +7353,17 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
       label: 'Patient Files & X-Rays',
       onAdd: att => {
         const updated = [...safe(patient.attachments), att];
+        setLocalPat(p => ({...p, attachments: updated}));
         onUpdateTeeth(patient.id, patient.teeth, updated);
       },
       onRemove: id => {
         const updated = safe(patient.attachments).filter(a => a.id !== id);
+        setLocalPat(p => ({...p, attachments: updated}));
         onUpdateTeeth(patient.id, patient.teeth, updated);
       },
       onUpdateNote: (id, note) => {
         const updated = safe(patient.attachments).map(a => a.id===id ? {...a,note} : a);
+        setLocalPat(p => ({...p, attachments: updated}));
         onUpdateTeeth(patient.id, patient.teeth, updated);
       },
     }),
@@ -6921,11 +7372,12 @@ function PatProfile({patient,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl})
       history: safe(patient.history),
       onAddEntry: entry => {
         const updated = [...safe(patient.history), entry];
-        // Store history alongside teeth and attachments
+        setLocalPat(p => ({...p, history: updated}));
         onUpdateTeeth(patient.id, patient.teeth, patient.attachments, updated);
       },
       onDeleteEntry: id => {
         const updated = safe(patient.history).filter(e => e.id !== id);
+        setLocalPat(p => ({...p, history: updated}));
         onUpdateTeeth(patient.id, patient.teeth, patient.attachments, updated);
       },
     }),
@@ -7477,9 +7929,26 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
       setModal(false); setEdit(null);
     }
   };
-  const updateTeeth = (patientId, newTeeth) => {
-    setPatients(prev => prev.map(p => p.id === patientId ? {...p, teeth: newTeeth} : p));
-    if (view && view.id === patientId) setView({...view, teeth: newTeeth});
+  const updateTeeth = (patientId, newTeeth, newAttachments, newHistory) => {
+    setPatients(prev => prev.map(p => {
+      if (p.id !== patientId) return p;
+      const updated = {...p};
+      if (newTeeth       !== undefined && newTeeth       !== null) updated.teeth       = newTeeth;
+      if (newAttachments !== undefined && newAttachments !== null) updated.attachments = newAttachments;
+      if (newHistory     !== undefined && newHistory     !== null) updated.history     = newHistory;
+      return updated;
+    }));
+    // Keep the open profile view in sync so UI reflects immediately
+    if (view && view.id === patientId) {
+      setView(prev => {
+        if (!prev || prev.id !== patientId) return prev;
+        const v = {...prev};
+        if (newTeeth       !== undefined && newTeeth       !== null) v.teeth       = newTeeth;
+        if (newAttachments !== undefined && newAttachments !== null) v.attachments = newAttachments;
+        if (newHistory     !== undefined && newHistory     !== null) v.history     = newHistory;
+        return v;
+      });
+    }
   };
   return h('div',null,
     h('div',{className:'ph'},
@@ -9054,7 +9523,7 @@ function AppointmentCalendar({appointments, onDayClick}){
 }
 
 // Appointments — sortable table + calendar view + filters
-function Appointments({appointments,setAppointments,patients,setNotifications,setPayments,addToast}){
+function Appointments({appointments,setAppointments,patients,setPatients,setNotifications,setPayments,addToast}){
   const [filter,setFilter]=useState('all');
   const [search,setSearch]=useState('');
   const [modal,setModal]=useState(false);
@@ -9245,6 +9714,37 @@ function Appointments({appointments,setAppointments,patients,setNotifications,se
       setAppointments(p=>[newAppt,...p]);
       setModal(false);
       addToast(status==='confirmed' ? '✓ Auto-confirmed!' : 'Appointment booked!', 'success');
+
+      // ── Cross-save attachments to patient clinical history ──────────────
+      // If the appointment has attached files (X-rays, photos), automatically
+      // create a history entry in the patient's record so clinicians can see
+      // all clinical files per service in one place.
+      if (setPatients && safe(newAppt.attachments).length > 0) {
+        const histEntry = {
+          id:          'HIST-APT-' + newAppt.id,
+          type:        'appointment_record',
+          status:      'archived',
+          scanDate:    newAppt.date,
+          label:       newAppt.service + ' — ' + fmtDateLong(newAppt.date),
+          service:     newAppt.service,
+          appointmentId: newAppt.id,
+          dentist:     newAppt.dentist || 'Dr. Arnold Colao',
+          notes:       newAppt.notes || '',
+          // Copy attachment references (keep dataUrls — they're stored locally)
+          attachments: safe(newAppt.attachments).map(a => ({...a})),
+          // Use first image as the thumbnail
+          scanImageUrl: safe(newAppt.attachments).find(a => S(a.type).startsWith('image/'))?.dataUrl || '',
+        };
+        setPatients(prev => prev.map(p => {
+          if (p.id !== newAppt.patientId) return p;
+          const existing = safe(p.history);
+          // Avoid duplicating if re-saved
+          const alreadyExists = existing.some(h => h.appointmentId === newAppt.id);
+          if (alreadyExists) return p;
+          return {...p, history: [histEntry, ...existing]};
+        }));
+        addToast('📎 ' + safe(newAppt.attachments).length + ' file(s) saved to patient history', 'info');
+      }
       if (status === 'confirmed' && setPayments && newAppt.fee > 0) {
         setPayments(prev=>[{
           id: 'PAY'+uid(),
@@ -9957,6 +10457,212 @@ function PublicBooking({onBook,onBack,existingAppointments}){
 // ═══════════════════════════════════════════════════════════════════════════
 // ADMIN PANEL — only shown when authenticated
 // ═══════════════════════════════════════════════════════════════════════════
+function LogsViewer({addToast}) {
+  const [logs, setLogs]             = useState(() => (window.__cyrabellLogs || []).slice());
+  const [filterLevel, setFilterLevel] = useState('all');
+  const [filterSource, setFilterSource] = useState('all');
+  const [search, setSearch]         = useState('');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [expandedId, setExpandedId] = useState(null);
+
+  // Listen for new log events and update the view
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const handler = () => {
+      setLogs((window.__cyrabellLogs || []).slice());
+    };
+    window.addEventListener('cyrabell-log', handler);
+    // Also refresh every 2s in case some logs slipped through
+    const timer = setInterval(handler, 2000);
+    return () => {
+      window.removeEventListener('cyrabell-log', handler);
+      clearInterval(timer);
+    };
+  }, [autoRefresh]);
+
+  // Compute unique source tags for the filter dropdown
+  const sources = useMemo(() => {
+    const set = new Set();
+    logs.forEach(l => l.source && set.add(l.source));
+    return Array.from(set).sort();
+  }, [logs]);
+
+  // Filter + search
+  const q = S(search).trim().toLowerCase();
+  const filtered = logs.filter(l => {
+    if (filterLevel !== 'all' && l.level !== filterLevel) return false;
+    if (filterSource !== 'all' && l.source !== filterSource) return false;
+    if (q) {
+      const haystack = (S(l.message) + ' ' + S(l.source) + ' ' + S(l.detail)).toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  }).slice().reverse(); // newest first
+
+  const stats = {
+    total:  logs.length,
+    error:  logs.filter(l => l.level === 'error').length,
+    warn:   logs.filter(l => l.level === 'warn').length,
+    info:   logs.filter(l => l.level === 'info').length,
+    event:  logs.filter(l => l.level === 'event').length,
+  };
+
+  const clearLogs = () => {
+    if (!confirm('Clear all logs? This cannot be undone.')) return;
+    window.__cyrabellLogs.length = 0;
+    try { localStorage.removeItem('cyrabell_error_log'); } catch(e){}
+    setLogs([]);
+    addToast('Logs cleared', 'info');
+  };
+
+  const exportLogs = () => {
+    const text = filtered.map(l =>
+      '[' + l.time + '] ' + l.level.toUpperCase() + ' ' +
+      (l.source ? '['+l.source+'] ' : '') + l.message +
+      (l.detail ? '\n  ' + l.detail.replace(/\n/g,'\n  ') : '')
+    ).join('\n\n');
+    const blob = new Blob([text], {type: 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cyrabell-logs-' + localToday() + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+    addToast('Logs exported', 'success');
+  };
+
+  const copyToClipboard = () => {
+    const text = filtered.slice(0, 100).map(l =>
+      l.time + ' [' + l.level + '] [' + (l.source||'') + '] ' + l.message
+    ).join('\n');
+    navigator.clipboard.writeText(text).then(
+      () => addToast('Top 100 logs copied to clipboard', 'success'),
+      () => addToast('Could not copy', 'error')
+    );
+  };
+
+  const testLog = () => {
+    window.logInfo('test', 'Test info message from Logs page');
+    window.logWarn('test', 'Test warning message');
+    window.logError('test', 'Test error message', 'This is a test detail field.');
+    window.logEvent('test', 'Test event', {sample: 'data', timestamp: Date.now()});
+    addToast('4 test logs added', 'success');
+  };
+
+  const levelClass = {
+    error: 'log-row-error', warn: 'log-row-warn',
+    info:  'log-row-info',  event: 'log-row-event',
+  };
+  const levelIcon = {error:'❌', warn:'⚠', info:'ℹ', event:'📌'};
+
+  return h('div', {className:'page'},
+    h('div', {className:'ph'},
+      h('div', null,
+        h('div', {className:'ptl'}, '🪵 System Logs'),
+        h('div', {className:'psl'},
+          'Troubleshooting · Error tracking · Event log'
+        )
+      ),
+      h('div', {className:'ph-act'},
+        h('button', {className:'btn bgh bsm', onClick:testLog,
+          title:'Add 4 test log entries (info/warn/error/event)'}, '🧪 Test'),
+        h('button', {className:'btn bgh bsm', onClick:copyToClipboard}, '📋 Copy'),
+        h('button', {className:'btn bg2 bsm', onClick:exportLogs}, '⬇ Export .txt'),
+        h('button', {className:'btn bd2 bsm', onClick:clearLogs}, '🗑 Clear All'),
+      )
+    ),
+
+    // Stats cards
+    h('div', {className:'logs-stats'},
+      h('div', {className:'logs-stat'},
+        h('div', {className:'logs-stat-num'}, stats.total),
+        h('div', {className:'logs-stat-lbl'}, 'Total')
+      ),
+      h('div', {className:'logs-stat logs-stat-error'},
+        h('div', {className:'logs-stat-num'}, stats.error),
+        h('div', {className:'logs-stat-lbl'}, '❌ Errors')
+      ),
+      h('div', {className:'logs-stat logs-stat-warn'},
+        h('div', {className:'logs-stat-num'}, stats.warn),
+        h('div', {className:'logs-stat-lbl'}, '⚠ Warnings')
+      ),
+      h('div', {className:'logs-stat logs-stat-info'},
+        h('div', {className:'logs-stat-num'}, stats.info),
+        h('div', {className:'logs-stat-lbl'}, 'ℹ Info')
+      ),
+      h('div', {className:'logs-stat logs-stat-event'},
+        h('div', {className:'logs-stat-num'}, stats.event),
+        h('div', {className:'logs-stat-lbl'}, '📌 Events')
+      )
+    ),
+
+    // Filters
+    h('div', {className:'logs-filters'},
+      h('input', {
+        type:'text', placeholder:'🔍 Search message, source, detail…',
+        value: search, onChange: e=>setSearch(e.target.value),
+        className: 'logs-search'
+      }),
+      h('select', {value:filterLevel, onChange:e=>setFilterLevel(e.target.value), className:'logs-select'},
+        h('option', {value:'all'}, 'All levels'),
+        h('option', {value:'error'}, '❌ Errors only'),
+        h('option', {value:'warn'}, '⚠ Warnings only'),
+        h('option', {value:'info'}, 'ℹ Info only'),
+        h('option', {value:'event'}, '📌 Events only')
+      ),
+      h('select', {value:filterSource, onChange:e=>setFilterSource(e.target.value), className:'logs-select'},
+        h('option', {value:'all'}, 'All sources'),
+        sources.map(s => h('option', {key:s, value:s}, '['+s+']'))
+      ),
+      h('label', {className:'logs-toggle'},
+        h('input', {type:'checkbox', checked:autoRefresh,
+          onChange:()=>setAutoRefresh(v=>!v)}),
+        h('span', null, 'Auto-refresh')
+      )
+    ),
+
+    // Logs list
+    filtered.length === 0 && h('div', {className:'empty-state'},
+      h('div', {style:{fontSize:36, marginBottom:12}}, '📭'),
+      h('div', {style:{fontWeight:700, fontSize:15, marginBottom:6}},
+        logs.length === 0 ? 'No logs yet' : 'No logs match filter'
+      ),
+      h('div', {style:{color:'var(--md)', fontSize:13}},
+        logs.length === 0
+          ? 'Activity will appear here as it happens.'
+          : 'Try clearing filters or search text.'
+      )
+    ),
+
+    filtered.length > 0 && h('div', {className:'logs-list'},
+      filtered.map(log =>
+        h('div', {
+          key: log.id,
+          className: 'log-row ' + (levelClass[log.level] || ''),
+          onClick: () => setExpandedId(id => id === log.id ? null : log.id),
+        },
+          h('div', {className:'log-row-main'},
+            h('span', {className:'log-icon'}, levelIcon[log.level] || '·'),
+            h('span', {className:'log-time'},
+              new Date(log.time).toLocaleTimeString('en-PH', {hour12: false})
+            ),
+            log.source && h('span', {className:'log-source'}, log.source),
+            h('span', {className:'log-msg'}, log.message)
+          ),
+          (expandedId === log.id) && (log.detail || log.url) && h('div', {className:'log-detail'},
+            log.detail && h('pre', {className:'log-detail-text'}, log.detail),
+            h('div', {style:{fontSize:10, color:'var(--md)', marginTop:6}},
+              'ID: ', log.id, ' · Time: ', log.time
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+
+
 function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointments,payments,setPayments,notifications,setNotifications,reminders,setReminders,reminderLog,setReminderLog,addToast,onGoKiosk}){
   const [page,setPage]=useState('dashboard');
   const [sideOpen,setSideOpen]=useState(false);
@@ -9979,6 +10685,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
     {id:'sync',l:'Sync & Backup',d:IC.cloud},
     {id:'export',l:'Export',d:IC.dl},
     {id:'analytics',l:'Analytics',d:IC.report},
+    {id:'logs', l:'🪵 Logs', d:IC.bell, sec:''},
   ];
   const BOT=[
     {id:'dashboard',l:'Home',d:IC.dash},
@@ -9997,7 +10704,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
   const renderPage = () => {
     try {
       if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments),onGoKiosk});
-      if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setNotifications,setPayments,addToast});
+      if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast});
       if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),payments:safe(payments),addToast,syncUrl});
       if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),addToast});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
@@ -10005,6 +10712,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
       if(page==='notifications')return h(Notifications,{notifications:safe(notifications),setNotifications,appointments:safe(appointments),addToast});
       if(page==='export')return h(ExportPage,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments)});
       if(page==='analytics')return h(Analytics,{appointments:safe(appointments),payments:safe(payments),patients:safe(patients)});
+      if(page==='logs') return h(ErrorBoundary,null,h(LogsViewer,{addToast}));
       return h('div',{style:{padding:30,textAlign:'center',color:'var(--md)'}}, 'Page not found: ' + page);
     } catch (err) {
       console.error('[renderPage]', err);
@@ -10653,16 +11361,53 @@ function App(){
       p: patients.length, a: appointments.length, pay: payments.length,
       n: notifications.length, r: reminders.length, rl: reminderLog.length
     });
-    // Strip photoDataUrl before sync — it's stored in Drive, not Sheets.
-    // Keeping it would make each Sheets push huge (~50KB per photo).
+    // Strip large base64 fields before sync to stay under Sheets cell limits (~50KB).
+    // Photos are stored in Drive. Attachments/history images stay local only.
+    // We keep all metadata (names, dates, notes, sizes) — just drop the raw blob data.
+    const STRIP_THRESHOLD = 30 * 1024; // 30KB — aggressive strip for reliability
+    const stripDataUrl = (url) => {
+      if (!url || typeof url !== 'string') return url;
+      if (url.length > STRIP_THRESHOLD) return '';   // strip large base64
+      return url;
+    };
     const patientsForSync = patients.map(p => {
-      if (!p.photoDataUrl) return p;
       const {photoDataUrl: _drop, ...rest} = p;
+      // Strip large dataUrls inside attachments array
+      if (rest.attachments && rest.attachments.length) {
+        rest.attachments = rest.attachments.map(a => ({
+          ...a,
+          dataUrl: stripDataUrl(a.dataUrl),
+        }));
+      }
+      // Strip large scanImageUrls and nested attachment dataUrls inside history array
+      if (rest.history && rest.history.length) {
+        rest.history = rest.history.map(h => ({
+          ...h,
+          scanImageUrl: stripDataUrl(h.scanImageUrl),
+          // Strip dataUrls inside history entries that came from appointment cross-save
+          attachments: h.attachments ? h.attachments.map(a => ({
+            ...a,
+            dataUrl: stripDataUrl(a.dataUrl),
+          })) : h.attachments,
+        }));
+      }
       return rest;
+    });
+    // Strip attachment dataUrls from appointments too (same 30KB limit)
+    const appointmentsForSync = appointments.map(a => {
+      if (!a.attachments || !a.attachments.length) return a;
+      return {
+        ...a,
+        attachments: a.attachments.map(att => ({
+          ...att,
+          dataUrl: stripDataUrl(att.dataUrl),
+        }))
+      };
     });
     scheduleAutoSync(syncUrl, {
       patients: patientsForSync,
-      appointments, payments, notifications, reminders, reminderLog
+      appointments: appointmentsForSync,
+      payments, notifications, reminders, reminderLog
     }, 2000);
   }, [patients, appointments, payments, notifications, reminders, reminderLog, user]);
 
