@@ -2650,6 +2650,54 @@ textarea.hist-field-input{resize:vertical;min-height:48px;}
   flex-wrap:wrap;
   margin-bottom:16px;
 }
+
+/* ── PatientSearchInput — new patient panel ────────────────────────── */
+.psi-selected-dot{width:8px;height:8px;background:var(--t);border-radius:50%;position:absolute;left:10px;top:50%;transform:translateY(-50%);z-index:1;pointer-events:none;}
+.psi-new-option{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 12px;cursor:pointer;
+  border-top:1.5px dashed var(--bd);
+  background:linear-gradient(135deg,rgba(10,124,110,.04),rgba(10,124,110,.01));
+  transition:background .1s;
+}
+.psi-new-option:hover{background:var(--tp);}
+.psi-new-icon{width:32px;height:32px;border-radius:8px;background:var(--t);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.psi-new-text{flex:1;}
+
+.psi-new-panel{
+  border:2px solid var(--t);border-radius:12px;
+  padding:14px;margin-top:4px;
+  background:linear-gradient(135deg,rgba(10,124,110,.03),#fff);
+  box-shadow:0 4px 16px rgba(10,124,110,.12);
+}
+.psi-new-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.psi-new-header>:first-child{flex:1;}
+
+.psi-new-photo-row{display:flex;align-items:center;gap:12px;padding:10px;background:var(--cr);border-radius:10px;margin-bottom:12px;}
+.psi-new-photo-placeholder{width:56px;height:56px;border-radius:10px;background:var(--bd);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+.psi-new-photo-preview{position:relative;flex-shrink:0;}
+.psi-new-photo-img{width:56px;height:56px;border-radius:10px;object-fit:cover;border:2px solid var(--t);}
+.psi-new-photo-del{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#dc2626;color:#fff;border:none;cursor:pointer;font-size:9px;display:flex;align-items:center;justify-content:center;line-height:1;}
+.psi-new-photo-btns{display:flex;flex-direction:column;gap:6px;}
+.psi-new-photo-btns label{text-align:center;}
+
+.psi-cam-wrap{
+  background:#000;border-radius:10px;overflow:hidden;
+  margin-bottom:10px;position:relative;
+}
+.psi-cam-video{width:100%;max-height:200px;object-fit:cover;display:block;}
+.psi-cam-btns{display:flex;gap:8px;padding:8px;background:rgba(0,0,0,.6);justify-content:center;}
+
+/* ── Appointment patient quick-card ─────────────────────────────────── */
+.appt-patient-card{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 12px;
+  background:linear-gradient(135deg,var(--tp),rgba(10,124,110,.03));
+  border:1.5px solid rgba(10,124,110,.25);
+  border-radius:10px;margin-bottom:12px;
+}
+.appt-patient-photo{width:40px;height:40px;border-radius:8px;object-fit:cover;border:2px solid var(--t);flex-shrink:0;}
+.appt-patient-info{flex:1;min-width:0;}
 </style>
 </head>
 <body>
@@ -9137,196 +9185,350 @@ function ApptDetail({a,onClose}){
  * @param {string}    placeholder   - input placeholder text
  * @param {boolean}   required      - shows * indicator
  */
-function PatientSearchInput({patients, value, onSelect, placeholder, required}) {
-  const [query,     setQuery]     = useState(value || '');
-  const [open,      setOpen]      = useState(false);
-  const [hiIdx,     setHiIdx]     = useState(0);    // highlighted index
-  const [dirty,     setDirty]     = useState(false); // user has typed since last selection
+
+function PatientSearchInput({patients: patientsProp, value, onSelect, placeholder, required, onNewPatient}) {
+  // Internal patients list — merges prop patients + any new ones added inline
+  const [internalPatients, setInternalPatients] = useState(() => patientsProp || []);
+  // Sync when prop changes (without resetting query)
+  const propRef = useRef(patientsProp);
+  useEffect(() => {
+    if (propRef.current !== patientsProp) {
+      propRef.current = patientsProp;
+      setInternalPatients(prev => {
+        const propIds = new Set((patientsProp||[]).map(p=>p.id));
+        const localOnly = prev.filter(p => !propIds.has(p.id)); // keep inline-added
+        return [...localOnly, ...(patientsProp||[])];
+      });
+    }
+  }, [patientsProp]);
+  const patients = internalPatients;
+
+  const [query,    setQuery]    = useState(value || '');
+  const [open,     setOpen]     = useState(false);
+  const [hiIdx,    setHiIdx]    = useState(0);
+  const [dirty,    setDirty]    = useState(false);
+  const [newMode,  setNewMode]  = useState(false);  // inline new-patient panel
+  // New patient form fields
+  const [newF, setNewF] = useState({name:'', phone:'', email:'', dob:'', sex:'', bloodType:'', allergies:'', occupation:'', maritalStatus:'', address:'', photoDataUrl:''});
+  const [camOpen, setCamOpen]   = useState(false);
+  const [camStream, setCamStream] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
   const inputRef  = useRef(null);
   const listRef   = useRef(null);
   const wrapRef   = useRef(null);
 
-  // Sync external value changes (e.g. form reset)
   useEffect(() => {
-    if (!dirty) setQuery(value || '');
+    // Only reset query when value is explicitly cleared/changed by parent
+    // NOT when parent just re-renders (dirty prevents spurious resets)
+    if (!dirty && query !== (value || '')) {
+      setQuery(value || '');
+    }
   }, [value]);
 
-  // Close dropdown on outside click
   useEffect(() => {
-    const handleClick = (e) => {
+    const handle = (e) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) {
-        setOpen(false);
-        setDirty(false);
-        // If user typed but didn't select, revert to current value
+        setOpen(false); setDirty(false);
         if (dirty) setQuery(value || '');
       }
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
   }, [dirty, value]);
 
-  // Filter patients by query
+  // Camera: open
+  const openCam = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}, audio:false});
+      setCamStream(stream); setCamOpen(true);
+      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 100);
+    } catch(e) { console.warn('[cam]', e.message); alert('Camera not available: ' + e.message); }
+  };
+  // Camera: capture
+  const captureCam = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const v = videoRef.current;
+    canvasRef.current.width  = v.videoWidth  || 320;
+    canvasRef.current.height = v.videoHeight || 240;
+    canvasRef.current.getContext('2d').drawImage(v, 0, 0);
+    const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.85);
+    setNewF(x => ({...x, photoDataUrl: dataUrl}));
+    closeCam();
+  };
+  const closeCam = () => {
+    if (camStream) { camStream.getTracks().forEach(t => t.stop()); setCamStream(null); }
+    setCamOpen(false);
+  };
+  // File pick for photo
+  const pickPhoto = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setNewF(x => ({...x, photoDataUrl: ev.target.result}));
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Filter patients
   const q = S(query).trim().toLowerCase();
+  const qDigits = q.replace(/\D/g,'');
   const filtered = !q
-    ? patients.slice(0, 8)  // show first 8 when empty (recent)
+    ? patients.slice(0, 8)
     : patients.filter(p =>
         S(p.name).toLowerCase().includes(q) ||
-        S(p.phone).replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
-        S(p.id).toLowerCase().includes(q)
+        // Only phone-match when query has actual digits (prevents '' matching everything)
+        (qDigits.length > 0 && S(p.phone).replace(/\D/g,'').includes(qDigits)) ||
+        S(p.id).toLowerCase().includes(q) ||
+        S(p.email).toLowerCase().includes(q)
       ).slice(0, 10);
+
+  const noMatch = q.length > 1 && filtered.length === 0;
 
   const handleInput = (e) => {
     const val = e.target.value;
-    setQuery(val);
-    setDirty(true);
-    setOpen(true);
-    setHiIdx(0);
-    // If cleared, deselect
+    setQuery(val); setDirty(true); setOpen(true); setHiIdx(0);
+    setNewMode(false);
     if (!val.trim()) onSelect && onSelect(null);
   };
 
   const handleSelect = (patient) => {
-    setQuery(patient.name);
-    setDirty(false);
-    setOpen(false);
-    setHiIdx(0);
+    setQuery(patient.name); setDirty(false); setOpen(false); setHiIdx(0); setNewMode(false);
     onSelect && onSelect(patient);
-    // Keep focus on input after selection
     setTimeout(() => inputRef.current && inputRef.current.blur(), 50);
   };
 
   const handleKeyDown = (e) => {
-    if (!open && (e.key === 'ArrowDown' || e.key === 'Enter')) {
-      setOpen(true);
-      return;
-    }
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setHiIdx(i => Math.min(i + 1, filtered.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setHiIdx(i => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (filtered[hiIdx]) handleSelect(filtered[hiIdx]);
-    } else if (e.key === 'Escape') {
-      setOpen(false);
-      setDirty(false);
-      setQuery(value || '');
-    }
+    if (!open && (e.key === 'ArrowDown' || e.key === 'Enter')) { setOpen(true); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHiIdx(i => Math.min(i+1, filtered.length-1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHiIdx(i => Math.max(i-1, 0)); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (filtered[hiIdx]) handleSelect(filtered[hiIdx]); }
+    else if (e.key === 'Escape') { setOpen(false); setDirty(false); setQuery(value || ''); setNewMode(false); }
   };
 
-  // Scroll highlighted item into view
   useEffect(() => {
     if (!listRef.current) return;
     const items = listRef.current.querySelectorAll('.psi-item');
-    if (items[hiIdx]) {
-      items[hiIdx].scrollIntoView({ block: 'nearest' });
-    }
+    if (items[hiIdx]) items[hiIdx].scrollIntoView({ block: 'nearest' });
   }, [hiIdx]);
 
-  // Color hash for initials avatar
   const avatarColor = (name) => {
     const colors = ['#0a7c6e','#3a7bd5','#7c3aed','#e8943a','#3aa876','#c9a84c','#dc2626'];
-    let h = 0;
-    for (let i = 0; i < (name||'').length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffff;
+    let h = 0; for (let i = 0; i < (name||'').length; i++) h = (h*31 + name.charCodeAt(i)) & 0xffffff;
     return colors[Math.abs(h) % colors.length];
   };
-
-  const initials = (name) => {
-    return S(name).split(' ').filter(Boolean).slice(0, 2)
-      .map(w => w.charAt(0).toUpperCase()).join('') || '?';
-  };
+  const initials = (name) => S(name).split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('') || '?';
 
   const isSelected = value && !dirty && query === value;
 
-  return h('div', { ref: wrapRef, className: 'psi-wrap' },
-    // Input row
-    h('div', { className: 'psi-input-row' },
+  // Save new patient
+  const handleSaveNew = () => {
+    if (!newF.name.trim() || !newF.phone.trim()) return;
+    const newPat = {
+      id:          'P' + Date.now().toString().slice(-6),
+      name:        newF.name.trim(),
+      phone:       newF.phone.trim(),
+      email:       newF.email.trim(),
+      dob:         newF.dob || '',
+      sex:         newF.sex || '',
+      bloodType:   newF.bloodType || '',
+      allergies:   newF.allergies || '',
+      occupation:  newF.occupation.trim(),
+      maritalStatus: newF.maritalStatus || '',
+      address:     newF.address || '',
+      balance:     0,
+      teeth:       {},
+      attachments: [],
+      history:     [],
+      lastVisit:   localToday(),
+      photoDataUrl: newF.photoDataUrl || '',
+      photoFileId:  '',
+    };
+    // Add to our internal list immediately (instant availability)
+    setInternalPatients(prev => [newPat, ...prev]);
+    // Notify parent to persist in global patients state
+    onNewPatient && onNewPatient(newPat);
+    setQuery(newPat.name); setNewMode(false); setDirty(false); setOpen(false);
+  };
+
+  return h('div', {ref:wrapRef, className:'psi-wrap'},
+    // ── Search input ──────────────────────────────────────────────────
+    h('div', {className:'psi-input-row'},
+      isSelected && value && h('div', {className:'psi-selected-dot', title:'Patient selected'}),
       h('input', {
-        ref: inputRef,
-        type: 'text',
-        className: 'psi-input' + (isSelected ? ' psi-selected' : ''),
+        ref: inputRef, type:'text',
+        className: 'psi-input' + (isSelected?' psi-selected':''),
         value: query,
         placeholder: placeholder || (required ? 'Search patient name, phone… *' : 'Search patient name or phone…'),
         onChange: handleInput,
         onFocus: () => { setOpen(true); setHiIdx(0); },
         onKeyDown: handleKeyDown,
-        autoComplete: 'off',
-        spellCheck: false,
+        autoComplete: 'off', spellCheck: false,
       }),
-      // Clear button
-      query && h('button', {
-        type: 'button',
-        className: 'psi-clear',
-        onClick: () => {
-          setQuery('');
-          setDirty(false);
-          setOpen(false);
-          onSelect && onSelect(null);
-          inputRef.current && inputRef.current.focus();
-        },
-        tabIndex: -1,
-      }, '✕'),
-      // Search icon
-      !query && h('span', { className: 'psi-icon' }, '🔍')
+      query && h('button', {type:'button', className:'psi-clear',
+        onClick:()=>{ setQuery(''); setDirty(false); setOpen(false); setNewMode(false);
+          onSelect&&onSelect(null); inputRef.current&&inputRef.current.focus(); }, tabIndex:-1},'✕'),
+      !query && h('span', {className:'psi-icon'}, '🔍')
     ),
 
-    // Dropdown list
-    open && h('div', { ref: listRef, className: 'psi-dropdown' },
-      filtered.length === 0
-        ? h('div', { className: 'psi-empty' },
-            h('div', { style: { fontSize: 13, color: 'var(--md)', padding: '10px 12px' } },
-              q
-                ? '🔍 No patient found for "' + q + '"'
-                : 'Start typing to search…'
-            )
-          )
-        : filtered.map((p, i) =>
-            h('div', {
-              key: p.id,
-              className: 'psi-item' + (i === hiIdx ? ' psi-hi' : ''),
-              onMouseEnter: () => setHiIdx(i),
-              onMouseDown: (e) => { e.preventDefault(); handleSelect(p); },
-            },
-              // Avatar
-              h('div', {
-                className: 'psi-avatar',
-                style: { background: avatarColor(p.name) }
-              }, initials(p.name)),
-              // Info
-              h('div', { className: 'psi-info' },
-                h('div', { className: 'psi-name' },
-                  // Highlight matched part
-                  q ? highlightMatch(p.name, q) : p.name
-                ),
-                h('div', { className: 'psi-sub' },
-                  S(p.phone) || S(p.id),
-                  p.lastVisit && p.lastVisit !== '—' && ' · Last: ' + p.lastVisit
-                )
-              ),
-              // Balance badge
-              (p.balance && p.balance > 0) && h('div', { className: 'psi-badge-bal' },
-                '₱' + p$(p.balance)
-              )
-            )
+    // ── Dropdown ──────────────────────────────────────────────────────
+    open && !newMode && h('div', {ref:listRef, className:'psi-dropdown'},
+      filtered.length === 0 && !noMatch && h('div', {className:'psi-empty'},
+        h('div', {style:{fontSize:13,color:'var(--md)',padding:'10px 12px'}}, 'Start typing to search patients…')
+      ),
+      filtered.map((p, i) => h('div', {
+        key:p.id, className:'psi-item'+(i===hiIdx?' psi-hi':''),
+        onMouseEnter:()=>setHiIdx(i),
+        onMouseDown:(e)=>{e.preventDefault(); handleSelect(p);}
+      },
+        h('div', {className:'psi-avatar', style:{background:avatarColor(p.name)}}, initials(p.name)),
+        h('div', {className:'psi-info'},
+          h('div', {className:'psi-name'},
+            (() => {
+              if (!q) return p.name;
+              const name = S(p.name);
+              const lo   = name.toLowerCase();
+              const si   = lo.indexOf(q);
+              if (si === -1) return name;
+              return h('span', null,
+                name.slice(0, si),
+                h('mark', {style:{background:'#fef08a',borderRadius:2,padding:'0 1px'}}, name.slice(si, si+q.length)),
+                name.slice(si+q.length)
+              );
+            })()
           ),
-      // Total count hint
-      filtered.length > 0 && h('div', { className: 'psi-footer' },
-        filtered.length < patients.filter(p =>
-          !q || S(p.name).toLowerCase().includes(q) ||
-          S(p.phone).includes(q)
-        ).length
-          ? (patients.filter(p => S(p.name).toLowerCase().includes(q)||S(p.phone).includes(q)).length - filtered.length) + ' more — keep typing to narrow'
-          : filtered.length + ' patient' + (filtered.length !== 1 ? 's' : '')
+          h('div', {className:'psi-sub'},
+            h('span', null, S(p.phone)||S(p.id)),
+            p.dob && h('span', null, ' · Age '+(new Date().getFullYear()-new Date(p.dob).getFullYear())),
+            p.bloodType && h('span', {style:{marginLeft:6,background:'#fee2e2',color:'#991b1b',borderRadius:4,padding:'0 5px',fontSize:10,fontWeight:700}}, p.bloodType),
+            p.allergies && h('span', {style:{marginLeft:4,background:'#fef3c7',color:'#92400e',borderRadius:4,padding:'0 5px',fontSize:10}}, '⚠ '+S(p.allergies).slice(0,20))
+          )
+        ),
+        p.balance > 0 && h('div', {className:'psi-badge-bal'}, '₱'+p$(p.balance))
+      )),
+
+      // ── "Add as new patient" option ──────────────────────────────────
+      noMatch && h('div', {className:'psi-new-option',
+        onMouseDown:(e)=>{e.preventDefault(); setOpen(false); setNewMode(true);
+          setNewF({name:query.trim(),phone:'',email:'',dob:'',sex:'',bloodType:'',allergies:'',occupation:'',maritalStatus:'',address:'',photoDataUrl:''}); }
+      },
+        h('div', {className:'psi-new-icon'}, '➕'),
+        h('div', {className:'psi-new-text'},
+          h('div', {style:{fontWeight:700,fontSize:13}}, 'Add "'+query+'" as new patient'),
+          h('div', {style:{fontSize:11,color:'var(--md)'}}, 'Create a quick profile and continue booking')
+        )
+      ),
+      filtered.length > 0 && h('div', {className:'psi-footer'},
+        filtered.length+' patient'+(filtered.length!==1?'s':'')+' found',
+        noMatch && ' · No exact match'
       )
+    ),
+
+    // ── New patient inline panel ──────────────────────────────────────
+    newMode && h('div', {className:'psi-new-panel'},
+      h('div', {className:'psi-new-header'},
+        h('div', {style:{fontWeight:700,fontSize:14,color:'var(--dk)'}}, '➕ New Patient'),
+        h('div', {style:{fontSize:11,color:'var(--md)'}}, 'Fill required fields · photo is optional'),
+        h('button', {type:'button', className:'btn bgh bsm',
+          onClick:()=>{setNewMode(false); setQuery(''); onSelect&&onSelect(null);}}, '✕ Cancel')
+      ),
+
+      // Photo capture row
+      h('div', {className:'psi-new-photo-row'},
+        newF.photoDataUrl
+          ? h('div', {className:'psi-new-photo-preview'},
+              h('img', {src:newF.photoDataUrl, alt:'Patient photo', className:'psi-new-photo-img'}),
+              h('button', {type:'button', className:'psi-new-photo-del', onClick:()=>setNewF(x=>({...x,photoDataUrl:''}))}, '✕')
+            )
+          : h('div', {className:'psi-new-photo-placeholder'}, '👤'),
+        h('div', {className:'psi-new-photo-btns'},
+          h('button', {type:'button', className:'btn bg2 bsm', onClick:openCam}, '📷 Take Photo'),
+          h('label', {className:'btn bgh bsm', style:{cursor:'pointer'}},
+            '🖼 Upload Photo',
+            h('input', {type:'file', accept:'image/*', style:{display:'none'}, onChange:pickPhoto})
+          )
+        )
+      ),
+
+      // Camera modal
+      camOpen && h('div', {className:'psi-cam-wrap'},
+        h('video', {ref:videoRef, autoPlay:true, playsInline:true, className:'psi-cam-video'}),
+        h('canvas', {ref:canvasRef, style:{display:'none'}}),
+        h('div', {className:'psi-cam-btns'},
+          h('button', {type:'button', className:'btn bp', onClick:captureCam}, '📸 Capture'),
+          h('button', {type:'button', className:'btn bgh', onClick:closeCam}, '✕ Close')
+        )
+      ),
+
+      // ── SECTION 1: Identity (required) ─────────────────────────────────
+      h('div', {className:'fg2',style:{marginTop:10}},
+        h(Field, {label:'Full Name *'},
+          h('input', {value:newF.name, placeholder:'Juan dela Cruz',
+            onChange:e=>setNewF(x=>({...x,name:e.target.value})), autoFocus:true})
+        ),
+        h(Field, {label:'Phone *'},
+          h('input', {value:newF.phone, placeholder:'09171234567',
+            onChange:e=>setNewF(x=>({...x,phone:e.target.value}))})
+        )
+      ),
+      // ── SECTION 2: Contact ───────────────────────────────────────────────
+      h('div', {className:'fg2'},
+        h(Field, {label:'Email'},
+          h('input', {type:'email', value:newF.email, placeholder:'patient@email.com',
+            onChange:e=>setNewF(x=>({...x,email:e.target.value}))})
+        ),
+        h(Field, {label:'Date of Birth'},
+          h('input', {type:'date', value:newF.dob, onChange:e=>setNewF(x=>({...x,dob:e.target.value}))})
+        )
+      ),
+      // ── SECTION 3: Demographics ──────────────────────────────────────────
+      h('div', {className:'fg2'},
+        h(Field, {label:'Sex'},
+          h('select', {value:newF.sex, onChange:e=>setNewF(x=>({...x,sex:e.target.value}))},
+            h('option',{value:''},'— Select —'),
+            h('option',{value:'Female'},'Female'),
+            h('option',{value:'Male'},'Male')
+          )
+        ),
+        h(Field, {label:'Marital Status'},
+          h('select', {value:newF.maritalStatus, onChange:e=>setNewF(x=>({...x,maritalStatus:e.target.value}))},
+            h('option',{value:''},'— Select —'),
+            ['Single','Married','Widowed','Separated','Divorced'].map(ms=>h('option',{key:ms,value:ms},ms))
+          )
+        )
+      ),
+      // ── SECTION 4: Occupation & Medical ─────────────────────────────────
+      h('div', {className:'fg2'},
+        h(Field, {label:'Occupation'},
+          h('input', {value:newF.occupation, placeholder:'e.g. Teacher, Nurse, Engineer…',
+            onChange:e=>setNewF(x=>({...x,occupation:e.target.value}))})
+        ),
+        h(Field, {label:'Blood Type'},
+          h('select', {value:newF.bloodType, onChange:e=>setNewF(x=>({...x,bloodType:e.target.value}))},
+            h('option',{value:''},'Unknown'),
+            ['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bt=>h('option',{key:bt,value:bt},bt))
+          )
+        )
+      ),
+      h(Field, {label:'Allergies'},
+        h('input', {value:newF.allergies, placeholder:'e.g. Penicillin, latex — or "None"',
+          onChange:e=>setNewF(x=>({...x,allergies:e.target.value}))})
+      ),
+      h(Field, {label:'Address'},
+        h('input', {value:newF.address, placeholder:'Street, City',
+          onChange:e=>setNewF(x=>({...x,address:e.target.value}))})
+      ),
+
+      h('button', {
+        type:'button', className:'btn bp', style:{width:'100%',marginTop:8},
+        onClick:handleSaveNew,
+        disabled: !newF.name.trim() || !newF.phone.trim()
+      }, '✅ Save New Patient & Continue')
     )
   );
 }
 
-/**
- * Highlight the matching substring in a patient name.
- */
+
 function highlightMatch(text, query) {
   if (!query || !text) return text;
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
@@ -9341,10 +9543,38 @@ function highlightMatch(text, query) {
 }
 
 
-function ApptForm({patients,appointments,onClose,onSave}){
-  const [f,setF]=useState({patientId:'',patientName:'',service:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:'',fee:'',phone:'',email:''});
+function ApptForm({patients,appointments,onClose,onSave,onAddPatient}){
+  const [f,setF]=useState({patientId:'',patientName:'',service:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:'',fee:'',phone:'',email:'',attachments:[]});
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  // localPatients is managed inside PSI component now
+
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
-  const hp=id=>{const p=patients.find(x=>x.id===id);s('patientId',id);s('patientName',p?p.name:'');s('phone',p?p.phone:'');s('email',p?p.email:'');};
+
+  // Auto-fill ALL patient fields when a patient is selected
+  const selectPatient = (p) => {
+    if (!p) {
+      setSelectedPatient(null);
+      setF(x=>({...x,patientId:'',patientName:'',phone:'',email:''}));
+      return;
+    }
+    setSelectedPatient(p);
+    setF(x=>({
+      ...x,
+      patientId:   p.id,
+      patientName: p.name,
+      phone:       S(p.phone),
+      email:       S(p.email),
+    }));
+  };
+
+  // Handle new patient created inline
+  const handleNewPatient = (newPat) => {
+    // PSI owns internal list (setInternalPatients called in handleSaveNew)
+    // Notify parent to persist
+    onAddPatient && onAddPatient(newPat);
+    // Select them
+    selectPatient(newPat);
+  };
   const hsv=n=>{const sv=SVCS.find(x=>x.name===n);s('service',n);if(sv)s('fee',sv.fee);};
 
   const check = (f.date && f.time && f.service)
@@ -9367,20 +9597,37 @@ function ApptForm({patients,appointments,onClose,onSave}){
       h(PatientSearchInput, {
         patients: patients,
         value: f.patientName,
-        placeholder: 'Type patient name or phone number…',
+        placeholder: 'Search by name or phone — or type new name to add…',
         required: true,
-        onSelect: (p) => {
-          if (p) {
-            s('patientId',   p.id);
-            s('patientName', p.name);
-            s('phone',       p.phone || '');
-            s('email',       p.email || '');
-          } else {
-            s('patientId', '');
-            s('patientName', '');
-          }
-        }
+        onSelect: selectPatient,
+        onNewPatient: handleNewPatient,
       })
+    ),
+    // Selected patient quick-info card
+    selectedPatient && h('div', {className:'appt-patient-card'},
+      selectedPatient.photoDataUrl
+        ? h('img', {src:selectedPatient.photoDataUrl, alt:selectedPatient.name, className:'appt-patient-photo'})
+        : h('div', {className:'appt-patient-avatar',
+            style:{background:'#0a7c6e',color:'#fff',width:40,height:40,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:14}},
+            S(selectedPatient.name).split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()
+          ),
+      h('div', {className:'appt-patient-info'},
+        h('div', {style:{fontWeight:700,fontSize:14,color:'var(--dk)'}}, selectedPatient.name),
+        h('div', {style:{fontSize:12,color:'var(--md)',marginTop:2}},
+          S(selectedPatient.phone),
+          selectedPatient.dob && ' · Age '+(new Date().getFullYear()-new Date(selectedPatient.dob).getFullYear()),
+          selectedPatient.bloodType && h('span',{style:{marginLeft:6,background:'#fee2e2',color:'#991b1b',borderRadius:4,padding:'0 4px',fontSize:11,fontWeight:700}}, selectedPatient.bloodType)
+        ),
+        selectedPatient.allergies && h('div',{style:{fontSize:11,color:'#92400e',marginTop:2}},
+          '⚠ Allergies: '+selectedPatient.allergies
+        ),
+        selectedPatient.lastVisit && selectedPatient.lastVisit !== '—' && h('div',{style:{fontSize:11,color:'var(--md)',marginTop:1}},
+          'Last visit: '+selectedPatient.lastVisit
+        )
+      ),
+      h('div',{style:{marginLeft:'auto',fontSize:11,color:'var(--t)',fontWeight:600,background:'var(--tp)',padding:'2px 8px',borderRadius:20}},
+        selectedPatient.id
+      )
     ),
     h('div',{className:'fg2'},
       h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>hsv(e.target.value)},h('option',{value:''},'Select…'),Object.entries(SVCS_BY_CAT).map(([cat, svcs]) =>
@@ -9708,7 +9955,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
       )
     ),
 
-    modal&&h(ApptForm,{patients,appointments,onClose:()=>setModal(false),onSave:d=>{
+    modal&&h(ApptForm,{patients,appointments,onClose:()=>setModal(false),onAddPatient:(np)=>{if(setPatients)setPatients(prev=>[np,...prev.filter(x=>x.id!==np.id)]);},onSave:d=>{
       const status = autoConfirmEnabled() ? 'confirmed' : 'pending';
       const newAppt = {...d,id:'A'+uid(),status,arrived:false};
       setAppointments(p=>[newAppt,...p]);
@@ -10234,7 +10481,30 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
         )
       )
     )
-  );
+  ,
+      h('div',{className:'card',style:{marginTop:8}},
+        h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
+          h('div',{style:{fontWeight:700,fontSize:14}},'💾 Local Cache'),
+          h('div',{style:{display:'flex',gap:6}},
+            h('button',{className:'btn bg2 bsm',onClick:()=>{
+              const ks=['cyrabell_v2_patients','cyrabell_v2_appointments','cyrabell_v2_payments',
+                        'cyrabell_v2_notifications','cyrabell_v2_reminders','cyrabell_v2_reminderLog'];
+              addToast('Cache: '+ks.map(k=>{try{const v=localStorage.getItem(k);return k.replace('cyrabell_v2_','')+':'+(v?Math.round(v.length/1024)+'KB':'0');}catch(e){return '';}}).join(' '),  'info');
+            }},'📊 Size'),
+            h('button',{className:'btn bd2 bsm',onClick:()=>{
+              if(!confirm('Clear local cache? Demo data will show until you log in again. Google Sheets is unaffected.')) return;
+              ['cyrabell_v2_patients','cyrabell_v2_appointments','cyrabell_v2_payments',
+               'cyrabell_v2_notifications','cyrabell_v2_reminders','cyrabell_v2_reminderLog']
+                .forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
+              addToast('Cache cleared','info');
+            }},'🗑 Clear')
+          )
+        ),
+        h('div',{style:{fontSize:12,color:'var(--md)',lineHeight:1.7}},
+          'All data (including attachments and images) is saved here automatically every 500ms. ',
+          'Data persists across page refreshes without needing Google Sheets sync.'
+        )
+      ));
 }
 
 
@@ -10347,112 +10617,385 @@ function Analytics({appointments,payments,patients}){
 }
 
 // ─── PUBLIC BOOKING (unchanged) ───────────────────────────────────────────────
-function PublicBooking({onBook,onBack,existingAppointments}){
-  const [step,setStep]=useState(1);
-  const [form,setForm]=useState({name:'',dob:'',phone:'',email:'',address:'',bloodType:'O+',service:'',date:'',time:'09:00',notes:'',dentist:'Dr. Arnold Colao'});
-  const [done,setDone]=useState(null);
-  const s=(k,v)=>setForm(f=>({...f,[k]:v}));
-  const submit=()=>{
-    // Validate required fields
-    if (!form.name || !form.phone) {
-      alert('Please enter your name and phone number.');
-      return;
-    }
-    if (!form.service || !form.date || !form.time) {
-      alert('Please select a service, date, and time.');
-      return;
-    }
-    // Re-check availability before submission (prevent race conditions)
-    const check = checkAvailability(existingAppointments||[], form.date, form.time, form.service);
-    if (!check.available) {
-      alert('This time slot is no longer available: ' + check.message + '\n\nPlease select a different time.');
-      return;
-    }
-    const svc=SVCS.find(x=>x.name===form.service);
-    const a={...form,id:'A'+uid(),patientId:'P'+uid(),patientName:form.name,status:'pending',fee:svc?svc.fee:0,arrived:false};
-    onBook(a,form);setDone(a);
+
+function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPatient}) {
+  const [step, setStep]  = useState(1);
+  const [done, setDone]  = useState(null);
+  const [err,  setErr]   = useState('');
+
+  // ── Patient state ────────────────────────────────────────────────────
+  // Either a selected existing patient OR null (new/anonymous)
+  const [selectedPat, setSelectedPat] = useState(null);
+  // Personal info form fields (pre-filled from patient or typed fresh)
+  const [info, setInfo] = useState({
+    name:'', phone:'', email:'', dob:'', sex:'', bloodType:'O+',
+    allergies:'', occupation:'', maritalStatus:'', address:'',
+    photoDataUrl:'',
+  });
+  const si = (k,v) => setInfo(x=>({...x,[k]:v}));
+
+  // ── Service + Schedule state ─────────────────────────────────────────
+  const [sched, setSched] = useState({
+    service:'', fee:'', date:'', time:'09:00',
+    dentist:'Dr. Arnold Colao', notes:'',
+  });
+  const ss = (k,v) => setSched(x=>({...x,[k]:v}));
+  const setSvc = (name) => {
+    const sv = SVCS.find(x=>x.name===name);
+    setSched(x=>({...x, service:name, fee:sv?sv.fee:''}));
   };
-  const Logo=()=>h('div',{className:'pwh'},
-    h('div',{className:'pwli'},h('div',{className:'pwlic'},h(Svg,{d:IC.tooth,color:'white',size:24})),h('div',{className:'pwn'},'Cyrabell Dental')),
+
+  // ── Patient selection → auto-fill info ───────────────────────────────
+  const handleSelectPatient = (p) => {
+    setSelectedPat(p);
+    if (p) {
+      setInfo({
+        name:        S(p.name),
+        phone:       S(p.phone),
+        email:       S(p.email),
+        dob:         S(p.dob),
+        sex:         S(p.sex),
+        bloodType:   S(p.bloodType)||'O+',
+        allergies:   S(p.allergies),
+        occupation:  S(p.occupation),
+        maritalStatus: S(p.maritalStatus),
+        address:     S(p.address),
+        photoDataUrl: S(p.photoDataUrl),
+      });
+    } else {
+      setInfo({name:'',phone:'',email:'',dob:'',sex:'',bloodType:'O+',
+               allergies:'',occupation:'',maritalStatus:'',address:'',photoDataUrl:''});
+    }
+  };
+
+  // ── Submit ────────────────────────────────────────────────────────────
+  const submit = () => {
+    setErr('');
+    if (!info.name.trim() || !info.phone.trim()) { setErr('Name and phone number are required.'); return; }
+    if (!sched.service || !sched.date || !sched.time) { setErr('Please select a service, date, and time slot.'); return; }
+    const check = checkAvailability(existingAppointments||[], sched.date, sched.time, sched.service);
+    if (!check.available) { setErr('This slot is no longer available: '+check.message+'. Please pick another.'); return; }
+    const patientId = selectedPat ? selectedPat.id : ('P'+uid());
+    const appt = {
+      ...sched,
+      id:          'A'+uid(),
+      patientId,
+      patientName: info.name.trim(),
+      status:      'pending',
+      arrived:     false,
+    };
+    // If new patient, save to records
+    if (!selectedPat && onAddPatient) {
+      const newPat = {
+        id: patientId, name:info.name.trim(), phone:info.phone.trim(),
+        email:info.email, dob:info.dob, sex:info.sex,
+        bloodType:info.bloodType, allergies:info.allergies,
+        occupation:info.occupation, maritalStatus:info.maritalStatus,
+        address:info.address, photoDataUrl:info.photoDataUrl,
+        balance:0, lastVisit:localToday(),
+        teeth:{}, attachments:[], history:[], photoFileId:'',
+      };
+      onAddPatient(newPat);
+    }
+    onBook(appt, info);
+    setDone(appt);
+  };
+
+  // ── UI Helpers ────────────────────────────────────────────────────────
+  const Logo = () => h('div',{className:'pwh'},
+    h('div',{className:'pwli'},
+      h('div',{className:'pwlic'}, h(Svg,{d:IC.tooth,color:'white',size:24})),
+      h('div',{className:'pwn'},'Cyrabell Dental')
+    ),
     h('div',{className:'pwt'},'Your Smile, Our Passion')
   );
-  const BackBtn=()=>h('div',{style:{position:'fixed',top:14,right:14,zIndex:10}},
+  const BackBtn = () => h('div',{style:{position:'fixed',top:14,right:14,zIndex:10}},
     h('button',{className:'btn bp',onClick:onBack,style:{fontSize:12,padding:'7px 12px'}},'← Back')
   );
-  if(done) return h('div',{className:'pw'},h(BackBtn),h(Logo),h('div',{className:'pwc'},
-    h('div',{className:'pwsuc'},
-      h('div',{className:'pwck'},h(Svg,{d:IC.check,color:'white',size:28})),
-      h('h2',{style:{fontFamily:"'Playfair Display',serif",fontSize:20,marginBottom:8}},'Appointment Booked!'),
-      h('p',{style:{color:'var(--md)',fontSize:13,marginBottom:18,lineHeight:1.6}},'Our team will confirm shortly.'),
-      h('div',{className:'rc',style:{textAlign:'left',marginBottom:16}},
-        h('div',{className:'rh'},h('div',{className:'rl'},'🦷 Summary')),
-        [['Patient',done.name],['Service',done.service],['Date',done.date],['Time',done.time],['Dentist',done.dentist],['Est. Fee','₱'+p$(done.fee)]].map(([l,v])=>h('div',{key:l,className:'rr'},h('span',{className:'rr-l'},l),h('span',{className:'rr-v'},v)))
+  const Steps = () => h('div',{className:'pws'},
+    ['Personal','Service & Schedule','Review'].map((lbl,i) => h(Fragment,{key:i},
+      h('span',{className:'pwsi '+(step>i+1?'done':step===i+1?'curr':'todo')},
+        (step>i+1?'✓':i+1)+' '+lbl
       ),
-      h('button',{className:'btn bs',style:{width:'100%'},onClick:()=>setDone(null)},'Book Another Appointment')
-    )
-  ));
-  const Steps=()=>h('div',{className:'pws'},
-    ['Personal','Service','Review'].map((lbl,i)=>h(Fragment,{key:i},
-      h('span',{className:'pwsi '+(step>i+1?'done':step===i+1?'curr':'todo')},(step>i+1?'✓':i+1)+' '+lbl),
-      i<2&&h('div',{className:'pwsl'})
+      i<2 && h('div',{className:'pwsl'})
     ))
   );
-  return h('div',{className:'pw'},h(BackBtn),h(Logo),h('div',{className:'pwc'},h(Steps),
-    step===1&&h('div',null,
-      h('div',{style:{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,marginBottom:16}},'Personal Information'),
-      h(Field,{label:'Full Name *'},h('input',{value:form.name,onChange:e=>s('name',e.target.value),placeholder:'Juan dela Cruz'})),
-      h('div',{className:'fg2'},
-        h(Field,{label:'Date of Birth'},h('input',{type:'date',value:form.dob,onChange:e=>s('dob',e.target.value)})),
-        h(Field,{label:'Blood Type'},h('select',{value:form.bloodType,onChange:e=>s('bloodType',e.target.value)},BLOOD.map(b=>h('option',{key:b},b))))
+
+  // ── SUCCESS SCREEN ────────────────────────────────────────────────────
+  if (done) return h('div',{className:'pw'},
+    h(BackBtn),h(Logo),
+    h('div',{className:'pwc'},
+      h('div',{className:'pwsuc'},
+        h('div',{className:'pwck'}, h(Svg,{d:IC.check,color:'white',size:28})),
+        h('h2',{style:{fontFamily:"'Playfair Display',serif",fontSize:20,marginBottom:8}}, 'Appointment Requested!'),
+        h('p',{style:{color:'var(--md)',fontSize:13,marginBottom:18,lineHeight:1.6}},
+          'Thank you, '+done.patientName+'! Our team will confirm your booking shortly.'
+        ),
+        h('div',{className:'rc',style:{textAlign:'left',marginBottom:16}},
+          h('div',{className:'rh'}, h('div',{className:'rl'},'🦷 Booking Summary')),
+          [
+            ['Patient',   done.patientName],
+            ['Service',   done.service],
+            ['Date',      done.date],
+            ['Time',      done.time],
+            ['Dentist',   done.dentist],
+            ['Est. Fee',  '₱'+p$(done.fee||0)],
+          ].map(([l,v]) => h('div',{key:l,className:'rr'},
+            h('span',{className:'rr-l'},l),
+            h('span',{className:'rr-v'},v)
+          ))
+        ),
+        h('button',{className:'btn bs',style:{width:'100%'},
+          onClick:()=>{ setDone(null); setStep(1); setSelectedPat(null);
+            setInfo({name:'',phone:'',email:'',dob:'',sex:'',bloodType:'O+',allergies:'',occupation:'',maritalStatus:'',address:'',photoDataUrl:''});
+            setSched({service:'',fee:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:''});
+          }
+        },'Book Another Appointment')
+      )
+    )
+  );
+
+  return h('div',{className:'pw'}, h(BackBtn), h(Logo),
+    h('div',{className:'pwc'}, h(Steps),
+
+    // ══════════════════════════════════════════════════════════════════
+    // STEP 1 — PERSONAL INFORMATION
+    // ══════════════════════════════════════════════════════════════════
+    step===1 && h('div',null,
+      h('div',{style:{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,marginBottom:4}},
+        'Personal Information'
       ),
-      h('div',{className:'fg2'},
-        h(Field,{label:'Phone *'},h('input',{type:'tel',value:form.phone,onChange:e=>s('phone',e.target.value),placeholder:'09XXXXXXXXX'})),
-        h(Field,{label:'Email'},h('input',{type:'email',value:form.email,onChange:e=>s('email',e.target.value),placeholder:'email@example.com'}))
+      h('div',{style:{fontSize:12,color:'var(--md)',marginBottom:16}},
+        'Already a patient? Search your name below to auto-fill your details.'
       ),
-      h(Field,{label:'Address'},h('input',{value:form.address,onChange:e=>s('address',e.target.value),placeholder:'Street, City'})),
-      h('button',{className:'btn bp',style:{width:'100%',marginTop:16},onClick:()=>form.name&&form.phone&&setStep(2),disabled:!form.name||!form.phone},'Next →')
-    ),
-    step===2&&h('div',null,
-      h('div',{style:{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,marginBottom:16}},'Service & Schedule'),
-      h('div',{className:'fg',style:{marginBottom:12}},h('label',null,'Select Service *'),h('div',{className:'svcg'},SVCS.map(sv=>h('div',{key:sv.name,className:'svcc'+(form.service===sv.name?' sel':''),onClick:()=>s('service',sv.name)},h('div',{className:'svcn'},sv.name),h('div',{className:'svcf'},'₱'+p$(sv.fee)))))),
-      h('div',{className:'fg2'},
-        h(Field,{label:'Date *'},h('input',{type:'date',value:form.date,onChange:e=>s('date',e.target.value),min:localToday()})),
-        h(Field,{label:'Dentist'},h('select',{value:form.dentist,onChange:e=>s('dentist',e.target.value)},DENTISTS.map(d=>h('option',{key:d},d))))
-      ),
-      h('div',{className:'fg',style:{marginBottom:12}},
-        h('label',null,'Time'+(form.service?' · '+(SERVICE_DURATIONS[form.service]||DEFAULT_SLOT_MIN)+' min slot':'')),
-        h(TimeSlotGrid,{
-          appointments: existingAppointments || [],
-          selectedDate: form.date,
-          selectedService: form.service,
-          selectedTime: form.time,
-          onTimeChange: (t) => s('time', t)
+
+      // ── Smart patient search ─────────────────────────────────────────
+      h(Field,{label:'Search or Enter Your Name *'},
+        h(PatientSearchInput,{
+          patients:  safe(patients),
+          value:     info.name,
+          placeholder: 'Type your name or phone to search…',
+          required:  true,
+          onSelect:  handleSelectPatient,
+          onNewPatient: (np) => {
+            onAddPatient && onAddPatient(np);
+            handleSelectPatient(np);
+          },
         })
       ),
-      // Public booking availability banner
-      form.date && form.time && form.service && h(AvailabilityBanner, {
-        appointments: existingAppointments || [],
-        date: form.date, time: form.time, service: form.service
+
+      // ── Show patient badge if found ──────────────────────────────────
+      selectedPat && h('div',{style:{
+        display:'flex',alignItems:'center',gap:10,padding:'8px 12px',
+        background:'linear-gradient(135deg,rgba(10,124,110,.08),rgba(10,124,110,.02))',
+        border:'1.5px solid rgba(10,124,110,.25)',borderRadius:10,marginBottom:12,
+      }},
+        h('div',{style:{width:36,height:36,borderRadius:8,background:'var(--t)',color:'#fff',
+          display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,flexShrink:0}},
+          S(selectedPat.name).split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()
+        ),
+        h('div',{style:{flex:1}},
+          h('div',{style:{fontWeight:700,fontSize:13,color:'var(--dk)'}},
+            '✅ Welcome back, '+selectedPat.name+'!'
+          ),
+          h('div',{style:{fontSize:11,color:'var(--md)',marginTop:1}},
+            'Your details have been pre-filled below. Please review and update if needed.'
+          )
+        )
+      ),
+
+      // ── Personal fields ──────────────────────────────────────────────
+      h('div',{className:'fg2'},
+        h(Field,{label:'Phone *'},
+          h('input',{type:'tel',value:info.phone,placeholder:'09XXXXXXXXX',
+            onChange:e=>si('phone',e.target.value)})
+        ),
+        h(Field,{label:'Email'},
+          h('input',{type:'email',value:info.email,placeholder:'email@example.com',
+            onChange:e=>si('email',e.target.value)})
+        )
+      ),
+      h('div',{className:'fg2'},
+        h(Field,{label:'Date of Birth'},
+          h('input',{type:'date',value:info.dob,onChange:e=>si('dob',e.target.value)})
+        ),
+        h(Field,{label:'Sex'},
+          h('select',{value:info.sex,onChange:e=>si('sex',e.target.value)},
+            h('option',{value:''},'— Select —'),
+            h('option',{value:'Female'},'Female'),
+            h('option',{value:'Male'},'Male')
+          )
+        )
+      ),
+      h('div',{className:'fg2'},
+        h(Field,{label:'Marital Status'},
+          h('select',{value:info.maritalStatus,onChange:e=>si('maritalStatus',e.target.value)},
+            h('option',{value:''},'— Select —'),
+            ['Single','Married','Widowed','Separated','Divorced'].map(ms=>h('option',{key:ms,value:ms},ms))
+          )
+        ),
+        h(Field,{label:'Blood Type'},
+          h('select',{value:info.bloodType,onChange:e=>si('bloodType',e.target.value)},
+            BLOOD.map(b=>h('option',{key:b,value:b},b))
+          )
+        )
+      ),
+      h(Field,{label:'Occupation'},
+        h('input',{value:info.occupation,placeholder:'e.g. Teacher, Nurse, Engineer…',
+          onChange:e=>si('occupation',e.target.value)})
+      ),
+      h(Field,{label:'Allergies'},
+        h('input',{value:info.allergies,placeholder:'e.g. Penicillin, latex — or "None"',
+          onChange:e=>si('allergies',e.target.value)})
+      ),
+      h(Field,{label:'Address'},
+        h('input',{value:info.address,placeholder:'Street, City',
+          onChange:e=>si('address',e.target.value)})
+      ),
+
+      err && h('div',{style:{color:'#dc2626',fontSize:12,marginTop:8,padding:'8px 10px',background:'#fef2f2',borderRadius:8}}, err),
+      h('button',{className:'btn bp',style:{width:'100%',marginTop:16},
+        onClick:()=>{ if (!info.name.trim()||!info.phone.trim()){setErr('Name and phone are required.');return;} setErr(''); setStep(2); },
+        disabled:!info.name.trim()||!info.phone.trim()
+      },'Next: Select Service →')
+    ),
+
+    // ══════════════════════════════════════════════════════════════════
+    // STEP 2 — SERVICE & SCHEDULE
+    // ══════════════════════════════════════════════════════════════════
+    step===2 && h('div',null,
+      h('div',{style:{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,marginBottom:16}},
+        'Service & Schedule'
+      ),
+
+      // ── Service selector (grouped by category, same as ApptForm) ────
+      h('div',{className:'fg2'},
+        h(Field,{label:'Select Service *'},
+          h('select',{
+            value: sched.service,
+            onChange: e => setSvc(e.target.value),
+            style:{fontSize:14},
+          },
+            h('option',{value:''},'— Choose a service —'),
+            Object.entries(SVCS_BY_CAT).map(([cat, svcs]) =>
+              h('optgroup',{key:cat, label:cat},
+                svcs.map(sv => h('option',{key:sv.name, value:sv.name},
+                  sv.name + ' — ₱' + p$(sv.fee)
+                ))
+              )
+            )
+          )
+        ),
+        h(Field,{label:'Est. Fee (₱)'},
+          h('input',{
+            type:'number', value:sched.fee, readOnly:false,
+            placeholder:'Auto-filled from service',
+            onChange:e=>ss('fee',+e.target.value),
+            style:{background:'var(--cr)'},
+          })
+        )
+      ),
+
+      // ── Service info card (shows when service selected) ─────────────
+      sched.service && h('div',{style:{
+        padding:'10px 14px',background:'var(--tp)',border:'1.5px solid rgba(10,124,110,.2)',
+        borderRadius:10,marginBottom:12,fontSize:13,
+      }},
+        h('span',{style:{fontWeight:700,color:'var(--t)'}}, sched.service),
+        h('span',{style:{color:'var(--md)',marginLeft:8}},
+          '₱'+p$(sched.fee||0) + ' · ' + (SERVICE_DURATIONS[sched.service]||DEFAULT_SLOT_MIN) + ' min'
+        )
+      ),
+
+      // ── Date + Dentist ──────────────────────────────────────────────
+      h('div',{className:'fg2'},
+        h(Field,{label:'Preferred Date *'},
+          h('input',{type:'date',value:sched.date,min:localToday(),
+            onChange:e=>ss('date',e.target.value)})
+        ),
+        h(Field,{label:'Dentist'},
+          h('select',{value:sched.dentist,onChange:e=>ss('dentist',e.target.value)},
+            DENTISTS.map(d=>h('option',{key:d},d))
+          )
+        )
+      ),
+
+      // ── Time Slot Grid ──────────────────────────────────────────────
+      sched.date && h('div',{style:{marginBottom:12}},
+        h('label',{style:{display:'block',fontWeight:600,fontSize:12,marginBottom:6,color:'var(--md)',textTransform:'uppercase',letterSpacing:'.5px'}},
+          'Available Time Slots'+(sched.service?' · '+(SERVICE_DURATIONS[sched.service]||DEFAULT_SLOT_MIN)+' min':'')
+        ),
+        h(TimeSlotGrid,{
+          appointments: existingAppointments || [],
+          selectedDate: sched.date,
+          selectedService: sched.service,
+          selectedTime: sched.time,
+          onTimeChange: t => ss('time',t),
+        })
+      ),
+
+      // ── Availability banner ─────────────────────────────────────────
+      sched.date && sched.time && sched.service && h(AvailabilityBanner,{
+        appointments: existingAppointments||[],
+        date:sched.date, time:sched.time, service:sched.service,
       }),
-      h(Field,{label:'Notes'},h('textarea',{value:form.notes,onChange:e=>s('notes',e.target.value),placeholder:'Concerns or requests…'})),
+
+      h(Field,{label:'Notes / Special Requests'},
+        h('textarea',{value:sched.notes,rows:3,
+          onChange:e=>ss('notes',e.target.value),
+          placeholder:'Any concerns, allergies, or special requests…',
+          style:{resize:'vertical'},
+        })
+      ),
+
+      err && h('div',{style:{color:'#dc2626',fontSize:12,padding:'8px 10px',background:'#fef2f2',borderRadius:8,marginBottom:8}},err),
       h('div',{style:{display:'flex',gap:10,marginTop:16}},
         h('button',{className:'btn bgh',style:{flex:1},onClick:()=>setStep(1)},'← Back'),
-        h('button',{className:'btn bp',style:{flex:2},onClick:()=>form.service&&form.date&&setStep(3),disabled:!form.service||!form.date},'Review →')
+        h('button',{className:'btn bp',style:{flex:2},
+          onClick:()=>{ if(!sched.service||!sched.date){setErr('Please select a service and date.');return;} setErr('');setStep(3); },
+          disabled:!sched.service||!sched.date
+        },'Review Booking →')
       )
     ),
-    step===3&&h('div',null,
-      h('div',{style:{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,marginBottom:16}},'Confirm Booking'),
-      h('div',{className:'rc',style:{marginBottom:16}},
-        h('div',{className:'rh'},h('div',{className:'rl'},'🦷 Cyrabell Dental')),
-        [['Patient',form.name],['Phone',form.phone],['Email',form.email||'—'],['Service',form.service],['Date',form.date],['Time',form.time],['Dentist',form.dentist],['Est. Fee','₱'+p$(SVCS.find(x=>x.name===form.service)?SVCS.find(x=>x.name===form.service).fee:0)]].map(([l,v])=>h('div',{key:l,className:'rr'},h('span',{className:'rr-l'},l),h('span',{className:'rr-v'},v)))
+
+    // ══════════════════════════════════════════════════════════════════
+    // STEP 3 — REVIEW & CONFIRM
+    // ══════════════════════════════════════════════════════════════════
+    step===3 && h('div',null,
+      h('div',{style:{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,marginBottom:16}},
+        'Review & Confirm'
       ),
+      h('div',{className:'rc',style:{marginBottom:16}},
+        h('div',{className:'rh'}, h('div',{className:'rl'},'🦷 Cyrabell Dental')),
+        [
+          ['Patient',      info.name],
+          ['Phone',        info.phone],
+          ['Email',        info.email||'—'],
+          ['Date of Birth',info.dob||'—'],
+          ['Blood Type',   info.bloodType||'—'],
+          ['Allergies',    info.allergies||'—'],
+          ['Service',      sched.service],
+          ['Date',         sched.date],
+          ['Time',         sched.time],
+          ['Dentist',      sched.dentist],
+          ['Est. Fee',     '₱'+p$(sched.fee||0)],
+          ['Notes',        sched.notes||'—'],
+        ].filter(([,v])=>v&&v!=='—'||['Phone','Service','Date','Dentist','Est. Fee'].includes(String([0]))).map(([l,v]) =>
+          h('div',{key:l,className:'rr'},
+            h('span',{className:'rr-l'},l),
+            h('span',{className:'rr-v'},S(v))
+          )
+        )
+      ),
+      err && h('div',{style:{color:'#dc2626',fontSize:12,padding:'8px 10px',background:'#fef2f2',borderRadius:8,marginBottom:8}},err),
       h('div',{style:{display:'flex',gap:10}},
         h('button',{className:'btn bgh',style:{flex:1},onClick:()=>setStep(2)},'← Back'),
-        h('button',{className:'btn bp',style:{flex:2},onClick:submit},'✓ Confirm')
+        h('button',{className:'btn bp',style:{flex:2},onClick:submit},'✅ Confirm Booking')
       )
     )
   ));
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ADMIN PANEL — only shown when authenticated
@@ -11159,12 +11702,12 @@ function App(){
   // 'login' | 'admin' | 'kiosk' | 'booking'
   const [view,setView]=useState('login');
   const [user,setUser]=useState(null);
-  const [patients,setPatients]=useState(INIT_P);
-  const [appointments,setAppointments]=useState(INIT_A);
-  const [payments,setPayments]=useState(INIT_PAY);
-  const [notifications,setNotifications]=useState(INIT_N);
-  const [reminders,setReminders]=useState(INIT_REMINDERS);
-  const [reminderLog,setReminderLog]=useState(INIT_REMINDER_LOG);
+  const [patients,setPatients]=useState(()=>{try{const s=localStorage.getItem('cyrabell_v2_patients');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length>0)return d;}}catch(e){}return INIT_P;});
+  const [appointments,setAppointments]=useState(()=>{try{const s=localStorage.getItem('cyrabell_v2_appointments');if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_A;});
+  const [payments,setPayments]=useState(()=>{try{const s=localStorage.getItem('cyrabell_v2_payments');if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_PAY;});
+  const [notifications,setNotifications]=useState(()=>{try{const s=localStorage.getItem('cyrabell_v2_notifications');if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_N;});
+  const [reminders,setReminders]=useState(()=>{try{const s=localStorage.getItem('cyrabell_v2_reminders');if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_REMINDERS;});
+  const [reminderLog,setReminderLog]=useState(()=>{try{const s=localStorage.getItem('cyrabell_v2_reminderLog');if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_REMINDER_LOG;});
   const [toasts,setToasts]=useState([]);
 
   // ───── INITIAL PULL: Google Sheets is the source of truth ─────
@@ -11222,6 +11765,15 @@ function App(){
           reminders: (data.reminders||[]).length,
           reminderLog: (data.reminderLog||[]).length,
         });
+        // Update localStorage cache with fresh Sheets data
+        try {
+          if(data.patients)      localStorage.setItem('cyrabell_v2_patients',      JSON.stringify(data.patients));
+          if(data.appointments)  localStorage.setItem('cyrabell_v2_appointments',  JSON.stringify(data.appointments));
+          if(data.payments)      localStorage.setItem('cyrabell_v2_payments',      JSON.stringify(data.payments));
+          if(data.notifications) localStorage.setItem('cyrabell_v2_notifications', JSON.stringify(data.notifications));
+          if(data.reminders)     localStorage.setItem('cyrabell_v2_reminders',     JSON.stringify(data.reminders));
+          if(data.reminderLog)   localStorage.setItem('cyrabell_v2_reminderLog',   JSON.stringify(data.reminderLog));
+        } catch(e) { console.warn('[boot] localStorage cache update failed:', e.message); }
 
         // Detect first-time-empty: if every table is empty, seed with demo data
         // by enabling auto-sync to push. Otherwise replace local state.
@@ -11410,6 +11962,88 @@ function App(){
       payments, notifications, reminders, reminderLog
     }, 2000);
   }, [patients, appointments, payments, notifications, reminders, reminderLog, user]);
+  // ── Auto-save full state to localStorage (preserves attachments/images) ──
+  useEffect(() => {
+    if (!user) return;
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem('cyrabell_v2_patients',      JSON.stringify(patients));
+        localStorage.setItem('cyrabell_v2_appointments',  JSON.stringify(appointments));
+        localStorage.setItem('cyrabell_v2_payments',      JSON.stringify(payments));
+        localStorage.setItem('cyrabell_v2_notifications', JSON.stringify(notifications));
+        localStorage.setItem('cyrabell_v2_reminders',     JSON.stringify(reminders));
+        localStorage.setItem('cyrabell_v2_reminderLog',   JSON.stringify(reminderLog));
+      } catch(e) {
+        // Quota exceeded — strip very large dataUrls (> 100KB) and retry
+        try {
+          const slim = patients.map(p => {
+            const r = {...p};
+            const strip = url => (url && url.length > 102400) ? '' : url;
+            if (r.attachments) r.attachments = r.attachments.map(a => ({...a, dataUrl: strip(a.dataUrl)}));
+            if (r.history)     r.history     = r.history.map(h => ({...h,
+              scanImageUrl: strip(h.scanImageUrl),
+              attachments: h.attachments ? h.attachments.map(a=>({...a,dataUrl:strip(a.dataUrl)})) : h.attachments,
+            }));
+            return r;
+          });
+          localStorage.setItem('cyrabell_v2_patients',      JSON.stringify(slim));
+          localStorage.setItem('cyrabell_v2_appointments',  JSON.stringify(appointments));
+          localStorage.setItem('cyrabell_v2_payments',      JSON.stringify(payments));
+          localStorage.setItem('cyrabell_v2_notifications', JSON.stringify(notifications));
+          localStorage.setItem('cyrabell_v2_reminders',     JSON.stringify(reminders));
+          localStorage.setItem('cyrabell_v2_reminderLog',   JSON.stringify(reminderLog));
+          console.warn('[localsave] Stripped very large (>100KB) images to fit storage quota');
+        } catch(e2) {
+          console.warn('[localsave] Storage full:', e2.message);
+        }
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [patients, appointments, payments, notifications, reminders, reminderLog, user]);
+
+
+  // ── Persist full state to localStorage on every change ──────────────────
+  // This preserves attachments, history images, and all patient data across
+  // page refreshes — even when Google Sheets sync is not configured.
+  // NOTE: stores FULL dataUrls (unlike Sheets sync which strips them).
+  useEffect(() => {
+    if (!user) return; // don't save while not logged in
+    const timer = setTimeout(() => {
+      try {
+        // Save patients with full attachment dataUrls
+        localStorage.setItem('cyrabell_v2_patients', JSON.stringify(patients));
+        localStorage.setItem('cyrabell_v2_appointments', JSON.stringify(appointments));
+        localStorage.setItem('cyrabell_v2_payments', JSON.stringify(payments));
+        localStorage.setItem('cyrabell_v2_notifications', JSON.stringify(notifications));
+        localStorage.setItem('cyrabell_v2_reminders', JSON.stringify(reminders));
+        localStorage.setItem('cyrabell_v2_reminderLog', JSON.stringify(reminderLog));
+        window.logEvent && window.logEvent('localsave', 'State saved to localStorage', {
+          patients: patients.length, appointments: appointments.length
+        });
+      } catch(e) {
+        // localStorage may be full — try stripping large dataUrls before saving
+        try {
+          const slim = patients.map(p => {
+            const r = {...p};
+            if (r.attachments) r.attachments = r.attachments.map(a => ({...a, dataUrl: a.dataUrl && a.dataUrl.length > 100000 ? '' : a.dataUrl}));
+            if (r.history)     r.history     = r.history.map(h => ({...h,
+              scanImageUrl: h.scanImageUrl && h.scanImageUrl.length > 100000 ? '' : h.scanImageUrl,
+              attachments: h.attachments ? h.attachments.map(a => ({...a, dataUrl: a.dataUrl && a.dataUrl.length > 100000 ? '' : a.dataUrl})) : h.attachments,
+            }));
+            return r;
+          });
+          localStorage.setItem('cyrabell_v2_patients', JSON.stringify(slim));
+          localStorage.setItem('cyrabell_v2_appointments', JSON.stringify(appointments));
+          console.warn('[localsave] Stripped large images to fit localStorage quota');
+        } catch(e2) {
+          console.warn('[localsave] localStorage full, cannot save:', e2.message);
+        }
+      }
+    }, 500); // 500ms debounce
+    return () => clearTimeout(timer);
+  }, [patients, appointments, payments, notifications, reminders, reminderLog, user]);
+
+
 
   const addToast=(msg,type)=>{
     const id=Date.now()+Math.random();
@@ -11517,8 +12151,11 @@ function App(){
   if(view==='booking') return h(Fragment,null,
     h(PublicBooking,{
       onBook:handleBook,
-      onBack:()=>setView('login')
-    ,existingAppointments:appointments}),
+      onBack:()=>setView('login'),
+      existingAppointments:appointments,
+      patients:patients,
+      onAddPatient:(np)=>setPatients(prev=>[np,...prev.filter(x=>x.id!==np.id)]),
+    }),
     h(Toast,{toasts,rm:id=>setToasts(p=>p.filter(t=>t.id!==id))})
   );
 
