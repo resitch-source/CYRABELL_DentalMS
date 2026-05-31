@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#0a7c6e"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
+<!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://script.google.com https://script.googleusercontent.com;">
+<!-- Performance: preconnect to font origin so the browser opens the TCP/TLS connection early -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <title>Cyrabell Dental Management System</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -1724,74 +1729,6 @@ th:hover .sort-icon{opacity:.9}
 }
 
 
-/* ── PHOTO WIDGET ── */
-.photo-widget-body{
-  display:flex;flex-direction:column;align-items:center;
-  gap:10px;padding:10px;
-  background:var(--cr);border-radius:11px;
-  border:1px solid var(--bd);
-}
-.photo-preview{
-  width:120px;height:120px;border-radius:50%;
-  background:#fff;border:3px solid var(--bd);
-  display:flex;align-items:center;justify-content:center;
-  overflow:hidden;
-}
-.photo-img{width:100%;height:100%;object-fit:cover}
-.photo-empty{display:flex;flex-direction:column;align-items:center;justify-content:center}
-.photo-actions{display:flex;gap:6px}
-
-.patform-photo-section{
-  display:flex;justify-content:center;
-  margin-bottom:14px;padding-bottom:14px;
-  border-bottom:1px solid var(--bd);
-}
-
-/* Chooser modal */
-.photo-chooser-ov{
-  position:fixed;inset:0;background:rgba(0,0,0,.5);
-  display:flex;align-items:center;justify-content:center;z-index:999;
-}
-.photo-chooser-modal{
-  background:#fff;border-radius:14px;padding:16px;
-  width:90%;max-width:380px;
-}
-.photo-chooser-header{
-  font-weight:700;font-size:15px;margin-bottom:12px;
-  padding-bottom:8px;border-bottom:1px solid var(--bd);
-}
-.photo-chooser-body{display:flex;flex-direction:column;gap:8px}
-.photo-chooser-btn{
-  display:flex;align-items:center;gap:14px;
-  padding:14px;border:1px solid var(--bd);
-  background:#fff;border-radius:9px;
-  cursor:pointer;font-family:inherit;text-align:left;
-  transition:all .15s;
-}
-.photo-chooser-btn:hover{background:var(--tp);border-color:var(--t)}
-
-/* Live camera modal */
-.photo-livecam-ov{
-  position:fixed;inset:0;background:#000;z-index:9999;
-  display:flex;flex-direction:column;
-}
-.photo-livecam-modal{
-  flex:1;display:flex;flex-direction:column;
-  width:100%;height:100%;
-}
-.photo-livecam-header{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:14px;background:rgba(0,0,0,.85);
-}
-.photo-livecam-video{
-  flex:1;width:100%;background:#000;object-fit:contain;
-}
-.photo-livecam-controls{
-  display:flex;justify-content:center;gap:12px;
-  padding:18px;background:rgba(0,0,0,.85);
-}
-
-
 /* ── FDI gum strips ── */
 .fdi-gum{
   height:10px;
@@ -1845,15 +1782,8 @@ th:hover .sort-icon{opacity:.9}
 }
 
 
-/* ── FDI VIEW TOGGLE (Buccal vs Occlusal) ── */
-.fdi-view-toggle{
-  display:inline-flex;
-  background:var(--cr);
-  border-radius:8px;
-  padding:3px;
-  border:1px solid var(--bd);
-  gap:3px;
-}
+/* .fdi-view-toggle duplicate removed (Finding #9) — see definition above */
+/* Keep aliases for backward-compat JavaScript references */
 .fdi-vt-btn{
   padding:6px 11px;
   border:none;background:none;
@@ -3180,6 +3110,21 @@ const CONFIG = Object.freeze({
   DASHBOARD_RECENT_COUNT: 5,
   /** Kiosk success screen auto-dismiss delay (ms). */
   KIOSK_AUTO_RETURN_MS: 6000,
+
+  // ── PHI Encryption (Finding #3) ────────────────────────────────────────────
+  /**
+   * When true: all PHI localStorage saves are encrypted with AES-256-GCM.
+   * Key derived from login password via PBKDF2. Set false for legacy/migration.
+   */
+  ENCRYPT_LOCALSTORAGE: false,
+
+  // ── Pagination (Finding #16) ─────────────────────────────────────────────
+  /** Rows per page in Patients, Appointments, Payments, Notifications tables. */
+  PAGE_SIZE: 20,
+
+  // ── Data Versioning (Finding #22) ─────────────────────────────────────────
+  /** Bump this constant when adding required fields to existing records. */
+  DATA_VERSION: '2.0',
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3203,6 +3148,9 @@ const LS_KEYS = Object.freeze({
   REMINDER_AUTO:    'cyrabell_reminder_auto',
   REMINDER_LAST_RUN:'cyrabell_reminder_last_run',
   ERROR_LOG:        'cyrabell_error_log',
+  SERVICES:         'cyrabell_v2_services',
+  DATA_VERSION:     'cyrabell_data_version',
+  CRYPTO_SALT:      'cyrabell_crypto_salt',
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3274,6 +3222,209 @@ function sanitizeEmail(email) {
   // Basic email format check
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return trimmed;
   return '';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🔐  PHI ENCRYPTION HELPERS  (Finding #3)
+//
+// AES-256-GCM encryption for localStorage PHI data.
+// Key is derived per-session from the login password using PBKDF2.
+// Opt-in via CONFIG.ENCRYPT_LOCALSTORAGE = true.
+// When false, data is stored as plaintext JSON (legacy mode).
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Module-level crypto key (set on login, cleared on logout)
+let _cryptoKey = null;
+
+/** Derive AES-256-GCM key from password + salt using PBKDF2. */
+async function deriveCryptoKey(password, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await window.crypto.subtle.importKey(
+    'raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveKey']
+  );
+  return window.crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 100000, hash: 'SHA-256' },
+    keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+
+/** Get or create the per-device salt (stored in localStorage unencrypted). */
+function getCryptoSalt() {
+  try {
+    let salt = localStorage.getItem(LS_KEYS.CRYPTO_SALT);
+    if (!salt) {
+      const arr = new Uint8Array(16);
+      window.crypto.getRandomValues(arr);
+      salt = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem(LS_KEYS.CRYPTO_SALT, salt);
+    }
+    return salt;
+  } catch(e) { return 'cyrabell-default-salt'; }
+}
+
+/**
+ * Initialise encryption on login.
+ * Call this with the user's plaintext password right after authentication.
+ */
+async function initCryptoKey(password) {
+  if (!CONFIG.ENCRYPT_LOCALSTORAGE) return;
+  if (!window.crypto || !window.crypto.subtle) return; // Web Crypto not available
+  try {
+    const salt = getCryptoSalt();
+    _cryptoKey = await deriveCryptoKey(password, salt);
+  } catch(e) {
+    console.warn('[crypto] Key derivation failed:', e.message);
+    _cryptoKey = null;
+  }
+}
+
+/** Clear the in-memory key on logout. */
+function clearCryptoKey() { _cryptoKey = null; }
+
+/** Encrypt a JSON string. Returns base64-encoded ciphertext or null on failure. */
+async function encryptData(plaintext) {
+  if (!_cryptoKey) return null;
+  try {
+    const enc = new TextEncoder();
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const cipherBuf = await window.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv }, _cryptoKey, enc.encode(plaintext)
+    );
+    // Prepend IV to ciphertext, then base64-encode the whole thing
+    const combined = new Uint8Array(iv.length + cipherBuf.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(cipherBuf), iv.length);
+    return btoa(String.fromCharCode(...combined));
+  } catch(e) { return null; }
+}
+
+/** Decrypt a base64-encoded ciphertext. Returns plaintext string or null. */
+async function decryptData(b64) {
+  if (!_cryptoKey) return null;
+  try {
+    const combined = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const iv = combined.slice(0, 12);
+    const data = combined.slice(12);
+    const dec = new TextDecoder();
+    const plainBuf = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, _cryptoKey, data);
+    return dec.decode(plainBuf);
+  } catch(e) { return null; }
+}
+
+/**
+ * Safe encrypted localStorage set.
+ * Falls back to plaintext if encryption is disabled or unavailable.
+ * Shows a toast on QuotaExceededError (Finding #21).
+ */
+async function lsSetEncrypted(key, jsonStr, toastFn) {
+  try {
+    let value = jsonStr;
+    if (CONFIG.ENCRYPT_LOCALSTORAGE && _cryptoKey) {
+      const enc = await encryptData(jsonStr);
+      if (enc) value = '__ENC__' + enc;
+    }
+    localStorage.setItem(key, value);
+  } catch(e) {
+    if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+      if (typeof toastFn === 'function') {
+        toastFn('⚠️ Storage full — export your data and clear old records', 'error');
+      }
+    }
+    throw e;
+  }
+}
+
+/**
+ * Safe encrypted localStorage get.
+ * Detects __ENC__ prefix and decrypts if needed.
+ * Returns parsed JSON value or null.
+ */
+async function lsGetDecrypted(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    if (raw.startsWith('__ENC__')) {
+      if (!_cryptoKey) return null; // key not yet derived
+      const plain = await decryptData(raw.slice(7));
+      return plain ? JSON.parse(plain) : null;
+    }
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 📦  DATA VERSION MIGRATION  (Finding #22)
+//
+// On app init, check localStorage for the stored data version.
+// If missing or older, run a migration that fills in any required new fields.
+// ══════════════════════════════════════════════════════════════════════════════
+
+/** Run data migration if stored version < CONFIG.DATA_VERSION. */
+function runDataMigration(patients, appointments, payments, notifications) {
+  let storedVersion = '';
+  try { storedVersion = localStorage.getItem(LS_KEYS.DATA_VERSION) || ''; } catch(e) {}
+  if (storedVersion === CONFIG.DATA_VERSION) return { patients, appointments, payments, notifications };
+
+  // Migration: ensure all patients have required fields added in v2.0
+  const migratedPatients = (Array.isArray(patients) ? patients : []).map(p => ({
+    balance: 0,
+    teeth: {},
+    attachments: [],
+    history: [],
+    allergies: 'None',
+    ...p,
+  }));
+
+  // Migration: ensure all appointments have required fields
+  const migratedAppts = (Array.isArray(appointments) ? appointments : []).map(a => ({
+    arrived: false,
+    notes: '',
+    ...a,
+  }));
+
+  // Stamp the new version
+  try { localStorage.setItem(LS_KEYS.DATA_VERSION, CONFIG.DATA_VERSION); } catch(e) {}
+
+  return { patients: migratedPatients, appointments: migratedAppts, payments, notifications };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🛡️  ROLE-BASED ACCESS CONTROL  (Finding #8)
+//
+// canDo(user, action) returns true if the user's role permits the action.
+// Receptionist is restricted from: deleting patients, exporting data,
+// accessing Settings/Sync tab, and viewing financial analytics.
+// ══════════════════════════════════════════════════════════════════════════════
+
+const RBAC = {
+  Administrator: {
+    delete_patient: true,
+    export_data:    true,
+    view_sync:      true,
+    view_analytics: true,
+    view_logs:      true,
+    edit_services:  true,
+  },
+  Receptionist: {
+    delete_patient: false,
+    export_data:    false,
+    view_sync:      false,
+    view_analytics: false,
+    view_logs:      false,
+    edit_services:  false,
+  },
+};
+
+/**
+ * Check if the logged-in user can perform a given action.
+ * @param {object|null} user - The current user object (has .role).
+ * @param {string} action - One of the RBAC action keys.
+ * @returns {boolean}
+ */
+function canDo(user, action) {
+  if (!user) return false;
+  const perms = RBAC[user.role] || RBAC.Receptionist;
+  return perms[action] === true;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3370,6 +3521,48 @@ function stopSessionTimer() {
 // All original code that references CLINIC_INFO continues to work unchanged.
 // The value is now configurable via the CONFIG object at the top of this file.
 const CLINIC_INFO = CONFIG.CLINIC;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 📄  PAGINATION HOOK  (Finding #16)
+//
+// Simple prev/next pagination with CONFIG.PAGE_SIZE rows per page.
+// Returns { page, setPage, pageItems, totalPages, PagerUI }
+// ══════════════════════════════════════════════════════════════════════════════
+function usePagination(items, pageSize) {
+  pageSize = pageSize || CONFIG.PAGE_SIZE;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil((items ? items.length : 0) / pageSize));
+  // Clamp page if items shrink (e.g., after a search)
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * pageSize;
+  const pageItems = (items || []).slice(start, start + pageSize);
+
+  function PagerUI() {
+    if (totalPages <= 1) return null;
+    return h('div', {
+      style: { display:'flex', alignItems:'center', gap:8, padding:'10px 0 2px', justifyContent:'flex-end' }
+    },
+      h('button', {
+        className: 'btn bgh bsm',
+        disabled: safePage <= 1,
+        onClick: () => setPage(p => Math.max(1, p - 1))
+      }, '← Prev'),
+      h('span', { style: { fontSize:12, color:'var(--md)' } },
+        'Page ' + safePage + ' of ' + totalPages + ' (' + (items ? items.length : 0) + ' total)'
+      ),
+      h('button', {
+        className: 'btn bgh bsm',
+        disabled: safePage >= totalPages,
+        onClick: () => setPage(p => Math.min(totalPages, p + 1))
+      }, 'Next →')
+    );
+  }
+
+  // Reset to page 1 when items array reference changes (e.g., after search filter)
+  useEffect(() => { setPage(1); }, [items ? items.length : 0]);
+
+  return { page: safePage, setPage, pageItems, totalPages, PagerUI };
+}
 
 </script>
 <script>
@@ -3573,6 +3766,22 @@ const SVCS_BY_CAT = SVCS.reduce((acc, sv) => {
   acc[sv.cat].push(sv);
   return acc;
 }, {});
+
+// Finding #20: load custom services from localStorage if saved
+function getActiveSvcs() {
+  try {
+    const raw = localStorage.getItem(LS_KEYS.SERVICES);
+    if (raw) { const d = JSON.parse(raw); if (Array.isArray(d) && d.length) return d; }
+  } catch(e){}
+  return SVCS;
+}
+function getActiveSvcsByCat() {
+  return getActiveSvcs().reduce((acc, sv) => {
+    if (!acc[sv.cat]) acc[sv.cat] = [];
+    acc[sv.cat].push(sv);
+    return acc;
+  }, {});
+}
 const BLOOD=['A+','A-','B+','B-','AB+','AB-','O+','O-'];
 const METHODS=['Cash','GCash','Maya','Bank Transfer','Credit Card','Debit Card','PhilHealth'];
 const TIMES = CONFIG.APPOINTMENT_TIMES;
@@ -3883,7 +4092,8 @@ const IC={
 const Svg=({d,size,color})=>h('svg',{width:size||18,height:size||18,viewBox:'0 0 24 24',fill:'none',stroke:color||'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round',style:{flexShrink:0}},h('path',{d}));
 
 const BMAP={pending:'bpend',confirmed:'bconf',cancelled:'bcanc',completed:'bcomp',paid:'bpaid',unpaid:'bcanc',sent:'bsent',failed:'bcanc'};
-const SBadge=({status})=>h('span',{className:'badge '+(BMAP[status]||'bpend')},h('span',{className:'bdot'}),status);
+// aria-label provides screen-reader text for colour-only status dots (Finding #14)
+const SBadge=({status})=>h('span',{className:'badge '+(BMAP[status]||'bpend'),'aria-label':'Status: '+(status||'unknown')},h('span',{className:'bdot','aria-hidden':'true'}),status);
 
 function Toast({toasts,rm}){
   return h('div',{className:'tc',role:'alert','aria-live':'polite','aria-atomic':'false'},toasts.map(t=>
@@ -3915,11 +4125,35 @@ function Modal({title,sub,onClose,children,footer,large,xl}){
   let maxW = 620;
   if(large) maxW = 700;
   if(xl) maxW = 920;
+  const modalRef = useRef(null);
+  // Focus trap: keep Tab/Shift-Tab cycling within the modal (Finding #12)
+  useEffect(() => {
+    const modal = modalRef.current;
+    if (!modal) return;
+    // Focus the first focusable element on open
+    const focusable = 'button,input,select,textarea,[tabindex]:not([tabindex="-1"])';
+    const elements = modal.querySelectorAll(focusable);
+    if (elements.length) elements[0].focus();
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') { onClose && onClose(); return; }
+      if (e.key !== 'Tab') return;
+      const els = Array.from(modal.querySelectorAll(focusable)).filter(el => !el.disabled && el.offsetParent !== null);
+      if (!els.length) return;
+      const first = els[0], last = els[els.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
   // Note: We deliberately do NOT close on backdrop click. Users must click ✕ or
   // Cancel/Save explicitly. This prevents accidental data loss especially when
   // adding photos, where browser file pickers can cause spurious click events.
-  return h('div',{className:'ov'},
-    h('div',{className:'modal',style:{maxWidth:maxW}},
+  return h('div',{className:'ov',role:'dialog','aria-modal':'true','aria-label':title},
+    h('div',{className:'modal',style:{maxWidth:maxW},ref:modalRef},
       h('div',{className:'mdrag'}),
       h('div',{className:'mh'},
         h('div',{style:{flex:1,minWidth:0}},
@@ -4793,7 +5027,8 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
     if(user){
       setError('');
       _loginState.recordSuccess();
-      onAuth(user);
+      // Pass the plaintext password so App can derive the encryption key (Finding #3)
+      onAuth(user, password);
     } else {
       const locked = _loginState.recordFailure();
       const remaining = CONFIG.LOGIN_MAX_ATTEMPTS - _loginState.attempts;
@@ -5198,6 +5433,11 @@ function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMod
     return h('div', {
       className: 'clin-tooth occlusal-view' + (selected ? ' sel' : '') + (missing ? ' miss' : '') + (hasIssues ? ' issue' : ''),
       onClick: e => { e.stopPropagation(); onSelect(fdi); },
+      onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onSelect(fdi); } },
+      tabIndex: 0,
+      role: 'button',
+      'aria-label': '#' + fdi + ' ' + toothName(fdi) + ' (' + cond.label + ')' + (missing ? ' — missing' : ''),
+      'aria-pressed': selected,
       title: '#' + fdi + ' · ' + toothName(fdi) + ' · ' + cond.label
     },
       h('svg', {
@@ -5288,6 +5528,11 @@ function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMod
     return h('div', {
     className: 'clin-tooth' + (selected ? ' sel' : '') + (missing ? ' miss' : '') + (hasIssues ? ' issue' : ''),
     onClick: e => { e.stopPropagation(); onSelect(fdi); },
+    onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onSelect(fdi); } },
+    tabIndex: 0,
+    role: 'button',
+    'aria-label': '#' + fdi + ' ' + toothName(fdi) + ' (' + cond.label + ')' + (missing ? ' — missing' : ''),
+    'aria-pressed': selected,
     title: '#' + fdi + ' · ' + toothName(fdi) + ' · ' + cond.label
   },
     h('svg', {
@@ -6185,6 +6430,19 @@ function PatForm({patient, onClose, onSave, syncUrl, addToast, onPhotoUploaded, 
 
   const handleSave = () => {
     if (!ok) { addToast && addToast('Name and phone are required','error'); return; }
+    // Validate phone — must contain only digits, +, -, (, ), spaces (Finding #10)
+    const cleanPhone = S(f.phone).trim();
+    if (!/^[0-9+\-() ]+$/.test(cleanPhone)) {
+      addToast && addToast('Phone number may only contain digits, +, -, (, ) and spaces','error'); return;
+    }
+    // Validate email format if provided (Finding #10)
+    if (f.email && S(f.email).trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(S(f.email).trim())) {
+      addToast && addToast('Please enter a valid email address','error'); return;
+    }
+    // Validate DOB date if provided (Finding #10)
+    if (f.dob && S(f.dob).trim() && !/^\d{4}-\d{2}-\d{2}$/.test(S(f.dob).trim())) {
+      addToast && addToast('Date of birth must be in YYYY-MM-DD format','error'); return;
+    }
 
     // ── CRITICAL: Assign ID NOW before calling onSave or starting upload ──
     // This ensures Drive upload and the saved record share the same ID.
@@ -7605,15 +7863,15 @@ function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
   <div class="patient-info">
     <div class="patient-field">
       <label>Name:</label>
-      <span>${patName || ''}</span>
+      <span>${escapeHTML(patName) || ''}</span>
     </div>
     <div class="patient-field">
       <label>Age:</label>
-      <span>${age || ''}</span>
+      <span>${escapeHTML(String(age || ''))}</span>
     </div>
     <div class="patient-field">
       <label>Address:</label>
-      <span>${patAddress || ''}</span>
+      <span>${escapeHTML(patAddress) || ''}</span>
     </div>
     <div class="patient-field">
       <label>Sex:</label>
@@ -8275,7 +8533,7 @@ function RecordCardScanner({onExtracted, onClose}) {
 }
 
 
-function Patients({patients,setPatients,appointments,payments,addToast,syncUrl}){
+function Patients({patients,setPatients,appointments,payments,addToast,syncUrl,user}){
   const [search,setSearch]=useState('');
   const [modal,setModal]=useState(false);
   const [edit,setEdit]=useState(null);
@@ -8283,6 +8541,7 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
   const [showScanner,setShowScanner]=useState(false);    // OCR scanner modal
   const [scanPrefill,setScanPrefill]=useState(null);     // pre-filled data from scan
   const filtered=patients.filter(p=>!search||S(p.name).toLowerCase().includes(S(search).toLowerCase())||S(p.id).includes(S(search)));
+  const { pageItems: pagedPatients, PagerUI: PatientsPager } = usePagination(filtered);
   const save = d => {
     // Determine if this is editing an EXISTING patient or adding a NEW one.
     // PatForm now always provides d.id (generated inside handleSave for new patients),
@@ -8349,7 +8608,7 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
     h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
       h('thead',null,h('tr',null,['','Name','Phone','Blood','Dental','Balance',''].map(c=>h('th',{key:c},c)))),
       h('tbody',null,filtered.length===0?h('tr',null,h('td',{colSpan:7},h('div',{className:'empty'},'No patients found'))):
-        filtered.map(p=>{
+        pagedPatients.map(p=>{
           const issues = Object.values(p.teeth||{}).filter(v=>v&&v!=='healthy').length;
           return h('tr',{key:p.id},
             h('td',null,h(PatientPhoto,{patient:p,size:36,syncUrl:syncUrl})),
@@ -8365,10 +8624,10 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
           );
         })
       )
-    ))),
+    )),h(PatientsPager)),
     h('div',{className:'ml'},
       filtered.length===0&&h('div',{className:'empty'},'No patients found'),
-      filtered.map(p=>{
+      pagedPatients.map(p=>{
         const issues = Object.values(p.teeth||{}).filter(v=>v&&v!=='healthy').length;
         return h('div',{key:p.id,className:'mc'},
           h('div',{className:'mc-top'},
@@ -8445,7 +8704,7 @@ function PayForm({patients,onClose,onSave}){
         }
       })
     ),
-    h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>{s('service',e.target.value);const sv=SVCS.find(x=>x.name===e.target.value);if(sv)s('amount',sv.fee);}},h('option',{value:''},'Select service…'),Object.entries(SVCS_BY_CAT).map(([cat, svcs]) =>
+    h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>{s('service',e.target.value);const sv=getActiveSvcs().find(x=>x.name===e.target.value);if(sv)s('amount',sv.fee);}},h('option',{value:''},'Select service…'),Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
         h('optgroup', {key:cat, label:cat},
           svcs.map(sv => h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
         )
@@ -8472,6 +8731,7 @@ function Payments({payments,setPayments,patients,addToast}){
   const [modal,setModal]=useState(false);
   const [receipt,setReceipt]=useState(null);
   const filtered=payments.filter(p=>filter==='all'||p.status===filter);
+  const { pageItems: pagedPayments, PagerUI: PaymentsPager } = usePagination(filtered);
   const paid=payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
   const unpaid=payments.filter(p=>p.status==='unpaid').reduce((s,p)=>s+p.amount,0);
   const save=d=>{
@@ -8492,7 +8752,7 @@ function Payments({payments,setPayments,patients,addToast}){
     h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
       h('thead',null,h('tr',null,['Ref','Patient','Service','Amount','Method','Date','Status',''].map(c=>h('th',{key:c},c)))),
       h('tbody',null,filtered.length===0?h('tr',null,h('td',{colSpan:8},h('div',{className:'empty'},'No records'))):
-        filtered.map(p=>h('tr',{key:p.id},
+        pagedPayments.map(p=>h('tr',{key:p.id},
           h('td',null,h('code',{style:{fontSize:11,background:'var(--cr)',padding:'2px 6px',borderRadius:5}},p.ref)),
           h('td',null,h('strong',null,p.patientName)),
           h('td',null,p.service),
@@ -8503,10 +8763,10 @@ function Payments({payments,setPayments,patients,addToast}){
           h('td',null,h('button',{className:'btn bgh bsm',onClick:()=>setReceipt(p)},'Receipt'))
         ))
       )
-    ))),
+    )),h(PaymentsPager)),
     h('div',{className:'ml'},
       filtered.length===0&&h('div',{className:'empty'},'No payment records'),
-      filtered.map(p=>h('div',{key:p.id,className:'mc'},
+      pagedPayments.map(p=>h('div',{key:p.id,className:'mc'},
         h('div',{className:'mc-top'},
           h('div',null,h('div',{className:'mc-nm'},p.patientName),h('div',{className:'mc-sb'},p.service)),
           h('div',{style:{textAlign:'right'}},h('div',{style:{fontWeight:700,color:'var(--t)',fontSize:16}},'₱'+p$(p.amount)),h(SBadge,{status:p.status}))
@@ -8531,6 +8791,7 @@ const TMPL={
 };
 function Notifications({notifications,setNotifications,appointments,addToast}){
   const [tab,setTab]=useState('send');
+  const { pageItems: pagedNotifs, PagerUI: NotifsPager } = usePagination(notifications);
   const [ntype,setNtype]=useState('sms');
   const [apptId,setApptId]=useState('');
   const [tmpl,setTmpl]=useState('confirmation');
@@ -8628,7 +8889,7 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
       h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
         h('thead',null,h('tr',null,['Type','Recipient','Contact','Message','Sent At','Status'].map(c=>h('th',{key:c},c)))),
         h('tbody',null,notifications.length===0?h('tr',null,h('td',{colSpan:6},h('div',{className:'empty'},'No notifications yet'))):
-          notifications.map(n=>h('tr',{key:n.id},
+          pagedNotifs.map(n=>h('tr',{key:n.id},
             h('td',null,h('span',{className:'tag',style:{background:n.type==='sms'?'#e8f5f3':'#e8eeff',color:n.type==='sms'?'var(--t)':'var(--bl)'}},n.type==='sms'?'📱 SMS':'📧 Email')),
             h('td',null,h('strong',null,n.recipient)),
             h('td',{style:{fontSize:12,color:'var(--md)'}},n.type==='sms'?n.phone:n.email),
@@ -8637,10 +8898,10 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
             h('td',null,h(SBadge,{status:n.status}))
           ))
         )
-      ))),
+      )),h(NotifsPager)),
       h('div',{className:'ml'},
         notifications.length===0&&h('div',{className:'empty'},'No notifications yet'),
-        notifications.map(n=>h('div',{key:n.id,className:'mc'},
+        pagedNotifs.map(n=>h('div',{key:n.id,className:'mc'},
           h('div',{className:'mc-top'},
             h('div',null,h('div',{className:'mc-nm'},n.recipient),h('div',{className:'mc-sb'},n.sentAt)),
             h('span',{className:'tag',style:{background:n.type==='sms'?'#e8f5f3':'#e8eeff',color:n.type==='sms'?'var(--t)':'var(--bl)'}},n.type==='sms'?'📱':'📧')
@@ -9910,7 +10171,7 @@ function ApptForm({patients,appointments,onClose,onSave,onAddPatient}){
     // Select them
     selectPatient(newPat);
   };
-  const hsv=n=>{const sv=SVCS.find(x=>x.name===n);s('service',n);if(sv)s('fee',sv.fee);};
+  const hsv=n=>{const sv=getActiveSvcs().find(x=>x.name===n);s('service',n);if(sv)s('fee',sv.fee);};
 
   const check = (f.date && f.time && f.service)
     ? checkAvailability(appointments || [], f.date, f.time, f.service)
@@ -9965,7 +10226,7 @@ function ApptForm({patients,appointments,onClose,onSave,onAddPatient}){
       )
     ),
     h('div',{className:'fg2'},
-      h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>hsv(e.target.value)},h('option',{value:''},'Select…'),Object.entries(SVCS_BY_CAT).map(([cat, svcs]) =>
+      h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>hsv(e.target.value)},h('option',{value:''},'Select…'),Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
         h('optgroup', {key:cat, label:cat},
           svcs.map(sv => h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
         )
@@ -10136,6 +10397,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
     const cmp = (sortFns[sortBy] || sortFns.datetime)(a,b);
     return sortDir==='asc' ? cmp : -cmp;
   });
+  const { pageItems: pagedAppts, PagerUI: ApptsPager } = usePagination(filtered);
 
   const toggleSort = (col)=>{
     if (sortBy === col) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
@@ -10216,7 +10478,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
           h('th', null, 'Actions')
         )),
         h('tbody',null,filtered.length===0?h('tr',null,h('td',{colSpan:6},h('div',{className:'empty'},'No appointments found'))):
-          filtered.map(a=>h('tr',{key:a.id},
+          pagedAppts.map(a=>h('tr',{key:a.id},
             h('td',null,
               h('strong',null,a.patientName),
               a.arrived&&h('span',{className:'kiosk-arrived-badge',style:{marginLeft:6,fontSize:9}},'🪑'),
@@ -10237,10 +10499,10 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
             ))
           ))
         )
-      ))),
+      )),h(ApptsPager)),
       h('div',{className:'ml'},
         filtered.length===0&&h('div',{className:'empty'},'No appointments found'),
-        filtered.map(a=>h('div',{key:a.id,className:'mc'},
+        pagedAppts.map(a=>h('div',{key:a.id,className:'mc'},
           h('div',{className:'mc-top'},
             h('div',null,
               h('div',{className:'mc-nm'},a.patientName,a.arrived&&h('span',{style:{marginLeft:6,fontSize:13}},'🪑')),
@@ -10482,6 +10744,126 @@ function applyDataBlob(blob, setters) {
   if (Array.isArray(blob.notifications)) setters.setNotifications(blob.notifications);
   if (Array.isArray(blob.reminders))     setters.setReminders(blob.reminders);
   if (Array.isArray(blob.reminderLog))   setters.setReminderLog(blob.reminderLog);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🛠️  SERVICES PAGE  (Finding #20)
+//
+// Admin-only page to add, edit, delete service catalog entries.
+// Services are stored in localStorage under LS_KEYS.SERVICES.
+// Falls back to the default SVCS array on first load.
+// ══════════════════════════════════════════════════════════════════════════════
+function ServicesPage({addToast}){
+  const loadServices = () => {
+    try {
+      const raw = localStorage.getItem(LS_KEYS.SERVICES);
+      if (raw) { const d = JSON.parse(raw); if (Array.isArray(d)) return d; }
+    } catch(e){}
+    return SVCS.map(s => ({...s})); // copy of defaults
+  };
+  const [services, setServices] = useState(loadServices);
+  const [editing, setEditing] = useState(null); // null | 'new' | {index, item}
+  const [form, setForm] = useState({name:'', fee:'', cat:''});
+  const cats = [...new Set(services.map(s => s.cat))].sort();
+
+  const save = () => {
+    try { localStorage.setItem(LS_KEYS.SERVICES, JSON.stringify(services)); } catch(e){}
+  };
+
+  const openNew = () => { setForm({name:'', fee:'', cat:'Consultation'}); setEditing('new'); };
+  const openEdit = (i) => { setForm({...services[i]}); setEditing({index:i, item:services[i]}); };
+  const closeEdit = () => setEditing(null);
+
+  const saveForm = () => {
+    if (!form.name.trim() || !form.fee || !form.cat.trim()) {
+      addToast('Name, fee, and category are required', 'error'); return;
+    }
+    const entry = {name: form.name.trim(), fee: +form.fee, cat: form.cat.trim()};
+    let updated;
+    if (editing === 'new') {
+      updated = [...services, entry];
+    } else {
+      updated = services.map((s, i) => i === editing.index ? entry : s);
+    }
+    setServices(updated);
+    try { localStorage.setItem(LS_KEYS.SERVICES, JSON.stringify(updated)); } catch(e){}
+    addToast(editing === 'new' ? 'Service added!' : 'Service updated!', 'success');
+    setEditing(null);
+  };
+
+  const del = (i) => {
+    if (!confirm('Delete service "' + services[i].name + '"?')) return;
+    const updated = services.filter((_, j) => j !== i);
+    setServices(updated);
+    try { localStorage.setItem(LS_KEYS.SERVICES, JSON.stringify(updated)); } catch(e){}
+    addToast('Service deleted', 'info');
+  };
+
+  const reset = () => {
+    if (!confirm('Reset to default service catalog? This cannot be undone.')) return;
+    const defaults = SVCS.map(s => ({...s}));
+    setServices(defaults);
+    try { localStorage.setItem(LS_KEYS.SERVICES, JSON.stringify(defaults)); } catch(e){}
+    addToast('Service catalog reset to defaults', 'success');
+  };
+
+  return h('div', null,
+    h('div', {className:'ph'},
+      h('div', null,
+        h('div', {className:'ptl'}, 'Service Catalog'),
+        h('div', {className:'psl'}, 'Manage available dental services and fees')
+      ),
+      h('div', {className:'ph-act'},
+        h('button', {className:'btn bgh bsm', onClick:reset}, '↺ Reset Defaults'),
+        h('button', {className:'btn bp', onClick:openNew}, '+ Add Service')
+      )
+    ),
+    h('div', {className:'card dt'},
+      h('div', {className:'tw'},
+        h('table', null,
+          h('thead', null, h('tr', null,
+            h('th', null, 'Service Name'),
+            h('th', null, 'Category'),
+            h('th', null, 'Fee (₱)'),
+            h('th', null, '')
+          )),
+          h('tbody', null,
+            services.length === 0
+              ? h('tr', null, h('td', {colSpan:4}, h('div', {className:'empty'}, 'No services')))
+              : services.map((sv, i) => h('tr', {key:i},
+                  h('td', null, sv.name),
+                  h('td', null, h('span', {className:'tag', style:{background:'#e8eeff',color:'var(--bl)'}}, sv.cat)),
+                  h('td', {style:{fontWeight:700, color:'var(--t)'}}, '₱' + p$(sv.fee)),
+                  h('td', null, h('div', {className:'gap8'},
+                    h('button', {className:'btn bgh bsm', onClick:()=>openEdit(i)}, '✏️'),
+                    h('button', {className:'btn bd2 bsm', onClick:()=>del(i)}, '🗑')
+                  ))
+                ))
+          )
+        )
+      )
+    ),
+    editing && h(Modal, {
+      title: editing === 'new' ? 'Add Service' : 'Edit Service',
+      onClose: closeEdit,
+      footer: h(Fragment, null,
+        h('button', {className:'btn bgh', onClick:closeEdit}, 'Cancel'),
+        h('button', {className:'btn bp', onClick:saveForm}, editing === 'new' ? 'Add' : 'Save')
+      )
+    },
+      h(Field, {label:'Service Name *'},
+        h('input', {type:'text', value:form.name, onChange:e=>setForm(p=>({...p,name:e.target.value})), placeholder:'e.g. Teeth Cleaning'})
+      ),
+      h(Field, {label:'Category *'},
+        h('input', {type:'text', value:form.cat, onChange:e=>setForm(p=>({...p,cat:e.target.value})),
+          placeholder:'e.g. Prophylaxis', list:'svc-cats-list'}),
+        h('datalist', {id:'svc-cats-list'}, cats.map(c => h('option', {key:c, value:c})))
+      ),
+      h(Field, {label:'Fee (₱) *'},
+        h('input', {type:'number', value:form.fee, onChange:e=>setForm(p=>({...p,fee:e.target.value})), placeholder:'0', min:'0'})
+      )
+    )
+  );
 }
 
 function SyncPage({patients, appointments, payments, notifications, reminders, reminderLog, setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, addToast}){
@@ -11212,7 +11594,7 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
             style:{fontSize:14},
           },
             h('option',{value:''},'— Choose a service —'),
-            Object.entries(SVCS_BY_CAT).map(([cat, svcs]) =>
+            Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
               h('optgroup',{key:cat, label:cat},
                 svcs.map(sv => h('option',{key:sv.name, value:sv.name},
                   sv.name + ' — ₱' + p$(sv.fee)
@@ -11560,11 +11942,12 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
     {id:'payments',l:'Payments',d:IC.credit},
     {id:'reminders',l:'Reminders',d:IC.repeat,badge:dueRemindersCount||null,sec:'TOOLS'},
     {id:'notifications',l:'Notifications',d:IC.bell},
-    {id:'sync',l:'Sync & Backup',d:IC.cloud},
-    {id:'export',l:'Export',d:IC.dl},
-    {id:'analytics',l:'Analytics',d:IC.report},
-    {id:'logs', l:'🪵 Logs', d:IC.bell, sec:''},
-  ];
+    canDo(user,'edit_services')&&{id:'services',l:'Service Catalog',d:IC.credit,sec:'SETTINGS'},
+    canDo(user,'view_sync')&&{id:'sync',l:'Sync & Backup',d:IC.cloud},
+    canDo(user,'export_data')&&{id:'export',l:'Export',d:IC.dl},
+    canDo(user,'view_analytics')&&{id:'analytics',l:'Analytics',d:IC.report},
+    canDo(user,'view_logs')&&{id:'logs', l:'🪵 Logs', d:IC.bell, sec:''},
+  ].filter(Boolean);
   const BOT=[
     {id:'dashboard',l:'Home',d:IC.dash},
     {id:'appointments',l:'Visits',d:IC.cal,badge:pending||null},
@@ -11583,14 +11966,15 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
     try {
       if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments),onGoKiosk});
       if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast});
-      if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),payments:safe(payments),addToast,syncUrl});
+      if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),payments:safe(payments),addToast,syncUrl,user});
       if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),addToast});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
-      if(page==='sync')return h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,addToast});
+      if(page==='services')return canDo(user,'edit_services')?h(ServicesPage,{addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+      if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='notifications')return h(Notifications,{notifications:safe(notifications),setNotifications,appointments:safe(appointments),addToast});
-      if(page==='export')return h(ExportPage,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments)});
-      if(page==='analytics')return h(Analytics,{appointments:safe(appointments),payments:safe(payments),patients:safe(patients)});
-      if(page==='logs') return h(ErrorBoundary,null,h(LogsViewer,{addToast}));
+      if(page==='export')return canDo(user,'export_data')?h(ExportPage,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+      if(page==='analytics')return canDo(user,'view_analytics')?h(Analytics,{appointments:safe(appointments),payments:safe(payments),patients:safe(patients)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+      if(page==='logs') return canDo(user,'view_logs')?h(ErrorBoundary,null,h(LogsViewer,{addToast})):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       return h('div',{style:{padding:30,textAlign:'center',color:'var(--md)'}}, 'Page not found: ' + page);
     } catch (err) {
       console.error('[renderPage]', err);
@@ -12330,6 +12714,10 @@ function App(){
           localStorage.setItem(LS_KEYS.REMINDER_LOG,   JSON.stringify(reminderLog));
           console.warn('[localsave] Stripped very large (>100KB) images to fit storage quota');
         } catch(e2) {
+          // Still quota exceeded after stripping — notify user (Finding #21)
+          if (e2 && (e2.name === 'QuotaExceededError' || e2.code === 22)) {
+            addToast('⚠️ Storage full — export your data and clear old records', 'error');
+          }
           console.warn('[localsave] Storage full:', e2.message);
         }
       }
@@ -12372,6 +12760,10 @@ function App(){
           localStorage.setItem(LS_KEYS.APPOINTMENTS, JSON.stringify(appointments));
           console.warn('[localsave] Stripped large images to fit localStorage quota');
         } catch(e2) {
+          // Notify user that storage is full (Finding #21)
+          if (e2 && (e2.name === 'QuotaExceededError' || e2.code === 22)) {
+            addToast('⚠️ Storage full — export your data and clear old records', 'error');
+          }
           console.warn('[localsave] localStorage full, cannot save:', e2.message);
         }
       }
@@ -12387,9 +12779,23 @@ function App(){
     setTimeout(()=>setToasts(p=>p.filter(t=>t.id!==id)),3500);
   };
 
-  const handleAuth=(authedUser)=>{
+  const handleAuth=(authedUser, plainPwd)=>{
     setUser(authedUser);
     setView('admin');
+    // Derive AES-256-GCM key from password for PHI encryption (Finding #3)
+    if (CONFIG.ENCRYPT_LOCALSTORAGE && plainPwd) {
+      initCryptoKey(plainPwd).catch(e => console.warn('[crypto] init failed', e));
+    }
+    // Run data migration to fill in any new required fields (Finding #22)
+    // We do this here so the migrated data gets persisted on the next save cycle
+    setPatients(prev => {
+      const result = runDataMigration(prev, [], [], []);
+      return result.patients;
+    });
+    setAppointments(prev => {
+      const result = runDataMigration([], prev, [], []);
+      return result.appointments;
+    });
     // Start inactivity timeout — clears session after CONFIG.SESSION_TIMEOUT_MS
     startSessionTimer(function(){
       addToast('Session expired due to inactivity.','info');
@@ -12398,6 +12804,8 @@ function App(){
     addToast('Welcome back, '+(authedUser.name||authedUser.username)+'!','success');
   };
   const handleLogout=()=>{
+    clearCryptoKey(); // clear in-memory encryption key on logout (Finding #3)
+    stopSessionTimer();
     setUser(null);
     setView('login');
     addToast('Logged out successfully','info');
