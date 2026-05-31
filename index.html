@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0a7c6e"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://script.google.com https://script.googleusercontent.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self' blob:;">
 <!-- Performance: preconnect to font origin so the browser opens the TCP/TLS connection early -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12547,8 +12547,54 @@ function App(){
             ...r, lastSent: fixDateStr(r.lastSent), nextDue: fixDateStr(r.nextDue)
           }));
 
-          // Replace local state with sheet data (sheets is source of truth)
-          if (Array.isArray(data.patients))      setPatients(cleanedPatients);
+          // Replace local state with sheet data (sheets is source of truth).
+          // IMPORTANT: Sheets strips images >30KB before pushing, so the pulled
+          // patients will have empty dataUrl fields. We merge Sheets metadata with
+          // locally-stored images so attachments survive a page refresh.
+          if (Array.isArray(data.patients)) {
+            let localPatients = [];
+            try {
+              const ls = localStorage.getItem(LS_KEYS.PATIENTS);
+              if (ls) localPatients = JSON.parse(ls) || [];
+            } catch(e) {}
+            // Build a quick lookup: patientId → local attachment/history arrays (with images)
+            const localById = {};
+            localPatients.forEach(p => { localById[p.id] = p; });
+            // Merge: take all metadata from Sheets, but restore local dataUrls where Sheets stripped them
+            const mergedPatients = cleanedPatients.map(sp => {
+              const lp = localById[sp.id];
+              if (!lp) return sp;
+              // Restore attachment dataUrls that Sheets stripped
+              const mergedAtts = (sp.attachments || []).map(sa => {
+                if (sa.dataUrl) return sa; // Sheets has the data (small file) — keep it
+                const la = (lp.attachments || []).find(a => a.id === sa.id);
+                return la ? {...sa, dataUrl: la.dataUrl || ''} : sa;
+              });
+              // Restore history scanImageUrls and nested attachment dataUrls
+              const mergedHist = (sp.history || []).map(sh => {
+                const lh = (lp.history || []).find(h => h.id === sh.id);
+                if (!lh) return sh;
+                const restoredAtts = (sh.attachments || []).map(sa => {
+                  if (sa.dataUrl) return sa;
+                  const la = (lh.attachments || []).find(a => a.id === sa.id);
+                  return la ? {...sa, dataUrl: la.dataUrl || ''} : sa;
+                });
+                return {
+                  ...sh,
+                  scanImageUrl: sh.scanImageUrl || lh.scanImageUrl || '',
+                  attachments: restoredAtts,
+                };
+              });
+              // Restore patient photo if Sheets stripped it
+              return {
+                ...sp,
+                photoDataUrl: sp.photoDataUrl || lp.photoDataUrl || '',
+                attachments: mergedAtts,
+                history: mergedHist,
+              };
+            });
+            setPatients(mergedPatients);
+          }
           if (Array.isArray(data.appointments))  setAppointments(cleanedAppts);
           if (Array.isArray(data.payments))      setPayments(cleanedPays);
           if (Array.isArray(data.notifications)) setNotifications(data.notifications);
@@ -12726,50 +12772,7 @@ function App(){
   }, [patients, appointments, payments, notifications, reminders, reminderLog, user]);
 
 
-  // ── Persist full state to localStorage on every change ──────────────────
-  // This preserves attachments, history images, and all patient data across
-  // page refreshes — even when Google Sheets sync is not configured.
-  // NOTE: stores FULL dataUrls (unlike Sheets sync which strips them).
-  useEffect(() => {
-    if (!user) return; // don't save while not logged in
-    const timer = setTimeout(() => {
-      try {
-        // Save patients with full attachment dataUrls
-        localStorage.setItem(LS_KEYS.PATIENTS, JSON.stringify(patients));
-        localStorage.setItem(LS_KEYS.APPOINTMENTS, JSON.stringify(appointments));
-        localStorage.setItem(LS_KEYS.PAYMENTS, JSON.stringify(payments));
-        localStorage.setItem(LS_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
-        localStorage.setItem(LS_KEYS.REMINDERS, JSON.stringify(reminders));
-        localStorage.setItem(LS_KEYS.REMINDER_LOG, JSON.stringify(reminderLog));
-        window.logEvent && window.logEvent('localsave', 'State saved to localStorage', {
-          patients: patients.length, appointments: appointments.length
-        });
-      } catch(e) {
-        // localStorage may be full — try stripping large dataUrls before saving
-        try {
-          const slim = patients.map(p => {
-            const r = {...p};
-            if (r.attachments) r.attachments = r.attachments.map(a => ({...a, dataUrl: a.dataUrl && a.dataUrl.length > 100000 ? '' : a.dataUrl}));
-            if (r.history)     r.history     = r.history.map(h => ({...h,
-              scanImageUrl: h.scanImageUrl && h.scanImageUrl.length > 100000 ? '' : h.scanImageUrl,
-              attachments: h.attachments ? h.attachments.map(a => ({...a, dataUrl: a.dataUrl && a.dataUrl.length > 100000 ? '' : a.dataUrl})) : h.attachments,
-            }));
-            return r;
-          });
-          localStorage.setItem(LS_KEYS.PATIENTS, JSON.stringify(slim));
-          localStorage.setItem(LS_KEYS.APPOINTMENTS, JSON.stringify(appointments));
-          console.warn('[localsave] Stripped large images to fit localStorage quota');
-        } catch(e2) {
-          // Notify user that storage is full (Finding #21)
-          if (e2 && (e2.name === 'QuotaExceededError' || e2.code === 22)) {
-            addToast('⚠️ Storage full — export your data and clear old records', 'error');
-          }
-          console.warn('[localsave] localStorage full, cannot save:', e2.message);
-        }
-      }
-    }, 500); // 500ms debounce
-    return () => clearTimeout(timer);
-  }, [patients, appointments, payments, notifications, reminders, reminderLog, user]);
+  // (duplicate localStorage save effect removed — the single effect above handles all saves)
 
 
 
