@@ -6697,18 +6697,26 @@ function AttachmentViewer({file, onClose}) {
         )
       ),
       h('div', {className:'att-viewer-body'},
-        isImage && h('div', {className:'att-viewer-img-wrap', style:{overflow:'auto'}},
+        !file.dataUrl && h('div',{className:'att-viewer-nopreview'},
+          h('div',{style:{fontSize:40,marginBottom:8}},'⚠️'),
+          h('div',{style:{color:'#fff',fontWeight:700,fontSize:15,marginBottom:8}},'File data not available'),
+          h('div',{style:{color:'#aaa',fontSize:13,marginBottom:16,textAlign:'center',maxWidth:320}},
+            'The image data was not saved (storage was full at upload time). Please remove this entry and re-attach the file.'
+          ),
+          h('button',{type:'button',className:'btn bgh bsm',onClick:onClose},'Close')
+        ),
+        file.dataUrl && isImage && h('div', {className:'att-viewer-img-wrap', style:{overflow:'auto'}},
           h('img',{
             src: file.dataUrl,
             alt: file.name,
             style:{transform:`scale(${zoom})`,transformOrigin:'top left',display:'block',maxWidth:zoom===1?'100%':'none'},
           })
         ),
-        isPdf && h('iframe',{src:file.dataUrl,className:'att-viewer-pdf',title:file.name}),
-        !isImage && !isPdf && h('div',{className:'att-viewer-nopreview'},
+        file.dataUrl && isPdf && h('iframe',{src:file.dataUrl,className:'att-viewer-pdf',title:file.name}),
+        file.dataUrl && !isImage && !isPdf && h('div',{className:'att-viewer-nopreview'},
           h('div',{style:{fontSize:48}},'📄'),
-          h('div',{style:{marginTop:12,color:'var(--md)',fontSize:14}},file.name),
-          h('a',{href:file.dataUrl,download:file.name,className:'btn bp'},'\u2b07 Download')
+          h('div',{style:{marginTop:12,color:'#ccc',fontSize:14}},file.name),
+          h('a',{href:file.dataUrl,download:file.name,className:'btn bp'},'⬇ Download')
         )
       )
     )
@@ -12762,29 +12770,26 @@ function App(){
         localStorage.setItem(LS_KEYS.REMINDERS,     JSON.stringify(reminders));
         localStorage.setItem(LS_KEYS.REMINDER_LOG,   JSON.stringify(reminderLog));
       } catch(e) {
-        // Quota exceeded — strip very large dataUrls (> 100KB) and retry
+        // Quota exceeded — only strip patient profile photos (large, re-uploadable).
+        // NEVER strip attachment dataUrls — those are the user's clinical files and
+        // cannot be re-created if lost. If quota is still exceeded after photo strip,
+        // warn the user rather than silently deleting their files.
         try {
-          const slim = patients.map(p => {
-            const r = {...p};
-            const strip = url => (url && url.length > 102400) ? '' : url;
-            if (r.attachments) r.attachments = r.attachments.map(a => ({...a, dataUrl: strip(a.dataUrl)}));
-            if (r.history)     r.history     = r.history.map(h => ({...h,
-              scanImageUrl: strip(h.scanImageUrl),
-              attachments: h.attachments ? h.attachments.map(a=>({...a,dataUrl:strip(a.dataUrl)})) : h.attachments,
-            }));
-            return r;
-          });
+          const slim = patients.map(p => ({
+            ...p,
+            // Strip only the profile photo (re-uploadable), keep all attachment dataUrls intact
+            photoDataUrl: (p.photoDataUrl && p.photoDataUrl.length > 51200) ? '' : (p.photoDataUrl || ''),
+          }));
           localStorage.setItem(LS_KEYS.PATIENTS,      JSON.stringify(slim));
           localStorage.setItem(LS_KEYS.APPOINTMENTS,  JSON.stringify(appointments));
           localStorage.setItem(LS_KEYS.PAYMENTS,      JSON.stringify(payments));
           localStorage.setItem(LS_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
           localStorage.setItem(LS_KEYS.REMINDERS,     JSON.stringify(reminders));
           localStorage.setItem(LS_KEYS.REMINDER_LOG,   JSON.stringify(reminderLog));
-          console.warn('[localsave] Stripped very large (>100KB) images to fit storage quota');
+          console.warn('[localsave] Stripped large profile photos to fit storage quota; attachments preserved');
         } catch(e2) {
-          // Still quota exceeded after stripping — notify user (Finding #21)
           if (e2 && (e2.name === 'QuotaExceededError' || e2.code === 22)) {
-            addToast('⚠️ Storage full — export your data and clear old records', 'error');
+            addToast('⚠️ Storage almost full — export your data or remove unused attachments to free space', 'error');
           }
           console.warn('[localsave] Storage full:', e2.message);
         }
