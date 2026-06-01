@@ -6784,12 +6784,31 @@ function AttachmentViewer({file, onClose}) {
         loading && h('div',{className:'att-viewer-nopreview'},
           h('div',{style:{color:'#fff',fontSize:14}},'Loading…')
         ),
-        !loading && isDrive && h('iframe',{
-          src: file.driveEmbedUrl,
-          className:'att-viewer-pdf',
-          title:file.name,
-          allow:'autoplay',
-        }),
+        // Drive files: Google blocks iframe embedding from external origins (frame-ancestors CSP).
+        // thumbnail?sz=w1600 is reliable for publicly-shared images (no consent-page redirect).
+        !loading && isDrive && isImage && h('div',{className:'att-viewer-img-wrap',style:{overflow:'auto'}},
+          h('img',{
+            src:'https://drive.google.com/thumbnail?id='+file.driveFileId+'&sz=w1600',
+            alt:file.name,
+            style:{transform:`scale(${zoom})`,transformOrigin:'top left',display:'block',maxWidth:zoom===1?'100%':'none'},
+            onError:e=>{
+              // Fallback chain: thumbnail → lh3 CDN → Open-in-Drive link
+              const id = file.driveFileId;
+              if(e.target.src.includes('thumbnail')){
+                e.target.src='https://lh3.googleusercontent.com/d/'+id+'=w1600';
+              } else {
+                e.target.style.display='none';
+                e.target.insertAdjacentHTML('afterend','<div style="color:#aaa;padding:20px;text-align:center;font-size:13px">Preview unavailable — <a href="'+(file.driveViewUrl||'#')+'" target="_blank" style="color:#4dd">Open in Drive</a></div>');
+              }
+            }
+          })
+        ),
+        !loading && isDrive && !isImage && h('div',{className:'att-viewer-nopreview'},
+          h('div',{style:{fontSize:52,marginBottom:12}},isPdf?'📑':'📄'),
+          h('div',{style:{color:'#fff',fontWeight:700,fontSize:15,marginBottom:8}},file.name),
+          h('div',{style:{color:'#aaa',fontSize:13,marginBottom:16}},'Preview requires opening in Google Drive.'),
+          file.driveViewUrl && h('a',{href:file.driveViewUrl,target:'_blank',className:'btn bg2'},'🔗 Open in Drive')
+        ),
         !loading && !isDrive && !dataUrl && h('div',{className:'att-viewer-nopreview'},
           h('div',{style:{fontSize:40,marginBottom:8}},'⚠️'),
           h('div',{style:{color:'#fff',fontWeight:700,fontSize:15,marginBottom:8}},'File data not available'),
@@ -7120,16 +7139,16 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
   const ed = (k,v) => setEditData(p=>({...p,[k]:v}));
 
   const handleSave = () => {
-    // Create a history entry with the scan image + all extracted data
     const entry = {
       id:          'HIST-' + Date.now(),
       scanDate:    editData.scanDate || localToday(),
-      scanImageUrl: imageUrl,        // thumbnail of original card
+      scanImageUrl: imageUrl,
       type:        'examination_record',
       patientName: editData.name || S(patient&&patient.name),
-      // Clinical data
       ...editData,
     };
+    // Persist scan image to IDB so it survives localStorage quota eviction on refresh
+    if (imageUrl) idbPut(entry.id, imageUrl).catch(()=>{});
     onSaved(entry);
   };
 
@@ -7305,6 +7324,15 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
 function ClinicalHistoryEntry({entry, onDelete, idx}) {
   const [expanded, setExpanded] = useState(idx===0); // first entry open by default
   const [viewingImg, setViewingImg] = useState(false);
+  // Load scan image from IDB if not in entry (stripped from localStorage due to size)
+  const [scanUrl, setScanUrl] = useState(entry.scanImageUrl || '');
+  useEffect(() => {
+    if (!entry.scanImageUrl && entry.id) {
+      idbGet(entry.id).then(url => { if (url) setScanUrl(url); }).catch(()=>{});
+    } else {
+      setScanUrl(entry.scanImageUrl || '');
+    }
+  }, [entry.id, entry.scanImageUrl]);
 
   const clinicalFields = [
     ['Occlusion',            entry.occlusion],
@@ -7332,11 +7360,13 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
     const atts   = safe(entry.attachments);
     const isImg = S(entry.fileType).startsWith('image/');
     const isPdf = entry.fileType === 'application/pdf';
+    // scanUrl: loaded from state (IDB fallback fills it in via useEffect above)
+    const canView = !!(scanUrl);
     return h('div',{className:'hist-entry hist-entry-attached'},
       h('div',{className:'hist-entry-header',style:{cursor:'default'}},
         h('div',{className:'hist-entry-left',style:{display:'flex',alignItems:'center',gap:12}},
-          entry.scanImageUrl && isImg && h('img',{
-            src:entry.scanImageUrl,
+          scanUrl && isImg && h('img',{
+            src:scanUrl,
             alt:entry.label,
             className:'hist-entry-thumb',
             style:{cursor:'pointer'},
@@ -7357,12 +7387,14 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
           )
         ),
         h('div',{className:'hist-entry-right',style:{display:'flex',gap:6,flexWrap:'wrap'}},
-          isImg && entry.scanImageUrl && h('button',{
-            type:'button',className:'btn bgh bsm',
+          (isImg || isPdf) && h('button',{
+            type:'button', className:'btn bgh bsm',
+            disabled: !canView,
+            title: canView ? 'View' : 'Image data not available — re-attach to restore',
             onClick:e=>{e.stopPropagation();setViewingImg(true);}
           },'👁 View'),
-          !isAppt && entry.scanImageUrl && h('a',{
-            href:entry.scanImageUrl, download:entry.label||'record',
+          !isAppt && scanUrl && h('a',{
+            href:scanUrl, download:entry.label||'record',
             className:'btn bgh bsm', onClick:e=>e.stopPropagation()
           },'⬇'),
           h('button',{
@@ -7403,20 +7435,27 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
         )
       ),
 
-      viewingImg && entry.scanImageUrl && h('div',{
+      viewingImg && h('div',{
         className:'att-viewer-ov',onClick:()=>setViewingImg(false)
       },
         h('div',{className:'att-viewer-modal',onClick:e=>e.stopPropagation()},
           h('div',{className:'att-viewer-header'},
             h('div',{style:{fontWeight:700,fontSize:14,color:'var(--dk)'}},entry.label||'Record'),
             h('div',{style:{display:'flex',gap:8}},
-              h('a',{href:entry.scanImageUrl,download:entry.label,className:'btn bg2 bsm'},'⬇ Download'),
+              scanUrl && h('a',{href:scanUrl,download:entry.label,className:'btn bg2 bsm'},'⬇ Download'),
               h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)},'✕ Close')
             )
           ),
           h('div',{className:'att-viewer-body'},
-            isImg && h('img',{src:entry.scanImageUrl,alt:entry.label,style:{maxWidth:'100%',borderRadius:4}}),
-            isPdf && h('iframe',{src:entry.scanImageUrl,style:{width:'100%',height:'70vh',border:'none'}})
+            !scanUrl && h('div',{className:'att-viewer-nopreview'},
+              h('div',{style:{fontSize:36,marginBottom:8}},'⚠️'),
+              h('div',{style:{color:'#fff',fontWeight:700}},'Image not available'),
+              h('div',{style:{color:'#aaa',fontSize:12,marginTop:6,textAlign:'center',maxWidth:280}},
+                'The scan image was not saved (storage was full). Remove this entry and re-attach the file.'
+              )
+            ),
+            scanUrl && isImg && h('img',{src:scanUrl,alt:entry.label,style:{maxWidth:'100%',borderRadius:4}}),
+            scanUrl && isPdf && h('iframe',{src:scanUrl,style:{width:'100%',height:'70vh',border:'none'}})
           )
         )
       )
@@ -7436,10 +7475,11 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
         entry.occupation && h('div',{className:'hist-entry-sub'}, entry.occupation)
       ),
       h('div',{className:'hist-entry-right'},
-        entry.scanImageUrl && h('img',{
-          src:entry.scanImageUrl,
+        scanUrl && h('img',{
+          src:scanUrl,
           alt:'Scan thumbnail',
           className:'hist-entry-thumb',
+          style:{cursor:'pointer'},
           onClick:e=>{e.stopPropagation();setViewingImg(true);}
         }),
         h('div',{className:'hist-entry-toggle'},expanded?'▲':'▼')
@@ -7498,7 +7538,7 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
 
       // Actions
       h('div',{className:'hist-entry-actions'},
-        entry.scanImageUrl && h('button',{
+        scanUrl && h('button',{
           type:'button',className:'btn bg2 bsm',
           onClick:()=>setViewingImg(true)
         },'🖼 View Original Scan'),
@@ -7509,8 +7549,8 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
       )
     ),
 
-    // Full-size image viewer
-    viewingImg && entry.scanImageUrl && h('div',{
+    // Full-size image viewer — uses scanUrl (IDB-backed, survives localStorage quota eviction)
+    viewingImg && h('div',{
       className:'att-viewer-ov',
       onClick:()=>setViewingImg(false)
     },
@@ -7518,13 +7558,21 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
         h('div',{className:'att-viewer-header'},
           h('div',{style:{color:'#fff',fontWeight:700}},'📋 Examination Record — '+entry.scanDate),
           h('div',{style:{display:'flex',gap:8}},
-            h('a',{href:entry.scanImageUrl,download:'exam-record-'+entry.scanDate+'.jpg',
+            scanUrl && h('a',{href:scanUrl,download:'exam-record-'+entry.scanDate+'.jpg',
               className:'btn bg2 bsm'},'⬇ Download'),
             h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)},'✕ Close')
           )
         ),
         h('div',{className:'att-viewer-body'},
-          h('img',{src:entry.scanImageUrl,alt:'Exam record',style:{maxWidth:'100%',borderRadius:4}})
+          scanUrl
+            ? h('img',{src:scanUrl,alt:'Exam record',style:{maxWidth:'100%',borderRadius:4}})
+            : h('div',{className:'att-viewer-nopreview'},
+                h('div',{style:{fontSize:36,marginBottom:8}},'⚠️'),
+                h('div',{style:{color:'#fff',fontWeight:700}},'Image not available'),
+                h('div',{style:{color:'#aaa',fontSize:12,marginTop:6,textAlign:'center',maxWidth:280}},
+                  'Scan image was not saved (storage full). Delete and re-scan this record.'
+                )
+              )
         )
       )
     )
@@ -7557,19 +7605,21 @@ function ClinicalHistoryTab({patient, history, onAddEntry, onDeleteEntry}) {
       }
       await new Promise(resolve => {
         const reader = new FileReader();
-        reader.onload = ev => {
+        reader.onload = async ev => {
+          const dataUrl = ev.target.result || '';
           const entry = {
             id:           'HIST-' + Date.now() + '-' + i,
             type:         'attached_record',
             status:       'archived',
             scanDate:     localToday(),
             label:        file.name,
-            scanImageUrl: ev.target.result,  // full dataUrl stored locally
+            scanImageUrl: dataUrl,  // kept for immediate display
             fileType:     file.type || 'image/jpeg',
             fileSize:     file.size,
-            // No clinical fields extracted — manual entry
           };
           onAddEntry && onAddEntry(entry);
+          // Save to IDB so it survives localStorage quota eviction on refresh
+          try { await idbPut(entry.id, dataUrl); } catch(e) {}
           resolve();
         };
         reader.readAsDataURL(file);
@@ -8078,6 +8128,9 @@ function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
 function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl}){
   // Local copy so file/history updates reflect instantly without waiting for parent re-render
   const [localPat, setLocalPat] = useState(patientProp);
+  // Always-current ref — async callbacks (Drive upload) read this instead of stale closure
+  const localPatRef = useRef(localPat);
+  localPatRef.current = localPat; // updated every render, no useEffect lag
   // Sync if parent sends a fresh patient (e.g. after full refresh)
   const patient = localPat;
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
@@ -8174,41 +8227,48 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
       patientId: patient.id,
       addToast: addToast,
       onAdd: att => {
-        const updated = [...safe(patient.attachments), att];
-        setLocalPat(p => ({...p, attachments: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, updated);
+        // Read latest state from ref — avoids stale closure when Drive upload is async
+        const p = localPatRef.current;
+        const updated = [...safe(p.attachments), att];
+        setLocalPat({...p, attachments: updated});
+        onUpdateTeeth(p.id, p.teeth, updated);
       },
       onUpdate: (attId, newAtt) => {
-        const updated = safe(patient.attachments).map(a => a.id === attId ? newAtt : a);
-        setLocalPat(p => ({...p, attachments: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, updated);
+        // Called after async Drive upload — ref always has current state, closure does not
+        const p = localPatRef.current;
+        const updated = safe(p.attachments).map(a => a.id === attId ? newAtt : a);
+        setLocalPat({...p, attachments: updated});
+        onUpdateTeeth(p.id, p.teeth, updated);
       },
       onRemove: id => {
-        // Also clean up from Drive/IDB when removing
-        const att = safe(patient.attachments).find(a => a.id === id);
+        const p = localPatRef.current;
+        const att = safe(p.attachments).find(a => a.id === id);
         if (att && att.storage === 'idb') idbDelete(id).catch(()=>{});
-        const updated = safe(patient.attachments).filter(a => a.id !== id);
-        setLocalPat(p => ({...p, attachments: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, updated);
+        const updated = safe(p.attachments).filter(a => a.id !== id);
+        setLocalPat({...p, attachments: updated});
+        onUpdateTeeth(p.id, p.teeth, updated);
       },
       onUpdateNote: (id, note) => {
-        const updated = safe(patient.attachments).map(a => a.id===id ? {...a,note} : a);
-        setLocalPat(p => ({...p, attachments: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, updated);
+        const p = localPatRef.current;
+        const updated = safe(p.attachments).map(a => a.id===id ? {...a,note} : a);
+        setLocalPat({...p, attachments: updated});
+        onUpdateTeeth(p.id, p.teeth, updated);
       },
     }),
     tab==='history' && h(ClinicalHistoryTab, {
       patient: patient,
       history: safe(patient.history),
       onAddEntry: entry => {
-        const updated = [...safe(patient.history), entry];
-        setLocalPat(p => ({...p, history: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, patient.attachments, updated);
+        const p = localPatRef.current;
+        const updated = [...safe(p.history), entry];
+        setLocalPat({...p, history: updated});
+        onUpdateTeeth(p.id, p.teeth, p.attachments, updated);
       },
       onDeleteEntry: id => {
-        const updated = safe(patient.history).filter(e => e.id !== id);
-        setLocalPat(p => ({...p, history: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, patient.attachments, updated);
+        const p = localPatRef.current;
+        const updated = safe(p.history).filter(e => e.id !== id);
+        setLocalPat({...p, history: updated});
+        onUpdateTeeth(p.id, p.teeth, p.attachments, updated);
       },
     }),
     showMedCert && h(MedCertModal, {patient:patient, onClose:()=>setShowMedCert(false)}),
@@ -10328,10 +10388,12 @@ function highlightMatch(text, query) {
 }
 
 
-function ApptForm({patients,appointments,onClose,onSave,onAddPatient}){
+function ApptForm({patients,appointments,onClose,onSave,onAddPatient,syncUrl,addToast}){
   const [f,setF]=useState({patientId:'',patientName:'',service:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:'',fee:'',phone:'',email:'',attachments:[]});
   const [selectedPatient, setSelectedPatient] = useState(null);
-  // localPatients is managed inside PSI component now
+  // Always-current ref so async Drive-upload callbacks don't see stale f.attachments
+  const fRef = useRef(f);
+  fRef.current = f;
 
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
 
@@ -10457,14 +10519,18 @@ function ApptForm({patients,appointments,onClose,onSave,onAddPatient}){
     h(AttachmentPanel, {
       attachments: safe(f.attachments),
       label: 'X-Rays & Clinical Photos',
-      onAdd: att => s('attachments', [...safe(f.attachments), att]),
-      onUpdate: (attId, newAtt) => s('attachments', safe(f.attachments).map(a=>a.id===attId?newAtt:a)),
+      syncUrl: syncUrl || '',
+      patientId: f.patientId || 'appt-draft',
+      addToast: addToast,
+      // Use fRef.current so async Drive-upload callbacks always see latest attachments
+      onAdd: att => setF(x => ({...x, attachments: [...safe(x.attachments), att]})),
+      onUpdate: (attId, newAtt) => setF(x => ({...x, attachments: safe(x.attachments).map(a=>a.id===attId?newAtt:a)})),
       onRemove: id => {
-        const att = safe(f.attachments).find(a => a.id === id);
+        const att = safe(fRef.current.attachments).find(a => a.id === id);
         if (att && att.storage === 'idb') idbDelete(id).catch(()=>{});
-        s('attachments', safe(f.attachments).filter(a=>a.id!==id));
+        setF(x => ({...x, attachments: safe(x.attachments).filter(a=>a.id!==id)}));
       },
-      onUpdateNote: (id, note) => s('attachments', safe(f.attachments).map(a=>a.id===id?{...a,note}:a)),
+      onUpdateNote: (id, note) => setF(x => ({...x, attachments: safe(x.attachments).map(a=>a.id===id?{...a,note}:a)})),
     })
   );
 }
@@ -10560,7 +10626,7 @@ function AppointmentCalendar({appointments, onDayClick}){
 }
 
 // Appointments — sortable table + calendar view + filters
-function Appointments({appointments,setAppointments,patients,setPatients,setNotifications,setPayments,addToast}){
+function Appointments({appointments,setAppointments,patients,setPatients,setNotifications,setPayments,addToast,syncUrl}){
   const [filter,setFilter]=useState('all');
   const [search,setSearch]=useState('');
   const [modal,setModal]=useState(false);
@@ -10746,7 +10812,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
       )
     ),
 
-    modal&&h(ApptForm,{patients,appointments,onClose:()=>setModal(false),onAddPatient:(np)=>{if(setPatients)setPatients(prev=>[np,...prev.filter(x=>x.id!==np.id)]);},onSave:d=>{
+    modal&&h(ApptForm,{patients,appointments,syncUrl,addToast,onClose:()=>setModal(false),onAddPatient:(np)=>{if(setPatients)setPatients(prev=>[np,...prev.filter(x=>x.id!==np.id)]);},onSave:d=>{
       const status = autoConfirmEnabled() ? 'confirmed' : 'pending';
       const newAppt = {...d,id:'A'+uid(),status,arrived:false};
       setAppointments(p=>[newAppt,...p]);
@@ -12159,7 +12225,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
   const renderPage = () => {
     try {
       if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments),onGoKiosk});
-      if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast});
+      if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast,syncUrl});
       if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),payments:safe(payments),addToast,syncUrl,user});
       if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),addToast});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
@@ -12769,6 +12835,7 @@ function App(){
               const localOnlyAtts = (lp.attachments || []).filter(a => !sheetAttIds.has(a.id));
               const finalAtts = [...mergedAtts, ...localOnlyAtts];
               // Restore history scanImageUrls and nested attachment dataUrls
+              const sheetHistIds = new Set((sp.history || []).map(h => h.id));
               const mergedHist = (sp.history || []).map(sh => {
                 const lh = (lp.history || []).find(h => h.id === sh.id);
                 if (!lh) return sh;
@@ -12783,12 +12850,15 @@ function App(){
                   attachments: restoredAtts,
                 };
               });
+              // Preserve local-only history entries not yet pushed to Sheets
+              const localOnlyHist = (lp.history || []).filter(h => !sheetHistIds.has(h.id));
+              const finalHist = [...mergedHist, ...localOnlyHist];
               // Restore patient photo if Sheets stripped it
               return {
                 ...sp,
                 photoDataUrl: sp.photoDataUrl || lp.photoDataUrl || '',
                 attachments: finalAtts,
-                history: mergedHist,
+                history: finalHist,
               };
             });
             setPatients(mergedPatients);
@@ -12945,8 +13015,14 @@ function App(){
         try {
           const slim = patients.map(p => ({
             ...p,
-            // Strip only the profile photo (re-uploadable), keep all attachment dataUrls intact
+            // Strip large profile photo (re-uploadable)
             photoDataUrl: (p.photoDataUrl && p.photoDataUrl.length > 51200) ? '' : (p.photoDataUrl || ''),
+            // Strip large scanImageUrls from history (base64 scans can be 500KB+)
+            // Drive attachment driveEmbedUrls are short URLs — never stripped
+            history: safe(p.history).map(h => ({
+              ...h,
+              scanImageUrl: (h.scanImageUrl && h.scanImageUrl.length > 51200) ? '' : (h.scanImageUrl || ''),
+            })),
           }));
           localStorage.setItem(LS_KEYS.PATIENTS,      JSON.stringify(slim));
           localStorage.setItem(LS_KEYS.APPOINTMENTS,  JSON.stringify(appointments));
