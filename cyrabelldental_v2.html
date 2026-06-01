@@ -7438,6 +7438,7 @@ function ClinicalHistoryEntry({entry, onDelete, onUpdate, idx, syncUrl, patientI
     };
 
     return h('div', {className:'hist-entry hist-entry-attached'},
+      // Card header
       h('div', {className:'hist-entry-header', style:{cursor:'default'}},
         h('div', {className:'hist-entry-left', style:{display:'flex',alignItems:'center',gap:12}},
           h('div', {style:{fontSize:32}}, '📎'),
