@@ -6674,8 +6674,14 @@ function PatientPhoto({patient, size, syncUrl}) {
  * Supports: images (JPEG/PNG/GIF), PDF embed, and downloads.
  */
 function AttachmentViewer({file, onClose}) {
-  const isImage = file.type && file.type.startsWith('image/');
-  const isPdf   = file.type === 'application/pdf';
+  // Detect type from dataUrl prefix if MIME type is missing/generic (iOS photos etc.)
+  const effectiveType = (file.type && file.type !== 'application/octet-stream')
+    ? file.type
+    : (file.dataUrl || '').startsWith('data:image/') ? 'image/jpeg'
+    : (file.dataUrl || '').startsWith('data:application/pdf') ? 'application/pdf'
+    : file.type || '';
+  const isImage = effectiveType.startsWith('image/');
+  const isPdf   = effectiveType === 'application/pdf';
   const [zoom, setZoom] = useState(1);
 
   return h('div', {className:'att-viewer-ov', onClick:onClose},
@@ -6741,12 +6747,21 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, com
       await new Promise(resolve => {
         const reader = new FileReader();
         reader.onload = (ev) => {
+          const rawType  = file.type || '';
+          const dataUrl  = ev.target.result || '';
+          // Detect image type from dataUrl prefix when browser reports no/generic MIME type.
+          // This fixes iOS/HEIC photos that arrive with type='' or type='application/octet-stream'.
+          let resolvedType = rawType;
+          if (!rawType || rawType === 'application/octet-stream') {
+            if (dataUrl.startsWith('data:image/'))      resolvedType = dataUrl.substring(5, dataUrl.indexOf(';'));
+            else if (dataUrl.startsWith('data:application/pdf')) resolvedType = 'application/pdf';
+          }
           const att = {
             id:      'ATT-' + Date.now() + '-' + i,
             name:    file.name,
-            type:    file.type || 'application/octet-stream',
+            type:    resolvedType || 'application/octet-stream',
             size:    file.size,
-            dataUrl: ev.target.result,
+            dataUrl: dataUrl,
             note:    '',
             date:    localToday(),
           };
@@ -6813,11 +6828,14 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, com
             className:'att-thumb',
             onClick:()=>setViewing(att),
             title:'Click to view',
-          },
-            att.type && att.type.startsWith('image/')
-              ? h('img',{src:att.dataUrl,alt:att.name,className:'att-thumb-img'})
-              : h('div',{className:'att-thumb-icon'},fileIcon(att.type))
-          ),
+          }, (() => {
+            const t = (att.type && att.type !== 'application/octet-stream') ? att.type
+              : (att.dataUrl||'').startsWith('data:image/') ? 'image/jpeg' : att.type;
+            return t && t.startsWith('image/')
+              ? h('img',{src:att.dataUrl,alt:att.name,className:'att-thumb-img',
+                  onError:e=>{e.target.style.display='none';e.target.nextSibling&&(e.target.nextSibling.style.display='flex');}})
+              : h('div',{className:'att-thumb-icon'},fileIcon(t));
+          })()),
           // Info
           h('div', {className:'att-info'},
             h('div', {className:'att-name',onClick:()=>setViewing(att),title:'Click to view'},
@@ -12565,11 +12583,15 @@ function App(){
               const lp = localById[sp.id];
               if (!lp) return sp;
               // Restore attachment dataUrls that Sheets stripped
+              const sheetAttIds = new Set((sp.attachments || []).map(a => a.id));
               const mergedAtts = (sp.attachments || []).map(sa => {
                 if (sa.dataUrl) return sa; // Sheets has the data (small file) — keep it
                 const la = (lp.attachments || []).find(a => a.id === sa.id);
                 return la ? {...sa, dataUrl: la.dataUrl || ''} : sa;
               });
+              // Preserve local-only attachments not yet pushed to Sheets
+              const localOnlyAtts = (lp.attachments || []).filter(a => !sheetAttIds.has(a.id));
+              const finalAtts = [...mergedAtts, ...localOnlyAtts];
               // Restore history scanImageUrls and nested attachment dataUrls
               const mergedHist = (sp.history || []).map(sh => {
                 const lh = (lp.history || []).find(h => h.id === sh.id);
@@ -12589,7 +12611,7 @@ function App(){
               return {
                 ...sp,
                 photoDataUrl: sp.photoDataUrl || lp.photoDataUrl || '',
-                attachments: mergedAtts,
+                attachments: finalAtts,
                 history: mergedHist,
               };
             });
