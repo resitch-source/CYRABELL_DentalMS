@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com;">
 <!-- Performance: preconnect to font origin so the browser opens the TCP/TLS connection early -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3152,6 +3152,7 @@ const LS_KEYS = Object.freeze({
   SERVICES:         'cyrabell_v2_services',
   DATA_VERSION:     'cyrabell_data_version',
   CRYPTO_SALT:      'cyrabell_crypto_salt',
+  GEMINI_KEY:       'cyrabell_gemini_key',
 });
 
 // ── IndexedDB attachment store ─────────────────────────────────────────────
@@ -8311,185 +8312,261 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
  * @param {string} mimeType     - e.g. 'image/jpeg'
  */
 /**
- * extractPatientDataFromCard — calls Claude Vision via Apps Script proxy.
- *
- * WHY A PROXY?
- * The Anthropic API blocks direct browser requests (CORS policy).
- * We route through our Google Apps Script backend which runs server-side
- * and can call any external API without CORS restrictions.
- *
- * Flow:
- *   Browser → POST to Apps Script (action:'claudeOcr') → Apps Script calls Anthropic → returns JSON
- *
- * @param {string} imageBase64  data URL or raw base64 string
- * @param {string} mimeType     e.g. 'image/jpeg'
- * @param {string} syncUrl      Apps Script web app URL (stored in localStorage)
- * @returns {Promise<object>}   extracted patient data object
- */
 /**
  * extractPatientDataFromCard
  *
- * Calls Claude Vision via the Apps Script proxy — but uses a Web Worker
- * to make the HTTP request. This bypasses gateway restrictions that block
- * cross-origin requests from the main thread (Origin header issue).
+ * Fast path: if GEMINI_KEY is saved in settings, calls Gemini 2.0 Flash API
+ * DIRECTLY from a Web Worker — no Apps Script cold-start, ~5-10s total.
  *
- * Why Web Worker?
- *   Main thread fetch:  sends Origin: https://resitch-source.github.io
- *                       → gateway sees GitHub→Google cross-origin → BLOCKS IT
- *   Web Worker fetch:   sends no Origin header (null origin)
- *                       → gateway allows it (same as sync worker)
+ * Slow fallback: if no direct key, routes through Apps Script proxy (~60-120s
+ * due to Apps Script cold start). Apps Script still needed for Drive uploads.
  *
  * @param {string} imageBase64  data URL or raw base64
  * @param {string} mimeType     image/jpeg | image/png | image/webp
- * @param {string} syncUrl      Apps Script web app URL
+ * @param {string} syncUrl      Apps Script web app URL (fallback only)
+ * @param {string} scanType     'basic' | 'examination'
+ * @param {Function} onProgress (msg, pct) callback
  * @returns {Promise<object>}   extracted patient data
  */
 async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanType, onProgress) {
-  if (!syncUrl) {
+  const geminiKey = (function(){ try { return localStorage.getItem(LS_KEYS.GEMINI_KEY) || ''; } catch(e) { return ''; } })();
+  const useDirect = !!geminiKey;
+
+  if (!useDirect && !syncUrl) {
     throw new Error(
-      'Google Sheets Sync URL not configured.\n\n' +
-      'Go to ☁️ Sync in the sidebar → paste your Apps Script URL → Save.'
+      'No Gemini API key configured.\n\n' +
+      'Go to ☁️ Sync → enter your Gemini API key (free at aistudio.google.com) → Save.'
     );
   }
 
   onProgress && onProgress('Optimising image…', 10);
 
-  // Compress image for Gemini — 800px is enough for OCR, keeps it fast
+  // Compress to 900px / 0.78 quality — good OCR accuracy, small payload
   let base64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
   try {
     const dataUrl = imageBase64.startsWith('data:')
       ? imageBase64
       : ('data:' + (mimeType || 'image/jpeg') + ';base64,' + base64);
-    const compressed = await compressImage(dataUrl, 800, 0.72);
+    const compressed = await compressImage(dataUrl, 900, 0.78);
     base64 = compressed.includes(',') ? compressed.split(',')[1] : compressed;
-    console.log('[OCR] Image ready:', Math.round(base64.length / 1024), 'KB');
+    console.log('[OCR] Image ready:', Math.round(base64.length / 1024), 'KB', useDirect ? '(direct)' : '(proxy)');
   } catch (e) {
     console.warn('[OCR] Compression failed, using original:', e.message);
   }
 
-  onProgress && onProgress('Sending to Gemini AI…', 30);
+  onProgress && onProgress(useDirect ? 'Calling Gemini directly…' : 'Sending via Apps Script…', 30);
 
-  const payload = JSON.stringify({
-    action:   'geminiOcr',   // uses Gemini 2.0 Flash on the Apps Script side
-    imageB64: base64,
-    mimeType: mimeType || 'image/jpeg',
-    scanType: scanType || 'basic',
-  });
+  // ── Build the extraction prompt (same as Apps Script version) ─────────────
+  function buildPrompt(type) {
+    if (type === 'examination') {
+      return [
+        'You are a dental clinical records OCR assistant. Extract ALL data from this patient examination record card.',
+        'Return a single JSON object with these exact keys (use "" for missing/unclear fields):',
+        '{',
+        '  "name":"patient full name","dob":"YYYY-MM-DD","age":"numeric age","sex":"Male or Female",',
+        '  "phone":"phone","address":"address","occupation":"occupation","scanDate":"YYYY-MM-DD",',
+        '  "bloodPressure":"e.g. 120/80","physician":"physician name","allergies":"allergy list",',
+        '  "chronicAilments":"chronic conditions","previousHistoryOfBleeding":"yes/no/details",',
+        '  "drugsBeingTaken":"medications","natureOfTreatment":"treatment","occlusion":"occlusion findings",',
+        '  "periodontalCondition":"periodontal status","oralHygiene":"oral hygiene rating",',
+        '  "dentureUpper":"upper denture","dentureLower":"lower denture","abnormalities":"abnormalities",',
+        '  "generalCondition":"general condition","clinicalNotes":"clinical notes",',
+        '  "dentalChartNotes":"dental chart annotations","teethConditions":"tooth-by-tooth conditions"',
+        '}',
+        'RULES: Read ALL text including handwritten. Dates → YYYY-MM-DD. Return ONLY the JSON object.',
+      ].join('\n');
+    }
+    return [
+      'You are a dental records OCR assistant. Extract ALL visible text from this patient registration card.',
+      'Return a single JSON object with these exact keys (use "" for missing/unclear fields):',
+      '{',
+      '  "name":"full patient name","dob":"YYYY-MM-DD","age":"numeric age","sex":"Male or Female",',
+      '  "phone":"primary phone","email":"email","address":"complete address","occupation":"occupation",',
+      '  "maritalStatus":"Single/Married/Widowed/Separated","bloodType":"A+/A-/B+/B-/O+/O-/AB+/AB-",',
+      '  "allergies":"known allergies","lastVisit":"YYYY-MM-DD","balance":"0",',
+      '  "physician":"physician name","emergencyContact":"contact name and number"',
+      '}',
+      'RULES: Read every character carefully. Dates → YYYY-MM-DD. Return ONLY the JSON object.',
+    ].join('\n');
+  }
 
-  // Run fetch in a Web Worker — avoids CORS/Origin header issues from GitHub Pages
-  const result = await new Promise((resolve, reject) => {
+  let data;
+
+  if (useDirect) {
+    // ── FAST PATH: call Gemini API directly from Web Worker (~5-10s) ──────────
+    const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + geminiKey;
+    const geminiBody = JSON.stringify({
+      contents: [{ parts: [
+        { text: buildPrompt(scanType || 'basic') },
+        { inline_data: { mime_type: mimeType || 'image/jpeg', data: base64 } },
+      ]}],
+      generationConfig: { temperature: 0, maxOutputTokens: 1024, responseMimeType: 'application/json' },
+    });
+
     const workerSrc = `
 self.onmessage = async function(e) {
-  const { syncUrl, payload } = e.data;
+  const { url, body } = e.data;
   try {
-    const res = await fetch(syncUrl, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body:    payload,
-      redirect:'follow'
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body,
     });
     const text = await res.text();
-    if (!res.ok) {
-      self.postMessage({ ok: false, error: 'HTTP ' + res.status + ': ' + text.substring(0, 300) });
-      return;
-    }
-    let parsed;
-    try { parsed = JSON.parse(text); }
-    catch(e) { self.postMessage({ ok: false, error: 'Bad JSON: ' + text.substring(0, 100) }); return; }
-    self.postMessage({ ok: true, result: parsed });
+    if (!res.ok) { self.postMessage({ ok: false, error: 'HTTP ' + res.status + ': ' + text.substring(0, 300) }); return; }
+    let resp;
+    try { resp = JSON.parse(text); } catch(e) { self.postMessage({ ok: false, error: 'Bad JSON from Gemini' }); return; }
+    const content = (resp.candidates && resp.candidates[0] && resp.candidates[0].content &&
+                     resp.candidates[0].content.parts && resp.candidates[0].content.parts[0] &&
+                     resp.candidates[0].content.parts[0].text) || '';
+    if (!content) { self.postMessage({ ok: false, error: 'Gemini returned empty content' }); return; }
+    self.postMessage({ ok: true, content });
   } catch(err) {
     self.postMessage({ ok: false, error: err.message || String(err) });
   }
-};
-`;
-    let worker, timeout;
-    try {
-      const blob    = new Blob([workerSrc], { type: 'application/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-      worker = new Worker(blobUrl);
+};`;
 
-      // 60-second timeout — Gemini 2.0 Flash is fast, 60s is plenty
-      timeout = setTimeout(() => {
-        reject(new Error('Request timed out (60s). Check your Apps Script URL and Gemini API key, then try again.'));
-        try { worker.terminate(); URL.revokeObjectURL(blobUrl); } catch(e) {}
-      }, 60000);
+    const raw = await new Promise((resolve, reject) => {
+      let worker, timeout;
+      try {
+        const blob    = new Blob([workerSrc], { type: 'application/javascript' });
+        const blobUrl = URL.createObjectURL(blob);
+        worker  = new Worker(blobUrl);
+        timeout = setTimeout(() => {
+          try { worker.terminate(); URL.revokeObjectURL(blobUrl); } catch(e) {}
+          reject(new Error('Gemini timed out (30s). Check your API key and internet connection.'));
+        }, 30000);
+        worker.onmessage = (e) => {
+          clearTimeout(timeout);
+          URL.revokeObjectURL(blobUrl);
+          worker.terminate();
+          resolve(e.data);
+        };
+        worker.onerror = (e) => {
+          clearTimeout(timeout);
+          URL.revokeObjectURL(blobUrl);
+          reject(new Error('Worker error: ' + (e.message || 'unknown')));
+        };
+        worker.postMessage({ url: geminiUrl, body: geminiBody });
+      } catch (workerErr) {
+        // Fallback to direct fetch if Worker fails
+        clearTimeout && clearTimeout(timeout);
+        fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: geminiBody })
+          .then(r => r.text().then(t => {
+            if (!r.ok) { resolve({ ok: false, error: 'HTTP ' + r.status }); return; }
+            const resp = JSON.parse(t);
+            const content = resp.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            resolve({ ok: true, content });
+          }))
+          .catch(err => resolve({ ok: false, error: err.message }));
+      }
+    });
 
-      worker.onmessage = (e) => {
-        clearTimeout(timeout);
-        URL.revokeObjectURL(blobUrl);
-        worker.terminate();
-        resolve(e.data);
-      };
-      worker.onerror = (e) => {
-        clearTimeout(timeout);
-        URL.revokeObjectURL(blobUrl);
-        reject(new Error('Worker error: ' + (e.message || 'unknown')));
-      };
-      worker.postMessage({ syncUrl, payload });
+    onProgress && onProgress('Parsing AI response…', 85);
 
-    } catch (workerErr) {
-      // Fallback: direct fetch (no Worker support)
-      console.warn('[OCR] Worker unavailable, using direct fetch:', workerErr.message);
-      clearTimeout(timeout);
-      fetch(syncUrl, {
-        method:  'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body:    payload,
-        redirect:'follow'
-      })
-        .then(r => r.text().then(t => ({ status: r.status, text: t })))
-        .then(({ status, text }) => {
-          if (status < 200 || status > 299) {
-            resolve({ ok: false, error: 'HTTP ' + status + ': ' + text.substring(0, 200) });
-          } else {
-            try { resolve({ ok: true, result: JSON.parse(text) }); }
-            catch(e) { resolve({ ok: false, error: 'Bad JSON: ' + text.substring(0, 100) }); }
-          }
-        })
-        .catch(err => resolve({ ok: false, error: err.message }));
+    if (!raw.ok) {
+      const e = raw.error || '';
+      if (e.includes('401') || e.includes('API_KEY') || e.includes('invalid')) {
+        throw new Error('Invalid Gemini API key. Go to ☁️ Sync → update your key.\nGet a free key at aistudio.google.com');
+      }
+      if (e.includes('429')) throw new Error('Gemini rate limit hit. Wait 15 seconds and try again.\nFree tier: 15 scans/minute.');
+      throw new Error('Gemini error: ' + e);
     }
+
+    let content = raw.content.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim();
+    try {
+      data = JSON.parse(content);
+    } catch(e) {
+      const m = content.match(/\{[\s\S]*\}/);
+      if (m) { try { data = JSON.parse(m[0]); } catch(e2) { throw new Error('Could not parse Gemini response: ' + content.substring(0, 200)); } }
+      else throw new Error('No JSON in Gemini response: ' + content.substring(0, 200));
+    }
+
+  } else {
+    // ── FALLBACK: route through Apps Script proxy ────────────────────────────
+    const payload = JSON.stringify({
+      action:   'geminiOcr',
+      imageB64: base64,
+      mimeType: mimeType || 'image/jpeg',
+      scanType: scanType || 'basic',
+    });
+
+    const result = await new Promise((resolve, reject) => {
+      const workerSrc = `
+self.onmessage = async function(e) {
+  const { syncUrl, payload } = e.data;
+  try {
+    const res = await fetch(syncUrl, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:payload, redirect:'follow' });
+    const text = await res.text();
+    if (!res.ok) { self.postMessage({ ok: false, error: 'HTTP ' + res.status + ': ' + text.substring(0, 300) }); return; }
+    let parsed;
+    try { parsed = JSON.parse(text); } catch(e) { self.postMessage({ ok: false, error: 'Bad JSON: ' + text.substring(0, 100) }); return; }
+    self.postMessage({ ok: true, result: parsed });
+  } catch(err) { self.postMessage({ ok: false, error: err.message || String(err) }); }
+};`;
+      let worker, timeout;
+      try {
+        const blob = new Blob([workerSrc], { type: 'application/javascript' });
+        const blobUrl = URL.createObjectURL(blob);
+        worker  = new Worker(blobUrl);
+        timeout = setTimeout(() => {
+          try { worker.terminate(); URL.revokeObjectURL(blobUrl); } catch(e) {}
+          reject(new Error('Request timed out (90s). Check your Apps Script URL and try again.'));
+        }, 90000);
+        worker.onmessage = (e) => {
+          clearTimeout(timeout);
+          URL.revokeObjectURL(blobUrl);
+          worker.terminate();
+          resolve(e.data);
+        };
+        worker.onerror = (e) => {
+          clearTimeout(timeout);
+          URL.revokeObjectURL(blobUrl);
+          reject(new Error('Worker error: ' + (e.message || 'unknown')));
+        };
+        worker.postMessage({ syncUrl, payload });
+      } catch (workerErr) {
+        clearTimeout && clearTimeout(timeout);
+        fetch(syncUrl, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:payload, redirect:'follow' })
+          .then(r => r.text().then(t => {
+            if (!r.ok) resolve({ ok: false, error: 'HTTP ' + r.status + ': ' + t.substring(0, 200) });
+            else { try { resolve({ ok: true, result: JSON.parse(t) }); } catch(e) { resolve({ ok: false, error: 'Bad JSON' }); } }
+          }))
+          .catch(err => resolve({ ok: false, error: err.message }));
+      }
+    });
+
+    onProgress && onProgress('Processing AI response…', 85);
+
+    if (!result.ok) {
+      const err = result.error || 'Unknown error';
+      if (err.includes('429')) throw new Error('Gemini rate limit. Wait 15 seconds and try again.');
+      if (err.includes('GEMINI_API_KEY') || err.includes('not configured')) {
+        throw new Error('Gemini API key missing in Apps Script.\nOr go to ☁️ Sync → add your Gemini key for direct (fast) mode.');
+      }
+      throw new Error('OCR failed: ' + err);
+    }
+
+    const parsed = result.result;
+    if (!parsed || parsed.ok === false) {
+      const gsErr = (parsed && parsed.error) || 'Unknown Apps Script error';
+      if (gsErr.includes('429')) throw new Error('Gemini rate limit. Wait 15 seconds and try again.');
+      throw new Error('Apps Script error: ' + gsErr);
+    }
+    if (!parsed.data) throw new Error('Apps Script returned ok:true but no data field.');
+    data = parsed.data;
+  }
+
+  // ── Sanitize ──────────────────────────────────────────────────────────────
+  const clean = {};
+  Object.keys(data).forEach(k => {
+    const v = data[k];
+    clean[k] = (v === null || v === undefined || v === 'null' || v === 'N/A' || v === 'n/a') ? '' : String(v).trim();
   });
 
-  onProgress && onProgress('Processing AI response…', 85);
-
-  // ── Error handling ──────────────────────────────────────────────────────────
-  if (!result.ok) {
-    const err = result.error || 'Unknown error';
-    if (err.includes('429') || err.includes('rate limit')) {
-      throw new Error('Gemini is busy (rate limit). Wait 15 seconds and try again.\nFree tier: 15 scans/minute.');
-    }
-    if (err.includes('GEMINI_API_KEY') || err.includes('not configured')) {
-      throw new Error(
-        '🔑 Gemini API key not configured.\n\n' +
-        '1. Go to aistudio.google.com/app/apikey → Create API Key (free)\n' +
-        '2. In Apps Script → Project Settings → Script Properties\n' +
-        '   Add: GEMINI_API_KEY = AIza...\n' +
-        '3. Run setupGeminiKey() → Redeploy as new version'
-      );
-    }
-    if (err.includes('Gateway') || err.includes('Unauthorized') || err.includes('Access Restricted')) {
-      throw new Error('Network blocked the request. Try from a different network or use mobile data.\nError: ' + err);
-    }
-    throw new Error('OCR failed: ' + err);
-  }
-
-  const parsed = result.result;
-  if (!parsed) throw new Error('No response from Apps Script.');
-  if (parsed.ok === false) {
-    const gsErr = parsed.error || 'Unknown Apps Script error';
-    if (gsErr.includes('GEMINI_API_KEY') || gsErr.includes('not configured')) {
-      throw new Error('Gemini API key missing in Apps Script Script Properties.\nSee setup instructions in APPS_SCRIPT_GEMINI_OCR.js');
-    }
-    if (gsErr.includes('429')) throw new Error('Gemini rate limit. Wait 15 seconds and try again.');
-    throw new Error('Apps Script error: ' + gsErr);
-  }
-  if (!parsed.data) throw new Error('Apps Script returned ok:true but no data field.');
-
-  const elapsed = parsed.elapsed ? ` (${parsed.elapsed}s)` : '';
-  console.log('[OCR] Gemini extraction complete' + elapsed + '. Fields:', Object.keys(parsed.data).filter(k => parsed.data[k]).join(', '));
-
+  console.log('[OCR] Done via', useDirect ? 'direct Gemini' : 'Apps Script proxy', '— fields:', Object.keys(clean).filter(k => clean[k]).join(', '));
   onProgress && onProgress('Done!', 100);
-  return parsed.data;
+  return clean;
 }
 
 /**
@@ -11127,7 +11204,14 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
   const [lastSync, setLastSync] = useState(()=>lsGet(LS_KEYS.LAST_SYNC,''));
   const [busy, setBusy] = useState(null);
   const [log, setLog] = useState([]);
+  const [geminiKey, setGeminiKey] = useState(()=>lsGet(LS_KEYS.GEMINI_KEY,''));
+  const [showKey, setShowKey]     = useState(false);
   const fileInputRef = useRef(null);
+
+  const saveGeminiKey = (v) => {
+    setGeminiKey(v);
+    lsSet(LS_KEYS.GEMINI_KEY, v.trim());
+  };
 
   const totalRecords = patients.length + appointments.length + payments.length + notifications.length + reminders.length + reminderLog.length;
 
@@ -11370,6 +11454,56 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
     ),
 
     h('div', {className:'sync-grid'},
+
+      // ───── Gemini API key card ─────
+      h('div', {className:'card', style:{borderTop:'3px solid #4f8ef7'}},
+        h('div', {className:'ch'}, h('div', {className:'ct'}, '⚡ Gemini OCR (Fast Mode)')),
+        h('div', {className:'cb'},
+          h('p',{style:{fontSize:13,color:'var(--md)',marginBottom:12,lineHeight:1.55}},
+            h('strong',null,'Direct Gemini API key '),
+            '= ',h('strong',{style:{color:'#4f8ef7'}},'5-10 second'),
+            ' scans. Without it, OCR routes via Apps Script (~60-120s cold start).'
+          ),
+          h(Field,{label:'Gemini API Key'},
+            h('div',{style:{display:'flex',gap:6}},
+              h('input',{
+                type: showKey ? 'text' : 'password',
+                value: geminiKey,
+                onChange: e => saveGeminiKey(e.target.value),
+                placeholder:'AIza… (get free key at aistudio.google.com)',
+                style:{fontSize:12,fontFamily:'monospace',flex:1},
+              }),
+              h('button',{className:'btn bgh bsm',onClick:()=>setShowKey(s=>!s),style:{whiteSpace:'nowrap'}},
+                showKey ? '🙈 Hide' : '👁 Show'
+              )
+            )
+          ),
+          geminiKey
+            ? h('div',{style:{fontSize:12,color:'#22c55e',fontWeight:600,marginTop:-4,marginBottom:10}},
+                '✓ Key saved — OCR will use direct Gemini (fast mode)'
+              )
+            : h('div',{style:{fontSize:11.5,color:'var(--md)',marginTop:-4,marginBottom:10,lineHeight:1.5}},
+                '💡 Get a free API key at ',
+                h('a',{href:'https://aistudio.google.com/app/apikey',target:'_blank',rel:'noopener',style:{color:'var(--pr)'}},
+                  'aistudio.google.com/app/apikey'),
+                ' — free tier: 15 scans/min, 1,500/day'
+              ),
+          geminiKey && h('button',{
+            className:'btn bgh bsm',
+            style:{width:'100%',justifyContent:'center'},
+            onClick: async () => {
+              addToast('Testing Gemini key…','info');
+              try {
+                const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + geminiKey.trim();
+                const res = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply with: {"ok":true}'}]}],generationConfig:{temperature:0,maxOutputTokens:20,responseMimeType:'application/json'}})});
+                if (res.ok) { addToast('✅ Gemini key is valid!','success'); }
+                else { const t = await res.text(); addToast('❌ Invalid key: ' + t.substring(0,100),'error'); }
+              } catch(e) { addToast('❌ Test failed: ' + e.message,'error'); }
+            },
+          }, '🔬 Test Gemini Key')
+        )
+      ),
+
       // ───── Google Sheets card ─────
       h('div', {className:'card'},
         h('div', {className:'ch'}, h('div', {className:'ct'}, '☁️ Google Sheets')),
