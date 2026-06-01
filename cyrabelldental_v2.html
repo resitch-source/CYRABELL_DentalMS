@@ -8174,27 +8174,38 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
       patientId: patient.id,
       addToast: addToast,
       onAdd: att => {
-        const updated = [...safe(patient.attachments), att];
-        setLocalPat(p => ({...p, attachments: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, updated);
+        // Use functional setter to avoid stale closure — Drive upload is async
+        // so 'patient.attachments' in a direct closure would be the pre-add snapshot
+        setLocalPat(prev => {
+          const updated = [...safe(prev.attachments), att];
+          onUpdateTeeth(prev.id, prev.teeth, updated);
+          return {...prev, attachments: updated};
+        });
       },
       onUpdate: (attId, newAtt) => {
-        const updated = safe(patient.attachments).map(a => a.id === attId ? newAtt : a);
-        setLocalPat(p => ({...p, attachments: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, updated);
+        // Must use functional setter: this callback fires AFTER an async Drive upload,
+        // by which time the original 'patient' closure is stale (attachment already added)
+        setLocalPat(prev => {
+          const updated = safe(prev.attachments).map(a => a.id === attId ? newAtt : a);
+          onUpdateTeeth(prev.id, prev.teeth, updated);
+          return {...prev, attachments: updated};
+        });
       },
       onRemove: id => {
-        // Also clean up from Drive/IDB when removing
-        const att = safe(patient.attachments).find(a => a.id === id);
-        if (att && att.storage === 'idb') idbDelete(id).catch(()=>{});
-        const updated = safe(patient.attachments).filter(a => a.id !== id);
-        setLocalPat(p => ({...p, attachments: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, updated);
+        setLocalPat(prev => {
+          const att = safe(prev.attachments).find(a => a.id === id);
+          if (att && att.storage === 'idb') idbDelete(id).catch(()=>{});
+          const updated = safe(prev.attachments).filter(a => a.id !== id);
+          onUpdateTeeth(prev.id, prev.teeth, updated);
+          return {...prev, attachments: updated};
+        });
       },
       onUpdateNote: (id, note) => {
-        const updated = safe(patient.attachments).map(a => a.id===id ? {...a,note} : a);
-        setLocalPat(p => ({...p, attachments: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, updated);
+        setLocalPat(prev => {
+          const updated = safe(prev.attachments).map(a => a.id===id ? {...a,note} : a);
+          onUpdateTeeth(prev.id, prev.teeth, updated);
+          return {...prev, attachments: updated};
+        });
       },
     }),
     tab==='history' && h(ClinicalHistoryTab, {
