@@ -10000,15 +10000,48 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ApptDetail — shows appointment details
-function ApptDetail({a,onClose}){
+function ApptDetail({a, onClose, syncUrl}){
+  const [viewing, setViewing] = useState(null);
   const rows=[['Patient',a.patientName],['Service',a.service],['Dentist',a.dentist],['Date',fmtDateFull(a.date)],['Time',fmtTime(a.time)],['When',fmtDateRelative(a.date)],['Fee','₱'+p$(a.fee)],['Phone',a.phone||'—'],['Email',a.email||'—'],['Notes',a.notes||'—']];
+  const atts = safe(a.attachments);
   return h(Modal,{title:'Appointment Details',sub:'#'+a.id,onClose,footer:h('button',{className:'btn bgh',onClick:onClose},'Close')},
     h('div',{style:{display:'flex',flexDirection:'column',gap:10}},
       rows.map(([l,v])=>h('div',{key:l,style:{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--bd)'}},
         h('span',{style:{color:'var(--md)',fontSize:12.5,textTransform:'uppercase',letterSpacing:.5}},l),
         h('span',{style:{fontWeight:600,maxWidth:'60%',textAlign:'right'}},v||'—')
-      ))
-    )
+      )),
+      atts.length > 0 && h('div',{style:{marginTop:8}},
+        h('div',{style:{color:'var(--md)',fontSize:12,textTransform:'uppercase',letterSpacing:.5,marginBottom:8,fontWeight:700}},
+          '📎 Attachments ('+atts.length+')'
+        ),
+        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+          atts.map(att => {
+            const isImg = S(att.type).startsWith('image/');
+            const thumbSrc = att.storage==='drive' && att.driveFileId
+              ? 'https://drive.google.com/thumbnail?id='+att.driveFileId+'&sz=w200'
+              : att.dataUrl || '';
+            return h('div',{
+              key:att.id,
+              style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+                background:'var(--cr)',border:'1.5px solid var(--bd)',borderRadius:8,
+                padding:'8px',cursor:'pointer',minWidth:80,maxWidth:110},
+              title:att.name,
+              onClick:()=>setViewing(att),
+            },
+              thumbSrc && isImg
+                ? h('img',{src:thumbSrc,alt:att.name,style:{width:64,height:64,objectFit:'cover',borderRadius:6},
+                    onError:e=>{e.target.style.display='none';}})
+                : h('div',{style:{fontSize:32,lineHeight:1.2}}, att.type==='application/pdf'?'📑': att.storage==='drive'?'☁️':'📄'),
+              h('div',{style:{fontSize:10,color:'var(--md)',textAlign:'center',wordBreak:'break-all',maxWidth:90}},
+                S(att.name).length>14 ? att.name.substring(0,12)+'…' : att.name
+              ),
+              att.storage==='drive' && h('div',{style:{fontSize:9,color:'var(--t)',fontWeight:700}},'☁ Drive')
+            );
+          })
+        )
+      )
+    ),
+    viewing && h(AttachmentViewer,{file:viewing, onClose:()=>setViewing(null)})
   );
 }
 
@@ -10858,7 +10891,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
         }, ...prev]);
       }
     }}),
-    detail&&h(ApptDetail,{a:detail,onClose:()=>setDetail(null)}),
+    detail&&h(ApptDetail,{a:detail,syncUrl,onClose:()=>setDetail(null)}),
     showAnalysis && h(ConflictAnalysisModal, {appointments, onClose: ()=>setShowAnalysis(false)})
   );
 }
