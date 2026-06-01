@@ -7117,13 +7117,15 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, onUpdate, 
  * @param {object}   patient  - current patient (for context)
  */
 function ClinicalHistoryScanner({onSaved, onClose, patient}) {
-  const [step,     setStep]     = useState('capture');
-  const [imageUrl, setImageUrl] = useState(null);
-  const [mimeType, setMimeType] = useState('image/jpeg');
-  const [extracted,setExtracted]= useState(null);
-  const [editData, setEditData] = useState({});
-  const [errorMsg, setErrorMsg] = useState('');
-  const [scanning, setScanning] = useState(false);
+  const [step,        setStep]       = useState('capture');
+  const [imageUrl,    setImageUrl]   = useState(null);
+  const [mimeType,    setMimeType]   = useState('image/jpeg');
+  const [extracted,   setExtracted]  = useState(null);
+  const [editData,    setEditData]   = useState({});
+  const [errorMsg,    setErrorMsg]   = useState('');
+  const [scanning,    setScanning]   = useState(false);
+  const [progressMsg, setProgressMsg]= useState('');
+  const [progressPct, setProgressPct]= useState(0);
   const fileRef  = useRef(null);
   const videoRef = useRef(null);
   const streamRef= useRef(null);
@@ -7166,11 +7168,13 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
   };
 
   const runExtraction = async (dataUrl, mime) => {
-    setStep('processing'); setErrorMsg('');
+    setStep('processing'); setErrorMsg(''); setProgressPct(0); setProgressMsg('Starting…');
     const syncUrl = (() => { try { return localStorage.getItem(LS_KEYS.SYNC_URL)||''; } catch(e){return '';} })();
     try {
-      // Use 'examination' scanType for full record chart extraction
-      const result = await extractPatientDataFromCard(dataUrl, mime, syncUrl, 'examination');
+      const result = await extractPatientDataFromCard(
+        dataUrl, mime, syncUrl, 'examination',
+        (msg, pct) => { setProgressMsg(msg); setProgressPct(pct); }
+      );
       setExtracted(result);
       setEditData({...result, scanDate: localToday()});
       setStep('review');
@@ -7240,8 +7244,8 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
 
   // ── PROCESSING step ─────────────────────────────────────────────────
   if (step==='processing') return h(Modal,{
-    title:'🔍 Analyzing Record Card…',
-    sub:'Claude AI is reading the examination record',
+    title:'⚡ Gemini AI Analyzing…',
+    sub:'Gemini 2.0 Flash is reading the examination record',
     onClose, footer:null,
   },
     h('div',{className:'ocr-processing'},
@@ -7249,10 +7253,20 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
       h('div',{className:'ocr-spinner-wrap'},
         h('div',{className:'ocr-spinner'}),
         h('div',{className:'ocr-processing-text'},
-          h('div',{style:{fontWeight:700,fontSize:15,marginBottom:6}},'Reading examination record…'),
+          h('div',{style:{fontWeight:700,fontSize:15,marginBottom:6}}, progressMsg || 'Starting…'),
           h('div',{style:{fontSize:12,color:'var(--md)',lineHeight:1.6}},
             'Extracting: patient info, occlusion, periodontal condition, ',
             'medical history, medications, and dental chart annotations.'
+          ),
+          h('div',{style:{marginTop:10,background:'var(--bg3)',borderRadius:6,overflow:'hidden',height:8}},
+            h('div',{style:{
+              width: (progressPct||0)+'%', height:'100%',
+              background:'linear-gradient(90deg,#4f8ef7,#7c3aed)',
+              transition:'width 0.4s ease', borderRadius:6,
+            }})
+          ),
+          h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,textAlign:'right'}},
+            (progressPct||0)+'%'
           )
         )
       )
@@ -8330,41 +8344,40 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
  * @param {string} syncUrl      Apps Script web app URL
  * @returns {Promise<object>}   extracted patient data
  */
-async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanType) {
+async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanType, onProgress) {
   if (!syncUrl) {
     throw new Error(
       'Google Sheets Sync URL not configured.\n\n' +
-      'The Record Card Scanner routes through your Apps Script to call Claude AI.\n' +
       'Go to ☁️ Sync in the sidebar → paste your Apps Script URL → Save.'
     );
   }
 
-  // Compress image aggressively before sending
-  // Target: < 25KB base64 — Claude can read card text at 350px resolution
+  onProgress && onProgress('Optimising image…', 10);
+
+  // Compress image for Gemini — 800px is enough for OCR, keeps it fast
   let base64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
   try {
     const dataUrl = imageBase64.startsWith('data:')
       ? imageBase64
       : ('data:' + (mimeType || 'image/jpeg') + ';base64,' + base64);
-    const compressed = await compressImage(dataUrl, 350, 0.45);
+    const compressed = await compressImage(dataUrl, 800, 0.72);
     base64 = compressed.includes(',') ? compressed.split(',')[1] : compressed;
-    console.log('[OCR] Compressed image:', Math.round(base64.length / 1024), 'KB');
+    console.log('[OCR] Image ready:', Math.round(base64.length / 1024), 'KB');
   } catch (e) {
-    console.warn('[OCR] Compression failed:', e.message);
+    console.warn('[OCR] Compression failed, using original:', e.message);
   }
 
+  onProgress && onProgress('Sending to Gemini AI…', 30);
+
   const payload = JSON.stringify({
-    action:   'claudeOcr',
+    action:   'geminiOcr',   // uses Gemini 2.0 Flash on the Apps Script side
     imageB64: base64,
     mimeType: mimeType || 'image/jpeg',
-    scanType: scanType || 'basic',   // 'basic' | 'examination'
+    scanType: scanType || 'basic',
   });
 
-  // ── Run fetch inside a Web Worker (no Origin header = no gateway block) ──
-  // This is the same technique used by the sync worker that successfully
-  // calls Apps Script without being blocked by the network gateway.
+  // Run fetch in a Web Worker — avoids CORS/Origin header issues from GitHub Pages
   const result = await new Promise((resolve, reject) => {
-    // Inline worker source — self-contained, no imports needed
     const workerSrc = `
 self.onmessage = async function(e) {
   const { syncUrl, payload } = e.data;
@@ -8377,7 +8390,7 @@ self.onmessage = async function(e) {
     });
     const text = await res.text();
     if (!res.ok) {
-      self.postMessage({ ok: false, error: 'HTTP ' + res.status + ': ' + text.substring(0, 200) });
+      self.postMessage({ ok: false, error: 'HTTP ' + res.status + ': ' + text.substring(0, 300) });
       return;
     }
     let parsed;
@@ -8389,23 +8402,17 @@ self.onmessage = async function(e) {
   }
 };
 `;
-
-    let worker;
-    let timeout;
+    let worker, timeout;
     try {
-      const blob   = new Blob([workerSrc], { type: 'application/javascript' });
+      const blob    = new Blob([workerSrc], { type: 'application/javascript' });
       const blobUrl = URL.createObjectURL(blob);
       worker = new Worker(blobUrl);
 
-      // 180-second timeout — Gemini auto-retries on rate limit can take up to 2 minutes
+      // 60-second timeout — Gemini 2.0 Flash is fast, 60s is plenty
       timeout = setTimeout(() => {
-        reject(new Error(
-          'Request timed out (3 min). The AI is taking longer than usual.\n\n' +
-          'This can happen when Gemini rate-limits and retries.\n' +
-          'Please try scanning again — it should work now.'
-        ));
+        reject(new Error('Request timed out (60s). Check your Apps Script URL and Gemini API key, then try again.'));
         try { worker.terminate(); URL.revokeObjectURL(blobUrl); } catch(e) {}
-      }, 180000);
+      }, 60000);
 
       worker.onmessage = (e) => {
         clearTimeout(timeout);
@@ -8421,14 +8428,14 @@ self.onmessage = async function(e) {
       worker.postMessage({ syncUrl, payload });
 
     } catch (workerErr) {
-      // Web Workers not supported — fall back to direct fetch
-      console.warn('[OCR] Worker failed, falling back to direct fetch:', workerErr.message);
+      // Fallback: direct fetch (no Worker support)
+      console.warn('[OCR] Worker unavailable, using direct fetch:', workerErr.message);
       clearTimeout(timeout);
       fetch(syncUrl, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: payload,
-        redirect: 'follow'
+        body:    payload,
+        redirect:'follow'
       })
         .then(r => r.text().then(t => ({ status: r.status, text: t })))
         .then(({ status, text }) => {
@@ -8443,85 +8450,45 @@ self.onmessage = async function(e) {
     }
   });
 
-  // ── Handle errors ─────────────────────────────────────────────────────────
+  onProgress && onProgress('Processing AI response…', 85);
+
+  // ── Error handling ──────────────────────────────────────────────────────────
   if (!result.ok) {
     const err = result.error || 'Unknown error';
-
+    if (err.includes('429') || err.includes('rate limit')) {
+      throw new Error('Gemini is busy (rate limit). Wait 15 seconds and try again.\nFree tier: 15 scans/minute.');
+    }
+    if (err.includes('GEMINI_API_KEY') || err.includes('not configured')) {
+      throw new Error(
+        '🔑 Gemini API key not configured.\n\n' +
+        '1. Go to aistudio.google.com/app/apikey → Create API Key (free)\n' +
+        '2. In Apps Script → Project Settings → Script Properties\n' +
+        '   Add: GEMINI_API_KEY = AIza...\n' +
+        '3. Run setupGeminiKey() → Redeploy as new version'
+      );
+    }
     if (err.includes('Gateway') || err.includes('Unauthorized') || err.includes('Access Restricted')) {
-      throw new Error(
-        'Network gateway blocked the request.\n\n' +
-        'Try: open the app in an Incognito/Private window,\n' +
-        'or try from a different network (mobile data instead of Wi-Fi).\n' +
-        'Error details: ' + err
-      );
-    }
-    if (err.includes('No AI API key') || err.includes('ANTHROPIC_API_KEY') || err.includes('not configured')) {
-      throw new Error(
-        '🔑 No AI API key configured.\n\n' +
-        '✅ FREE OPTION — Google Gemini:\n' +
-        '1. Go to aistudio.google.com/app/apikey\n' +
-        '2. Click "Create API Key" (free, no credit card)\n' +
-        '3. In Apps Script → Project Settings → Script properties\n' +
-        '4. Add: GEMINI_API_KEY = AIza...\n' +
-        '5. Run setupGeminiKey() to save it\n' +
-        '6. Redeploy as new version\n\n' +
-        'Free tier: 15 scans/min, 1500/day — enough for a clinic.'
-      );
-    }
-    if (err.includes('401') || err.includes('invalid x-api-key') || err.includes('authentication')) {
-      throw new Error(
-        'Invalid API key. Run verifyApiKey() in Apps Script to test it.\n' +
-        'Get a valid key from: console.anthropic.com/settings/keys'
-      );
-    }
-    if (err.includes('credit balance') || err.includes('402') || err.includes('too low')) {
-      throw new Error(
-        'Anthropic credit balance too low.\n\n' +
-        'Switch to Gemini (FREE):\n' +
-        '1. Get free key: aistudio.google.com/app/apikey\n' +
-        '2. In Apps Script Script properties:\n' +
-        '   Add GEMINI_API_KEY = AIza...\n' +
-        '3. Run setupGeminiKey() then redeploy'
-      );
-    }
-    if (err.includes('429') || err.includes('rate limit') || err.includes('overloaded')) {
-      throw new Error('AI service is busy. Wait 1 minute and try again. (Gemini free: 15/min limit)');
+      throw new Error('Network blocked the request. Try from a different network or use mobile data.\nError: ' + err);
     }
     throw new Error('OCR failed: ' + err);
   }
 
   const parsed = result.result;
-  if (!parsed) throw new Error('No result returned from Apps Script.');
-
-  // GS returned ok:false inside the parsed JSON
+  if (!parsed) throw new Error('No response from Apps Script.');
   if (parsed.ok === false) {
-    const gsErr = parsed.error || 'Unknown error from Apps Script';
-    if (gsErr.includes('ANTHROPIC_API_KEY') || gsErr.includes('not configured')) {
-      throw new Error(
-        'Anthropic API key not set in Apps Script.\n\n' +
-        'Steps:\n' +
-        '1. Open your Apps Script editor\n' +
-        '2. Find setupApiKey() function\n' +
-        '3. Replace YOUR-KEY-HERE with your sk-ant-... key\n' +
-        '4. Click ▶ Run\n' +
-        '5. Redeploy as a new version\n\n' +
-        'Get key: console.anthropic.com/settings/keys'
-      );
+    const gsErr = parsed.error || 'Unknown Apps Script error';
+    if (gsErr.includes('GEMINI_API_KEY') || gsErr.includes('not configured')) {
+      throw new Error('Gemini API key missing in Apps Script Script Properties.\nSee setup instructions in APPS_SCRIPT_GEMINI_OCR.js');
     }
-    if (gsErr.includes('401') || gsErr.includes('invalid x-api-key')) {
-      throw new Error('Invalid Anthropic API key. Get a valid key from console.anthropic.com');
-    }
-    if (gsErr.includes('429') || gsErr.includes('rate limit')) {
-      throw new Error('Claude rate limit hit. Wait 30 seconds and try again.');
-    }
+    if (gsErr.includes('429')) throw new Error('Gemini rate limit. Wait 15 seconds and try again.');
     throw new Error('Apps Script error: ' + gsErr);
   }
+  if (!parsed.data) throw new Error('Apps Script returned ok:true but no data field.');
 
-  if (!parsed.data) throw new Error('Apps Script returned ok:true but no data.');
+  const elapsed = parsed.elapsed ? ` (${parsed.elapsed}s)` : '';
+  console.log('[OCR] Gemini extraction complete' + elapsed + '. Fields:', Object.keys(parsed.data).filter(k => parsed.data[k]).join(', '));
 
-  console.log('[OCR] Success! Fields extracted:',
-    Object.entries(parsed.data).filter(([,v]) => v).map(([k]) => k).join(', '));
-
+  onProgress && onProgress('Done!', 100);
   return parsed.data;
 }
 
@@ -8537,6 +8504,8 @@ function RecordCardScanner({onExtracted, onClose}) {
   const [extracted, setExtracted] = useState(null);
   const [errorMsg, setErrorMsg]   = useState('');
   const [editData, setEditData]   = useState({});
+  const [progressMsg, setProgressMsg] = useState('');
+  const [progressPct, setProgressPct] = useState(0);
   const fileRef                   = useRef(null);
   const videoRef                  = useRef(null);
   const streamRef                 = useRef(null);
@@ -8591,13 +8560,17 @@ function RecordCardScanner({onExtracted, onClose}) {
   const runExtraction = async (dataUrl, mime) => {
     setStep('processing');
     setErrorMsg('');
+    setProgressPct(0);
+    setProgressMsg('Starting…');
     try {
       const syncUrl = (() => {
         try { return localStorage.getItem(LS_KEYS.SYNC_URL) || ''; } catch(e) { return ''; }
       })();
-      // Pass mimeType correctly — some browsers give image/heic etc.
       const safeMime = (mime && mime.startsWith('image/')) ? mime : 'image/jpeg';
-      const result = await extractPatientDataFromCard(dataUrl, safeMime, syncUrl);
+      const result = await extractPatientDataFromCard(
+        dataUrl, safeMime, syncUrl, 'basic',
+        (msg, pct) => { setProgressMsg(msg); setProgressPct(pct); }
+      );
       // Normalize dates
       ['dob', 'lastVisit'].forEach(k => {
         if (result[k]) result[k] = sanitizeDate(result[k]) || result[k];
@@ -8669,20 +8642,29 @@ function RecordCardScanner({onExtracted, onClose}) {
 
   // ── STEP: PROCESSING ───────────────────────────────────────────────
   if (step === 'processing') return h(Modal, {
-    title: '🔍 Reading Record Card…',
-    sub: 'Claude AI is extracting patient information',
+    title: '⚡ Gemini AI Reading Card…',
+    sub: 'Gemini 2.0 Flash is extracting patient information',
     onClose, footer: null
   },
     h('div', {className: 'ocr-processing'},
-      // Show the captured image
       imageDataUrl && h('img', {src: imageDataUrl, alt: 'Scanned card', className: 'ocr-preview-img'}),
       h('div', {className: 'ocr-spinner-wrap'},
         h('div', {className: 'ocr-spinner'}),
         h('div', {className: 'ocr-processing-text'},
-          h('div', {style: {fontWeight: 700, fontSize: 15, marginBottom: 6}}, 'Analyzing record card…'),
+          h('div', {style: {fontWeight: 700, fontSize: 15, marginBottom: 6}}, progressMsg || 'Starting…'),
           h('div', {style: {fontSize: 12.5, color: 'var(--md)', lineHeight: 1.5}},
             'Reading patient name, date of birth, contact details, ',
             'blood type, allergies, and medical notes.'
+          ),
+          h('div', {style: {marginTop:10, background:'var(--bg3)', borderRadius:6, overflow:'hidden', height:8}},
+            h('div', {style: {
+              width: (progressPct||0)+'%', height:'100%',
+              background:'linear-gradient(90deg,#4f8ef7,#7c3aed)',
+              transition:'width 0.4s ease', borderRadius:6,
+            }})
+          ),
+          h('div', {style: {fontSize:11, color:'var(--md)', marginTop:4, textAlign:'right'}},
+            (progressPct||0)+'%'
           )
         )
       )
