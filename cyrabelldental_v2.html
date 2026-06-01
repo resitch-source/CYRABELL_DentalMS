@@ -8078,6 +8078,9 @@ function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
 function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl}){
   // Local copy so file/history updates reflect instantly without waiting for parent re-render
   const [localPat, setLocalPat] = useState(patientProp);
+  // Always-current ref — async callbacks (Drive upload) read this instead of stale closure
+  const localPatRef = useRef(localPat);
+  localPatRef.current = localPat; // updated every render, no useEffect lag
   // Sync if parent sends a fresh patient (e.g. after full refresh)
   const patient = localPat;
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
@@ -8174,38 +8177,32 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
       patientId: patient.id,
       addToast: addToast,
       onAdd: att => {
-        // Use functional setter to avoid stale closure — Drive upload is async
-        // so 'patient.attachments' in a direct closure would be the pre-add snapshot
-        setLocalPat(prev => {
-          const updated = [...safe(prev.attachments), att];
-          onUpdateTeeth(prev.id, prev.teeth, updated);
-          return {...prev, attachments: updated};
-        });
+        // Read latest state from ref — avoids stale closure when Drive upload is async
+        const p = localPatRef.current;
+        const updated = [...safe(p.attachments), att];
+        setLocalPat({...p, attachments: updated});
+        onUpdateTeeth(p.id, p.teeth, updated);
       },
       onUpdate: (attId, newAtt) => {
-        // Must use functional setter: this callback fires AFTER an async Drive upload,
-        // by which time the original 'patient' closure is stale (attachment already added)
-        setLocalPat(prev => {
-          const updated = safe(prev.attachments).map(a => a.id === attId ? newAtt : a);
-          onUpdateTeeth(prev.id, prev.teeth, updated);
-          return {...prev, attachments: updated};
-        });
+        // Called after async Drive upload — ref always has current state, closure does not
+        const p = localPatRef.current;
+        const updated = safe(p.attachments).map(a => a.id === attId ? newAtt : a);
+        setLocalPat({...p, attachments: updated});
+        onUpdateTeeth(p.id, p.teeth, updated);
       },
       onRemove: id => {
-        setLocalPat(prev => {
-          const att = safe(prev.attachments).find(a => a.id === id);
-          if (att && att.storage === 'idb') idbDelete(id).catch(()=>{});
-          const updated = safe(prev.attachments).filter(a => a.id !== id);
-          onUpdateTeeth(prev.id, prev.teeth, updated);
-          return {...prev, attachments: updated};
-        });
+        const p = localPatRef.current;
+        const att = safe(p.attachments).find(a => a.id === id);
+        if (att && att.storage === 'idb') idbDelete(id).catch(()=>{});
+        const updated = safe(p.attachments).filter(a => a.id !== id);
+        setLocalPat({...p, attachments: updated});
+        onUpdateTeeth(p.id, p.teeth, updated);
       },
       onUpdateNote: (id, note) => {
-        setLocalPat(prev => {
-          const updated = safe(prev.attachments).map(a => a.id===id ? {...a,note} : a);
-          onUpdateTeeth(prev.id, prev.teeth, updated);
-          return {...prev, attachments: updated};
-        });
+        const p = localPatRef.current;
+        const updated = safe(p.attachments).map(a => a.id===id ? {...a,note} : a);
+        setLocalPat({...p, attachments: updated});
+        onUpdateTeeth(p.id, p.teeth, updated);
       },
     }),
     tab==='history' && h(ClinicalHistoryTab, {
