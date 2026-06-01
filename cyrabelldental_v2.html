@@ -7319,263 +7319,226 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
 }
 
 /**
- * ClinicalHistoryEntry — renders a single history record card in the timeline.
+ * useHistoryScanImage — loads a history entry's scan image.
+ * Priority: inlineUrl (from entry.scanImageUrl) → IndexedDB → empty.
+ * IDB is the durable store; inlineUrl is only set on first render.
+ */
+function useHistoryScanImage(id, inlineUrl) {
+  const [url,     setUrl]     = useState(inlineUrl || '');
+  const [loading, setLoading] = useState(!inlineUrl && !!id);
+  useEffect(() => {
+    if (inlineUrl) { setUrl(inlineUrl); setLoading(false); return; }
+    if (!id)       { setUrl('');        setLoading(false); return; }
+    setLoading(true);
+    idbGet(id)
+      .then(stored => { setUrl(stored || ''); setLoading(false); })
+      .catch(()    => {                        setLoading(false); });
+  }, [id, inlineUrl]);
+  return { url, loading };
+}
+
+/**
+ * ClinicalHistoryEntry — single card in the history timeline.
+ * Handles three entry types: attached_record, appointment_record, examination_record.
+ * Image data is always loaded via useHistoryScanImage (IDB-backed).
  */
 function ClinicalHistoryEntry({entry, onDelete, idx}) {
-  const [expanded, setExpanded] = useState(idx===0); // first entry open by default
+  const [expanded,   setExpanded]   = useState(idx === 0);
   const [viewingImg, setViewingImg] = useState(false);
-  // Load scan image from IDB if not in entry (stripped from localStorage due to size)
-  const [scanUrl, setScanUrl] = useState(entry.scanImageUrl || '');
-  useEffect(() => {
-    if (!entry.scanImageUrl && entry.id) {
-      idbGet(entry.id).then(url => { if (url) setScanUrl(url); }).catch(()=>{});
-    } else {
-      setScanUrl(entry.scanImageUrl || '');
-    }
-  }, [entry.id, entry.scanImageUrl]);
+  const { url: scanUrl, loading: scanLoading } = useHistoryScanImage(entry.id, entry.scanImageUrl || '');
 
-  const clinicalFields = [
-    ['Occlusion',            entry.occlusion],
-    ['Periodontal',          entry.periodontalCondition],
-    ['Oral Hygiene',         entry.oralHygiene],
-    ['Denture Upper',        entry.dentureUpper],
-    ['Denture Lower',        entry.dentureLower],
-    ['Abnormalities',        entry.abnormalities],
-    ['General Condition',    entry.generalCondition],
-  ].filter(([,v]) => v && S(v).trim());
+  // Delete: clean up IDB then notify parent
+  const handleDelete = () => {
+    if (!confirm('Delete this history entry?')) return;
+    idbDelete(entry.id).catch(() => {});
+    onDelete && onDelete(entry.id);
+  };
 
-  const medFields = [
-    ['Physician',        entry.physician],
-    ['Blood Pressure',   entry.bloodPressure],
-    ['Allergies',        entry.allergies],
-    ['Chronic Ailments', entry.chronicAilments],
-    ['Bleeding Hx',      entry.previousHistoryOfBleeding],
-    ['Medications',      entry.drugsBeingTaken],
-    ['Treatment',        entry.natureOfTreatment],
-  ].filter(([,v]) => v && S(v).trim());
+  const isImg = S(entry.fileType).startsWith('image/') ||
+                (entry.type === 'examination_record' && scanUrl.startsWith('data:image/'));
+  const isPdf = entry.fileType === 'application/pdf' ||
+                (scanUrl.startsWith('data:application/pdf'));
 
-  // Attached records (no AI extraction) show a compact file card
+  // ── Shared full-screen viewer ─────────────────────────────────────────────
+  const viewer = viewingImg && h('div', {className:'att-viewer-ov', onClick:()=>setViewingImg(false)},
+    h('div', {className:'att-viewer-modal', onClick:e=>e.stopPropagation()},
+      h('div', {className:'att-viewer-header'},
+        h('div', {style:{fontWeight:700,fontSize:14,color:'var(--dk)'}},
+          entry.label || entry.name || 'History Record'
+        ),
+        h('div', {style:{display:'flex',gap:8}},
+          scanUrl && h('a', {
+            href:scanUrl,
+            download:(entry.label||entry.name||'record')+'.'+(isPdf?'pdf':'jpg'),
+            className:'btn bg2 bsm'
+          }, '⬇ Download'),
+          h('button', {type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)}, '✕ Close')
+        )
+      ),
+      h('div', {className:'att-viewer-body'},
+        scanLoading && h('div', {className:'att-viewer-nopreview'},
+          h('div', {style:{color:'#aaa',fontSize:14}}, '⏳ Loading…')
+        ),
+        !scanLoading && !scanUrl && h('div', {className:'att-viewer-nopreview'},
+          h('div', {style:{fontSize:36,marginBottom:8}}, '⚠️'),
+          h('div', {style:{color:'#fff',fontWeight:700}}, 'Image not available'),
+          h('div', {style:{color:'#aaa',fontSize:12,marginTop:6,textAlign:'center',maxWidth:280}},
+            'File data was not saved (storage full at upload time). Delete and re-attach.'
+          )
+        ),
+        !scanLoading && scanUrl && isImg &&
+          h('img', {src:scanUrl, alt:entry.label||'Record', style:{maxWidth:'100%',borderRadius:4}}),
+        !scanLoading && scanUrl && isPdf &&
+          h('iframe', {src:scanUrl, style:{width:'100%',height:'70vh',border:'none'}, title:entry.label})
+      )
+    )
+  );
+
+  // ── attached_record / appointment_record ──────────────────────────────────
   if (entry.type === 'attached_record' || entry.type === 'appointment_record') {
     const isAppt = entry.type === 'appointment_record';
     const atts   = safe(entry.attachments);
-    const isImg = S(entry.fileType).startsWith('image/');
-    const isPdf = entry.fileType === 'application/pdf';
-    // scanUrl: loaded from state (IDB fallback fills it in via useEffect above)
-    const canView = !!(scanUrl);
-    return h('div',{className:'hist-entry hist-entry-attached'},
-      h('div',{className:'hist-entry-header',style:{cursor:'default'}},
-        h('div',{className:'hist-entry-left',style:{display:'flex',alignItems:'center',gap:12}},
-          scanUrl && isImg && h('img',{
-            src:scanUrl,
-            alt:entry.label,
-            className:'hist-entry-thumb',
-            style:{cursor:'pointer'},
-            onClick:e=>{e.stopPropagation();setViewingImg(true);}
-          }),
-          !isImg && h('div',{style:{fontSize:32}},isPdf?'📑':'📄'),
-          h('div',null,
-            h('div',{className:'hist-entry-date'},
-              isAppt ? '📅 ' : '📎 ',
-              entry.scanDate||'Unknown date'
-            ),
-            h('div',{className:'hist-entry-name'},entry.label||'Attached Record'),
-            h('div',{className:'hist-entry-sub',style:{fontSize:11}},
+    return h('div', {className:'hist-entry hist-entry-attached'},
+      h('div', {className:'hist-entry-header', style:{cursor:'default'}},
+        h('div', {className:'hist-entry-left', style:{display:'flex',alignItems:'center',gap:12}},
+          // Thumbnail
+          scanLoading
+            ? h('div', {style:{width:52,height:52,borderRadius:6,background:'var(--bd)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}, '⏳')
+            : scanUrl && isImg
+              ? h('img', {src:scanUrl, alt:entry.label, className:'hist-entry-thumb',
+                  style:{cursor:'pointer'}, onClick:e=>{e.stopPropagation();setViewingImg(true);}})
+              : h('div', {style:{fontSize:36}}, isPdf ? '📑' : '📄'),
+          h('div', null,
+            h('div', {className:'hist-entry-date'}, isAppt ? '📅 ' : '📎 ', entry.scanDate||'Unknown date'),
+            h('div', {className:'hist-entry-name'}, entry.label||'Attached Record'),
+            h('div', {className:'hist-entry-sub', style:{fontSize:11}},
               isAppt
-                ? ('Service record' + (entry.dentist?' · '+entry.dentist:'') + (atts.length?' · '+atts.length+' file(s)':''))
-                : ('Attached file' + (entry.fileSize?' · '+Math.round(entry.fileSize/1024)+'KB':''))
+                ? 'Service record'+(entry.dentist?' · '+entry.dentist:'')+(atts.length?' · '+atts.length+' file(s)':'')
+                : 'Attached file'+(entry.fileSize?' · '+Math.round(entry.fileSize/1024)+'KB':'')
             )
           )
         ),
-        h('div',{className:'hist-entry-right',style:{display:'flex',gap:6,flexWrap:'wrap'}},
-          (isImg || isPdf) && h('button',{
+        h('div', {className:'hist-entry-right', style:{display:'flex',gap:6,flexWrap:'wrap'}},
+          (isImg || isPdf) && h('button', {
             type:'button', className:'btn bgh bsm',
-            disabled: !canView,
-            title: canView ? 'View' : 'Image data not available — re-attach to restore',
-            onClick:e=>{e.stopPropagation();setViewingImg(true);}
-          },'👁 View'),
-          !isAppt && scanUrl && h('a',{
+            disabled: scanLoading || (!scanUrl),
+            title: !scanUrl && !scanLoading ? 'Image data not available — re-attach to restore' : 'View',
+            onClick: e => { e.stopPropagation(); setViewingImg(true); }
+          }, scanLoading ? '⏳' : '👁 View'),
+          !isAppt && scanUrl && h('a', {
             href:scanUrl, download:entry.label||'record',
             className:'btn bgh bsm', onClick:e=>e.stopPropagation()
-          },'⬇'),
-          h('button',{
-            type:'button',className:'btn bd2 bsm',
-            onClick:e=>{e.stopPropagation();if(confirm('Delete?'))onDelete(entry.id);}
-          },'✕')
+          }, '⬇'),
+          h('button', {
+            type:'button', className:'btn bd2 bsm',
+            onClick: e => { e.stopPropagation(); handleDelete(); }
+          }, '✕')
         )
       ),
-      // For appointment records: show all attached files as mini gallery
-      isAppt && atts.length > 0 && h('div',{
+      // Appointment record: mini gallery of attached files
+      isAppt && atts.length > 0 && h('div', {
         className:'hist-appt-files',
         style:{padding:'8px 12px 12px',borderTop:'1px solid var(--bd)',background:'var(--cr)'}
       },
-        h('div',{style:{fontSize:11,fontWeight:700,color:'var(--md)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.5px'}},
-          '📎 Attached Files ('+ atts.length +')'
+        h('div', {style:{fontSize:11,fontWeight:700,color:'var(--md)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.5px'}},
+          '📎 Attached Files ('+atts.length+')'
         ),
-        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+        h('div', {style:{display:'flex',gap:8,flexWrap:'wrap'}},
           atts.map((att,i) => {
             const isAttImg = S(att.type).startsWith('image/');
-            return h('div',{key:att.id||i,
-              style:{
-                display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+            const thumbSrc = att.storage==='drive' && att.driveFileId
+              ? 'https://drive.google.com/thumbnail?id='+att.driveFileId+'&sz=w200'
+              : att.dataUrl || '';
+            return h('div', {key:att.id||i,
+              style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
                 background:'#fff',border:'1.5px solid var(--bd)',borderRadius:8,
-                padding:'6px',cursor:'pointer',minWidth:80,maxWidth:100,
-              },
+                padding:'6px',cursor:'pointer',minWidth:80,maxWidth:100},
               title:att.name,
-              onClick:()=>{ if(att.dataUrl) window.open(att.dataUrl,'_blank'); }
+              onClick:()=>{ if(thumbSrc) window.open(thumbSrc,'_blank'); }
             },
-              isAttImg && att.dataUrl
-                ? h('img',{src:att.dataUrl,alt:att.name,style:{width:60,height:60,objectFit:'cover',borderRadius:4}})
+              isAttImg && thumbSrc
+                ? h('img',{src:thumbSrc,alt:att.name,style:{width:60,height:60,objectFit:'cover',borderRadius:4},
+                    onError:e=>{e.target.style.display='none';}})
                 : h('div',{style:{fontSize:28,lineHeight:1.2}},S(att.type)==='application/pdf'?'📑':'📄'),
               h('div',{style:{fontSize:10,color:'var(--md)',textAlign:'center',wordBreak:'break-all',maxWidth:80}},
-                S(att.name).length > 14 ? att.name.substring(0,12)+'…' : att.name
-              ),
-              att.note && h('div',{style:{fontSize:9,color:'var(--t)',textAlign:'center'}},att.note)
+                S(att.name).length>14 ? att.name.substring(0,12)+'…' : att.name
+              )
             );
           })
         )
       ),
-
-      viewingImg && h('div',{
-        className:'att-viewer-ov',onClick:()=>setViewingImg(false)
-      },
-        h('div',{className:'att-viewer-modal',onClick:e=>e.stopPropagation()},
-          h('div',{className:'att-viewer-header'},
-            h('div',{style:{fontWeight:700,fontSize:14,color:'var(--dk)'}},entry.label||'Record'),
-            h('div',{style:{display:'flex',gap:8}},
-              scanUrl && h('a',{href:scanUrl,download:entry.label,className:'btn bg2 bsm'},'⬇ Download'),
-              h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)},'✕ Close')
-            )
-          ),
-          h('div',{className:'att-viewer-body'},
-            !scanUrl && h('div',{className:'att-viewer-nopreview'},
-              h('div',{style:{fontSize:36,marginBottom:8}},'⚠️'),
-              h('div',{style:{color:'#fff',fontWeight:700}},'Image not available'),
-              h('div',{style:{color:'#aaa',fontSize:12,marginTop:6,textAlign:'center',maxWidth:280}},
-                'The scan image was not saved (storage was full). Remove this entry and re-attach the file.'
-              )
-            ),
-            scanUrl && isImg && h('img',{src:scanUrl,alt:entry.label,style:{maxWidth:'100%',borderRadius:4}}),
-            scanUrl && isPdf && h('iframe',{src:scanUrl,style:{width:'100%',height:'70vh',border:'none'}})
-          )
-        )
-      )
+      viewer
     );
   }
 
-  return h('div',{className:'hist-entry'},
-    // Header (always visible)
-    h('div',{className:'hist-entry-header',onClick:()=>setExpanded(e=>!e)},
-      h('div',{className:'hist-entry-left'},
-        h('div',{className:'hist-entry-date'},
-          '📋 ', entry.scanDate || 'Unknown date'
-        ),
-        h('div',{className:'hist-entry-name'},
-          entry.name || 'Patient Record'
-        ),
-        entry.occupation && h('div',{className:'hist-entry-sub'}, entry.occupation)
+  // ── examination_record (AI scan) ──────────────────────────────────────────
+  const clinicalFields = [
+    ['Occlusion',       entry.occlusion],
+    ['Periodontal',     entry.periodontalCondition],
+    ['Oral Hygiene',    entry.oralHygiene],
+    ['Denture Upper',   entry.dentureUpper],
+    ['Denture Lower',   entry.dentureLower],
+    ['Abnormalities',   entry.abnormalities],
+    ['General Condition',entry.generalCondition],
+  ].filter(([,v]) => v && S(v).trim());
+
+  const medFields = [
+    ['Physician',       entry.physician],
+    ['Blood Pressure',  entry.bloodPressure],
+    ['Allergies',       entry.allergies],
+    ['Chronic Ailments',entry.chronicAilments],
+    ['Bleeding Hx',     entry.previousHistoryOfBleeding],
+    ['Medications',     entry.drugsBeingTaken],
+    ['Treatment',       entry.natureOfTreatment],
+  ].filter(([,v]) => v && S(v).trim());
+
+  return h('div', {className:'hist-entry'},
+    h('div', {className:'hist-entry-header', onClick:()=>setExpanded(e=>!e)},
+      h('div', {className:'hist-entry-left'},
+        h('div', {className:'hist-entry-date'}, '📋 ', entry.scanDate||'Unknown date'),
+        h('div', {className:'hist-entry-name'}, entry.name||'Patient Record'),
+        entry.occupation && h('div', {className:'hist-entry-sub'}, entry.occupation)
       ),
-      h('div',{className:'hist-entry-right'},
-        scanUrl && h('img',{
-          src:scanUrl,
-          alt:'Scan thumbnail',
-          className:'hist-entry-thumb',
-          style:{cursor:'pointer'},
-          onClick:e=>{e.stopPropagation();setViewingImg(true);}
+      h('div', {className:'hist-entry-right'},
+        scanUrl && h('img', {
+          src:scanUrl, alt:'Scan thumbnail', className:'hist-entry-thumb',
+          style:{cursor:'pointer'}, onClick:e=>{e.stopPropagation();setViewingImg(true);}
         }),
-        h('div',{className:'hist-entry-toggle'},expanded?'▲':'▼')
+        h('div', {className:'hist-entry-toggle'}, expanded?'▲':'▼')
       )
     ),
-
-    // Expanded content
-    expanded && h('div',{className:'hist-entry-body'},
-      // Quick stats row
-      h('div',{className:'hist-quick-stats'},
-        entry.bloodPressure && h('div',{className:'hist-stat'},
-          h('span',{className:'hist-stat-label'},'BP'),
-          h('span',{className:'hist-stat-value'},entry.bloodPressure)
-        ),
-        entry.oralHygiene && h('div',{className:'hist-stat'},
-          h('span',{className:'hist-stat-label'},'Oral Hygiene'),
-          h('span',{className:'hist-stat-value'},entry.oralHygiene)
-        ),
-        entry.occlusion && h('div',{className:'hist-stat'},
-          h('span',{className:'hist-stat-label'},'Occlusion'),
-          h('span',{className:'hist-stat-value'},entry.occlusion)
-        )
+    expanded && h('div', {className:'hist-entry-body'},
+      h('div', {className:'hist-quick-stats'},
+        entry.bloodPressure && h('div',{className:'hist-stat'},h('span',{className:'hist-stat-label'},'BP'),h('span',{className:'hist-stat-value'},entry.bloodPressure)),
+        entry.oralHygiene   && h('div',{className:'hist-stat'},h('span',{className:'hist-stat-label'},'Oral Hygiene'),h('span',{className:'hist-stat-value'},entry.oralHygiene)),
+        entry.occlusion     && h('div',{className:'hist-stat'},h('span',{className:'hist-stat-label'},'Occlusion'),h('span',{className:'hist-stat-value'},entry.occlusion))
       ),
-
-      // Two column grid: Clinical | Medical
-      h('div',{className:'hist-two-col'},
+      h('div', {className:'hist-two-col'},
         clinicalFields.length > 0 && h('div',{className:'hist-col'},
           h('div',{className:'hist-col-title'},'🦷 Clinical Findings'),
-          clinicalFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},
-            h('div',{className:'hist-row-label'},l),
-            h('div',{className:'hist-row-value'},v)
-          ))
+          clinicalFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},h('div',{className:'hist-row-label'},l),h('div',{className:'hist-row-value'},v)))
         ),
         medFields.length > 0 && h('div',{className:'hist-col'},
           h('div',{className:'hist-col-title'},'⚕️ Medical History'),
-          medFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},
-            h('div',{className:'hist-row-label'},l),
-            h('div',{className:'hist-row-value'},v)
-          ))
+          medFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},h('div',{className:'hist-row-label'},l),h('div',{className:'hist-row-value'},v)))
         )
       ),
-
-      // Clinical notes
-      entry.clinicalNotes && h('div',{className:'hist-notes'},
-        h('div',{className:'hist-col-title'},'📝 Clinical Notes'),
-        h('div',{className:'hist-notes-text'},entry.clinicalNotes)
-      ),
-      entry.dentalChartNotes && h('div',{className:'hist-notes'},
-        h('div',{className:'hist-col-title'},'🦷 Dental Chart Annotations'),
-        h('div',{className:'hist-notes-text'},entry.dentalChartNotes)
-      ),
-      entry.teethConditions && h('div',{className:'hist-notes'},
-        h('div',{className:'hist-col-title'},'🔍 Observed Tooth Conditions'),
-        h('div',{className:'hist-notes-text'},entry.teethConditions)
-      ),
-
-      // Actions
-      h('div',{className:'hist-entry-actions'},
-        scanUrl && h('button',{
-          type:'button',className:'btn bg2 bsm',
-          onClick:()=>setViewingImg(true)
-        },'🖼 View Original Scan'),
-        h('button',{
-          type:'button',className:'btn bd2 bsm',
-          onClick:()=>{if(confirm('Delete this history entry?'))onDelete(entry.id);}
-        },'🗑 Delete Entry')
+      entry.clinicalNotes    && h('div',{className:'hist-notes'},h('div',{className:'hist-col-title'},'📝 Clinical Notes'),h('div',{className:'hist-notes-text'},entry.clinicalNotes)),
+      entry.dentalChartNotes && h('div',{className:'hist-notes'},h('div',{className:'hist-col-title'},'🦷 Dental Chart Annotations'),h('div',{className:'hist-notes-text'},entry.dentalChartNotes)),
+      entry.teethConditions  && h('div',{className:'hist-notes'},h('div',{className:'hist-col-title'},'🔍 Observed Tooth Conditions'),h('div',{className:'hist-notes-text'},entry.teethConditions)),
+      h('div', {className:'hist-entry-actions'},
+        h('button', {
+          type:'button', className:'btn bg2 bsm',
+          disabled: scanLoading || !scanUrl,
+          onClick: ()=>setViewingImg(true)
+        }, scanLoading ? '⏳ Loading scan…' : scanUrl ? '🖼 View Original Scan' : '🖼 Scan Not Available'),
+        h('button', {
+          type:'button', className:'btn bd2 bsm',
+          onClick: handleDelete
+        }, '🗑 Delete Entry')
       )
     ),
-
-    // Full-size image viewer — uses scanUrl (IDB-backed, survives localStorage quota eviction)
-    viewingImg && h('div',{
-      className:'att-viewer-ov',
-      onClick:()=>setViewingImg(false)
-    },
-      h('div',{className:'att-viewer-modal',onClick:e=>e.stopPropagation()},
-        h('div',{className:'att-viewer-header'},
-          h('div',{style:{color:'#fff',fontWeight:700}},'📋 Examination Record — '+entry.scanDate),
-          h('div',{style:{display:'flex',gap:8}},
-            scanUrl && h('a',{href:scanUrl,download:'exam-record-'+entry.scanDate+'.jpg',
-              className:'btn bg2 bsm'},'⬇ Download'),
-            h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)},'✕ Close')
-          )
-        ),
-        h('div',{className:'att-viewer-body'},
-          scanUrl
-            ? h('img',{src:scanUrl,alt:'Exam record',style:{maxWidth:'100%',borderRadius:4}})
-            : h('div',{className:'att-viewer-nopreview'},
-                h('div',{style:{fontSize:36,marginBottom:8}},'⚠️'),
-                h('div',{style:{color:'#fff',fontWeight:700}},'Image not available'),
-                h('div',{style:{color:'#aaa',fontSize:12,marginTop:6,textAlign:'center',maxWidth:280}},
-                  'Scan image was not saved (storage full). Delete and re-scan this record.'
-                )
-              )
-        )
-      )
-    )
+    viewer
   );
 }
 
