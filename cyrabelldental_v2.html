@@ -8209,14 +8209,16 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
       patient: patient,
       history: safe(patient.history),
       onAddEntry: entry => {
-        const updated = [...safe(patient.history), entry];
-        setLocalPat(p => ({...p, history: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, patient.attachments, updated);
+        const p = localPatRef.current;
+        const updated = [...safe(p.history), entry];
+        setLocalPat({...p, history: updated});
+        onUpdateTeeth(p.id, p.teeth, p.attachments, updated);
       },
       onDeleteEntry: id => {
-        const updated = safe(patient.history).filter(e => e.id !== id);
-        setLocalPat(p => ({...p, history: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, patient.attachments, updated);
+        const p = localPatRef.current;
+        const updated = safe(p.history).filter(e => e.id !== id);
+        setLocalPat({...p, history: updated});
+        onUpdateTeeth(p.id, p.teeth, p.attachments, updated);
       },
     }),
     showMedCert && h(MedCertModal, {patient:patient, onClose:()=>setShowMedCert(false)}),
@@ -12953,8 +12955,14 @@ function App(){
         try {
           const slim = patients.map(p => ({
             ...p,
-            // Strip only the profile photo (re-uploadable), keep all attachment dataUrls intact
+            // Strip large profile photo (re-uploadable)
             photoDataUrl: (p.photoDataUrl && p.photoDataUrl.length > 51200) ? '' : (p.photoDataUrl || ''),
+            // Strip large scanImageUrls from history (base64 scans can be 500KB+)
+            // Drive attachment driveEmbedUrls are short URLs — never stripped
+            history: safe(p.history).map(h => ({
+              ...h,
+              scanImageUrl: (h.scanImageUrl && h.scanImageUrl.length > 51200) ? '' : (h.scanImageUrl || ''),
+            })),
           }));
           localStorage.setItem(LS_KEYS.PATIENTS,      JSON.stringify(slim));
           localStorage.setItem(LS_KEYS.APPOINTMENTS,  JSON.stringify(appointments));
