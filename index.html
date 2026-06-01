@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#0a7c6e"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com;">
@@ -3190,6 +3191,56 @@ function idbDelete(id) {
   }));
 }
 
+// ── Shared utility helpers ────────────────────────────────────────────────
+
+/** Build a Google Drive thumbnail URL for direct <img> embedding. */
+function driveThumbnailUrl(id, sz) {
+  return 'https://drive.google.com/thumbnail?id=' + id + '&sz=' + (sz || 'w400');
+}
+
+/** Read a File object as a base64 data URL. Returns a Promise<string>. */
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = e => resolve(e.target.result || '');
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Show a confirm dialog; if confirmed, call fn(). */
+function confirmDelete(msg, fn) {
+  if (window.confirm(msg || 'Delete this item?')) fn();
+}
+
+/**
+ * AttachThumb — reusable mini attachment card (thumbnail or icon + name).
+ * Props: att {id, name, type, dataUrl?, driveFileId?, storage}, onClick, sz (Drive thumbnail size)
+ */
+function AttachThumb({att, onClick, sz}) {
+  const isImg = (att.type||'').startsWith('image/');
+  const isPdf = att.type === 'application/pdf';
+  const thumbSrc = att.storage === 'drive' && att.driveFileId
+    ? driveThumbnailUrl(att.driveFileId, sz || 'w200')
+    : (att.dataUrl || '');
+  return h('div', {
+    style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+      background:'#fff',border:'1.5px solid var(--bd)',borderRadius:8,
+      padding:'6px',cursor:onClick?'pointer':'default',minWidth:80,maxWidth:100},
+    title: att.name,
+    onClick: onClick ? ()=>onClick(att) : undefined
+  },
+    isImg && thumbSrc
+      ? h('img',{src:thumbSrc, alt:att.name,
+          style:{width:60,height:60,objectFit:'cover',borderRadius:4},
+          onError:e=>{e.target.style.display='none';}})
+      : h('div',{style:{fontSize:28,lineHeight:1.2}}, isPdf ? '📑' : '📄'),
+    h('div',{style:{fontSize:10,color:'var(--md)',textAlign:'center',wordBreak:'break-all',maxWidth:80}},
+      (att.name||'').length > 14 ? (att.name||'').substring(0,12)+'…' : (att.name||'')
+    )
+  );
+}
+
 // ── Google Drive file upload via Apps Script ───────────────────────────────
 // POST to Apps Script with action=uploadFile.
 // Returns {fileId, viewUrl, embedUrl, thumbnailUrl, downloadUrl} on success.
@@ -4163,75 +4214,6 @@ function Toast({toasts,rm}){
     )
   ));
 }
-
-// ── Shared utility helpers ─────────────────────────────────────────────────
-
-/**
- * Build a Google Drive thumbnail URL.
- * @param {string} id  - Drive file ID
- * @param {string} [sz='w400'] - size hint, e.g. 'w200', 'w1600'
- */
-function driveThumbnailUrl(id, sz) {
-  return 'https://drive.google.com/thumbnail?id=' + id + '&sz=' + (sz || 'w400');
-}
-
-/**
- * Read a File object as a data-URL string (Promise-based wrapper).
- * @param {File} file
- * @returns {Promise<string>}
- */
-function readFileAsDataUrl(file) {
-  return new Promise(function(resolve, reject) {
-    var reader = new FileReader();
-    reader.onload = function(ev) { resolve(ev.target.result || ''); };
-    reader.onerror = function() { reject(new Error('File read failed: ' + file.name)); };
-    reader.readAsDataURL(file);
-  });
-}
-
-/**
- * Show a browser confirm dialog; invoke fn() only if the user confirms.
- * Centralises the confirm-then-delete pattern used across the app.
- * @param {string} msg  - Message shown to the user
- * @param {Function} fn - Callback executed on confirmation
- */
-function confirmDelete(msg, fn) {
-  if (confirm(msg)) fn();
-}
-
-/**
- * Tiny attachment thumbnail card — used in History and ApptDetail galleries.
- * Props:
- *   att      - attachment object {id, name, type, storage, driveFileId, dataUrl}
- *   onClick  - called when the card is clicked
- *   sz       - Drive thumbnail size hint (default 'w200')
- */
-function AttachThumb({att, onClick, sz}) {
-  const isImg = S(att.type).startsWith('image/');
-  const thumbSrc = att.storage === 'drive' && att.driveFileId
-    ? driveThumbnailUrl(att.driveFileId, sz || 'w200')
-    : att.dataUrl || '';
-  const icon = att.type === 'application/pdf' ? '📑' : att.storage === 'drive' ? '☁️' : '📄';
-  const shortName = S(att.name).length > 14 ? att.name.substring(0, 12) + '…' : att.name;
-  return h('div', {
-    style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
-      background:'var(--cr)',border:'1.5px solid var(--bd)',borderRadius:8,
-      padding:'8px',cursor:'pointer',minWidth:80,maxWidth:110},
-    title:att.name,
-    onClick:onClick,
-  },
-    isImg && thumbSrc
-      ? h('img',{src:thumbSrc,alt:att.name,style:{width:64,height:64,objectFit:'cover',borderRadius:6},
-          onError:function(e){e.target.style.display='none';}})
-      : h('div',{style:{fontSize:32,lineHeight:1.2}},icon),
-    h('div',{style:{fontSize:10,color:'var(--md)',textAlign:'center',wordBreak:'break-all',maxWidth:90}},
-      shortName
-    ),
-    att.storage === 'drive' && h('div',{style:{fontSize:9,color:'var(--t)',fontWeight:700}},'☁ Drive')
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 function expCSV(data,fn){
   if(!data.length)return;
@@ -6456,18 +6438,19 @@ function PhotoCaptureWidget({patient, photoDataUrl, onPhotoChange, syncUrl, addT
     setBusy(false);
   };
 
-  const handleFile = async (e) => {
+  const handleFile = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     setShowChooser(false); setBusy(true);
-    try {
-      const rawDataUrl = await readFileAsDataUrl(file);
-      const compressed = await compressImage(rawDataUrl, 800, 0.82);
-      onPhotoChange(compressed);
-    } catch(err) {
-      addToast && addToast('Image error: ' + err.message, 'error');
-    }
-    setBusy(false);
+    readFileAsDataUrl(file)
+      .then(async dataUrl => {
+        try {
+          const compressed = await compressImage(dataUrl, 800, 0.82);
+          onPhotoChange(compressed);
+        } catch(err) { addToast && addToast('Image error: '+err.message, 'error'); }
+        setBusy(false);
+      })
+      .catch(() => { addToast && addToast('File read failed','error'); setBusy(false); });
     e.target.value = '';
   };
 
@@ -6855,7 +6838,7 @@ function AttachmentViewer({file, onClose}) {
         // thumbnail?sz=w1600 is reliable for publicly-shared images (no consent-page redirect).
         !loading && isDrive && isImage && h('div',{className:'att-viewer-img-wrap',style:{overflow:'auto'}},
           h('img',{
-            src:'https://drive.google.com/thumbnail?id='+file.driveFileId+'&sz=w1600',
+            src:driveThumbnailUrl(file.driveFileId,'w1600'),
             alt:file.name,
             style:{transform:`scale(${zoom})`,transformOrigin:'top left',display:'block',maxWidth:zoom===1?'100%':'none'},
             onError:e=>{
@@ -6933,17 +6916,74 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, onUpdate, 
         toast && toast(file.name + ' is too large (max 8MB). Please compress it first.', 'error');
         continue;
       }
-      const dataUrl = await readFileAsDataUrl(file);
-      const att = {
-        id:      'ATT-' + Date.now() + '-' + i,
-        name:    file.name,
-        type:    file.type || 'application/octet-stream',
-        size:    file.size,
-        dataUrl: dataUrl,
-        note:    '',
-        date:    localToday(),
-      };
-      onAdd && onAdd(att);
+      await (async () => {
+        const dataUrl  = await readFileAsDataUrl(file);
+        {
+          const rawType  = file.type || '';
+          // Detect image type from dataUrl prefix when browser reports no/generic MIME type.
+          // This fixes iOS/HEIC photos that arrive with type='' or type='application/octet-stream'.
+          let resolvedType = rawType;
+          if (!rawType || rawType === 'application/octet-stream') {
+            if (dataUrl.startsWith('data:image/'))      resolvedType = dataUrl.substring(5, dataUrl.indexOf(';'));
+            else if (dataUrl.startsWith('data:application/pdf')) resolvedType = 'application/pdf';
+          }
+          const attId = 'ATT-' + Date.now() + '-' + i;
+          const att = {
+            id:      attId,
+            name:    file.name,
+            type:    resolvedType || 'application/octet-stream',
+            size:    file.size,
+            dataUrl: dataUrl,  // temporary: shown in UI while saving
+            note:    '',
+            date:    localToday(),
+            storage: 'local',  // will be updated to 'drive' or 'idb'
+          };
+          // Show immediately in UI with local dataUrl for instant preview
+          onAdd && onAdd(att);
+
+          // Now persist to Drive or IDB
+          const curSyncUrl = (typeof syncUrl === 'string') ? syncUrl : '';
+          if (curSyncUrl) {
+            try {
+              toast && toast('Uploading ' + file.name + ' to Drive...', 'info');
+              const result = await uploadFileToDrive(curSyncUrl, dataUrl, resolvedType, file.name, patientId || 'unknown');
+              // Update attachment: replace dataUrl with Drive URLs
+              const driveAtt = {
+                ...att,
+                dataUrl: result.embedUrl || result.viewUrl || '',
+                driveFileId: result.fileId,
+                driveViewUrl: result.viewUrl,
+                driveEmbedUrl: result.embedUrl,
+                driveThumbnailUrl: result.thumbnailUrl,
+                driveDownloadUrl: result.downloadUrl,
+                storage: 'drive',
+              };
+              onUpdate && onUpdate(attId, driveAtt);
+              toast && toast(file.name + ' uploaded to Drive ✓', 'ok');
+            } catch(err) {
+              // Drive upload failed — fall back to IndexedDB
+              console.warn('[attachment] Drive upload failed, falling back to IDB:', err.message);
+              try {
+                await idbPut(attId, dataUrl);
+                onUpdate && onUpdate(attId, {...att, dataUrl: '', storage: 'idb'});
+                toast && toast(file.name + ' saved locally (Drive upload failed)', 'ok');
+              } catch(idbErr) {
+                toast && toast('Could not save ' + file.name + ': ' + idbErr.message, 'error');
+              }
+            }
+          } else {
+            // No sync URL — save to IndexedDB
+            try {
+              await idbPut(attId, dataUrl);
+              onUpdate && onUpdate(attId, {...att, dataUrl: '', storage: 'idb'});
+            } catch(idbErr) {
+              // IDB failed — keep dataUrl in memory only (won't survive refresh)
+              console.warn('[attachment] IDB save failed:', idbErr.message);
+              toast && toast('⚠️ ' + file.name + ' saved in memory only — may be lost on refresh', 'warning');
+            }
+          }
+        }
+      })();
     }
     setBusy(false);
     e.target.value = '';
@@ -7114,13 +7154,14 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
     await runExtraction(dataUrl,'image/jpeg');
   };
 
-  const handleFile = async (e) => {
+  const handleFile = (e) => {
     const file = e.target.files&&e.target.files[0];
     if (!file) return;
     const mime = file.type||'image/jpeg';
-    const dataUrl = await readFileAsDataUrl(file);
-    setImageUrl(dataUrl); setMimeType(mime);
-    await runExtraction(dataUrl, mime);
+    readFileAsDataUrl(file).then(async dataUrl => {
+      setImageUrl(dataUrl); setMimeType(mime);
+      await runExtraction(dataUrl, mime);
+    });
     e.target.value='';
   };
 
@@ -7322,29 +7363,173 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
 }
 
 /**
- * ClinicalHistoryEntry — renders a single history record card in the timeline.
+ * useHistoryScanImage — loads a history entry's scan image.
+ * Priority: inlineUrl (from entry.scanImageUrl) → IndexedDB → empty.
+ * IDB is the durable store; inlineUrl is only set on first render.
  */
-function ClinicalHistoryEntry({entry, onDelete, idx}) {
-  const [expanded, setExpanded] = useState(idx===0); // first entry open by default
-  const [viewingImg, setViewingImg] = useState(false);
-  // Load scan image from IDB if not in entry (stripped from localStorage due to size)
-  const [scanUrl, setScanUrl] = useState(entry.scanImageUrl || '');
+function useHistoryScanImage(id, inlineUrl) {
+  const [url,     setUrl]     = useState(inlineUrl || '');
+  const [loading, setLoading] = useState(!inlineUrl && !!id);
   useEffect(() => {
-    if (!entry.scanImageUrl && entry.id) {
-      idbGet(entry.id).then(url => { if (url) setScanUrl(url); }).catch(()=>{});
-    } else {
-      setScanUrl(entry.scanImageUrl || '');
+    if (inlineUrl) { setUrl(inlineUrl); setLoading(false); return; }
+    if (!id)       { setUrl('');        setLoading(false); return; }
+    setLoading(true);
+    idbGet(id)
+      .then(stored => { setUrl(stored || ''); setLoading(false); })
+      .catch(()    => {                        setLoading(false); });
+  }, [id, inlineUrl]);
+  return { url, loading };
+}
+
+/**
+ * ClinicalHistoryEntry — single card in the history timeline.
+ * Handles three entry types: attached_record, appointment_record, examination_record.
+ * Image data is always loaded via useHistoryScanImage (IDB-backed).
+ */
+/**
+ * ClinicalHistoryEntry — single card in the history timeline.
+ * attached_record entries now get a full AttachmentPanel (same as Files tab).
+ */
+function ClinicalHistoryEntry({entry, onDelete, onUpdate, idx, syncUrl, patientId, addToast}) {
+  const [expanded,    setExpanded]    = useState(idx === 0);
+  const [viewingFile, setViewingFile] = useState(null);
+  const { url: scanUrl, loading: scanLoading } = useHistoryScanImage(entry.id, entry.scanImageUrl || '');
+
+  // Always-current ref so async Drive upload callbacks read latest attachments
+  const entryRef = useRef(entry);
+  entryRef.current = entry;
+
+  const handleDelete = () => {
+    confirmDelete('Delete this history entry?', () => {
+      idbDelete(entry.id).catch(() => {});
+      onDelete && onDelete(entry.id);
+    });
+  };
+
+  // Build AttachmentPanel callbacks using entryRef so async Drive updates
+  // always read the latest attachments array (avoids stale-closure bug).
+  const makeAttCallbacks = () => ({
+    onAdd: att => {
+      const e = entryRef.current;
+      onUpdate && onUpdate({...e, scanImageUrl: '', attachments: [...safe(e.attachments), att]});
+    },
+    onUpdate: (attId, newAtt) => {
+      const e = entryRef.current;
+      onUpdate && onUpdate({...e, attachments: safe(e.attachments).map(a => a.id === attId ? newAtt : a)});
+    },
+    onUpdateNote: (attId, note) => {
+      const e = entryRef.current;
+      onUpdate && onUpdate({...e, attachments: safe(e.attachments).map(a => a.id === attId ? {...a, note} : a)});
+    },
+    onRemove: attId => {
+      idbDelete(attId).catch(() => {});
+      const e = entryRef.current;
+      onUpdate && onUpdate({...e, attachments: safe(e.attachments).filter(a => a.id !== attId)});
+    },
+  });
+
+  // ── attached_record ───────────────────────────────────────────────────────
+  if (entry.type === 'attached_record') {
+    // Backward-compat: old entries stored a single file in scanImageUrl.
+    // Migrate on-the-fly so they appear in AttachmentPanel without data loss.
+    let atts = safe(entry.attachments);
+    if (atts.length === 0 && scanUrl) {
+      atts = [{
+        id:      entry.id + '-legacy',
+        name:    entry.label || 'Attached Record',
+        type:    entry.fileType || 'image/jpeg',
+        size:    entry.fileSize || 0,
+        dataUrl: scanUrl,
+        note:    '',
+        date:    entry.scanDate || '',
+        storage: 'local',
+      }];
     }
-  }, [entry.id, entry.scanImageUrl]);
+
+    return h('div', {className:'hist-entry hist-entry-attached'},
+      // Card header
+      h('div', {className:'hist-entry-header', style:{cursor:'default'}},
+        h('div', {className:'hist-entry-left', style:{display:'flex',alignItems:'center',gap:12}},
+          h('div', {style:{fontSize:32}}, '📎'),
+          h('div', null,
+            h('div', {className:'hist-entry-date'}, '📎 ', entry.scanDate||'Unknown date'),
+            h('div', {className:'hist-entry-name'}, entry.label||'Attached Record'),
+            h('div', {className:'hist-entry-sub', style:{fontSize:11}},
+              atts.length ? atts.length+' file(s)' : 'No files yet'
+            )
+          )
+        ),
+        h('div', {className:'hist-entry-right'},
+          h('button', {type:'button', className:'btn bd2 bsm',
+            onClick: e => { e.stopPropagation(); handleDelete(); }
+          }, '✕ Delete')
+        )
+      ),
+      h('div', {style:{padding:'0 12px 12px'}},
+        h(AttachmentPanel, {
+          attachments: atts,
+          label: 'Files',
+          syncUrl, patientId, addToast,
+          ...makeAttCallbacks(),
+        })
+      ),
+      viewingFile && h(AttachmentViewer, {file: viewingFile, onClose: () => setViewingFile(null)})
+    );
+  }
+
+  // ── appointment_record — read-only gallery with in-app viewer ────────────
+  if (entry.type === 'appointment_record') {
+    const atts = safe(entry.attachments);
+    return h('div', {className:'hist-entry hist-entry-attached'},
+      h('div', {className:'hist-entry-header', style:{cursor:'default'}},
+        h('div', {className:'hist-entry-left', style:{display:'flex',alignItems:'center',gap:12}},
+          h('div', {style:{fontSize:32}}, '📅'),
+          h('div', null,
+            h('div', {className:'hist-entry-date'}, '📅 ', entry.scanDate||'Unknown date'),
+            h('div', {className:'hist-entry-name'}, entry.label||'Appointment Record'),
+            h('div', {className:'hist-entry-sub', style:{fontSize:11}},
+              'Service record'+(entry.dentist?' · '+entry.dentist:'')+(atts.length?' · '+atts.length+' file(s)':'')
+            )
+          )
+        ),
+        h('div', {className:'hist-entry-right'},
+          h('button', {type:'button', className:'btn bd2 bsm',
+            onClick: e => { e.stopPropagation(); handleDelete(); }
+          }, '✕')
+        )
+      ),
+      atts.length > 0 && h('div', {
+        className:'hist-appt-files',
+        style:{padding:'8px 12px 12px',borderTop:'1px solid var(--bd)',background:'var(--cr)'}
+      },
+        h('div', {style:{fontSize:11,fontWeight:700,color:'var(--md)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.5px'}},
+          '📎 Attached Files ('+atts.length+')'
+        ),
+        // Use AttachmentPanel in read-only style — no onAdd/onRemove, viewer stays in-app
+        h('div', {style:{display:'flex',gap:8,flexWrap:'wrap'}},
+          atts.map((att,i) => h(AttachThumb, {
+            key: att.id||i,
+            att,
+            onClick: () => setViewingFile(att),   // ← in-app viewer, not window.open
+          }))
+        )
+      ),
+      viewingFile && h(AttachmentViewer, {file: viewingFile, onClose: () => setViewingFile(null)})
+    );
+  }
+
+  // ── examination_record (AI scan) ──────────────────────────────────────────
+  const isImg = S(entry.fileType).startsWith('image/') || scanUrl.startsWith('data:image/');
+  const isPdf = entry.fileType === 'application/pdf'  || scanUrl.startsWith('data:application/pdf');
 
   const clinicalFields = [
-    ['Occlusion',            entry.occlusion],
-    ['Periodontal',          entry.periodontalCondition],
-    ['Oral Hygiene',         entry.oralHygiene],
-    ['Denture Upper',        entry.dentureUpper],
-    ['Denture Lower',        entry.dentureLower],
-    ['Abnormalities',        entry.abnormalities],
-    ['General Condition',    entry.generalCondition],
+    ['Occlusion',        entry.occlusion],
+    ['Periodontal',      entry.periodontalCondition],
+    ['Oral Hygiene',     entry.oralHygiene],
+    ['Denture Upper',    entry.dentureUpper],
+    ['Denture Lower',    entry.dentureLower],
+    ['Abnormalities',    entry.abnormalities],
+    ['General Condition',entry.generalCondition],
   ].filter(([,v]) => v && S(v).trim());
 
   const medFields = [
@@ -7357,228 +7542,69 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
     ['Treatment',        entry.natureOfTreatment],
   ].filter(([,v]) => v && S(v).trim());
 
-  // Attached records (no AI extraction) show a compact file card
-  if (entry.type === 'attached_record' || entry.type === 'appointment_record') {
-    const isAppt = entry.type === 'appointment_record';
-    const atts   = safe(entry.attachments);
-    const isImg = S(entry.fileType).startsWith('image/');
-    const isPdf = entry.fileType === 'application/pdf';
-    // scanUrl: loaded from state (IDB fallback fills it in via useEffect above)
-    const canView = !!(scanUrl);
-    return h('div',{className:'hist-entry hist-entry-attached'},
-      h('div',{className:'hist-entry-header',style:{cursor:'default'}},
-        h('div',{className:'hist-entry-left',style:{display:'flex',alignItems:'center',gap:12}},
-          scanUrl && isImg && h('img',{
-            src:scanUrl,
-            alt:entry.label,
-            className:'hist-entry-thumb',
-            style:{cursor:'pointer'},
-            onClick:e=>{e.stopPropagation();setViewingImg(true);}
-          }),
-          !isImg && h('div',{style:{fontSize:32}},isPdf?'📑':'📄'),
-          h('div',null,
-            h('div',{className:'hist-entry-date'},
-              isAppt ? '📅 ' : '📎 ',
-              entry.scanDate||'Unknown date'
-            ),
-            h('div',{className:'hist-entry-name'},entry.label||'Attached Record'),
-            h('div',{className:'hist-entry-sub',style:{fontSize:11}},
-              isAppt
-                ? ('Service record' + (entry.dentist?' · '+entry.dentist:'') + (atts.length?' · '+atts.length+' file(s)':''))
-                : ('Attached file' + (entry.fileSize?' · '+Math.round(entry.fileSize/1024)+'KB':''))
-            )
-          )
-        ),
-        h('div',{className:'hist-entry-right',style:{display:'flex',gap:6,flexWrap:'wrap'}},
-          (isImg || isPdf) && h('button',{
-            type:'button', className:'btn bgh bsm',
-            disabled: !canView,
-            title: canView ? 'View' : 'Image data not available — re-attach to restore',
-            onClick:e=>{e.stopPropagation();setViewingImg(true);}
-          },'👁 View'),
-          !isAppt && scanUrl && h('a',{
-            href:scanUrl, download:entry.label||'record',
-            className:'btn bgh bsm', onClick:e=>e.stopPropagation()
-          },'⬇'),
-          h('button',{
-            type:'button',className:'btn bd2 bsm',
-            onClick:e=>{e.stopPropagation();confirmDelete('Delete?',()=>onDelete(entry.id));}
-          },'✕')
-        )
+  // ── examination_record (AI scan) ──────────────────────────────────────────
+  return h('div', {className:'hist-entry'},
+    h('div', {className:'hist-entry-header', onClick:()=>setExpanded(e=>!e)},
+      h('div', {className:'hist-entry-left'},
+        h('div', {className:'hist-entry-date'}, '📋 ', entry.scanDate||'Unknown date'),
+        h('div', {className:'hist-entry-name'}, entry.name||'Patient Record'),
+        entry.occupation && h('div', {className:'hist-entry-sub'}, entry.occupation)
       ),
-      // For appointment records: show all attached files as mini gallery
-      isAppt && atts.length > 0 && h('div',{
-        className:'hist-appt-files',
-        style:{padding:'8px 12px 12px',borderTop:'1px solid var(--bd)',background:'var(--cr)'}
-      },
-        h('div',{style:{fontSize:11,fontWeight:700,color:'var(--md)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.5px'}},
-          '📎 Attached Files ('+ atts.length +')'
-        ),
-        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
-          atts.map((att,i) => {
-            const isAttImg = S(att.type).startsWith('image/');
-            return h('div',{key:att.id||i,
-              style:{
-                display:'flex',flexDirection:'column',alignItems:'center',gap:4,
-                background:'#fff',border:'1.5px solid var(--bd)',borderRadius:8,
-                padding:'6px',cursor:'pointer',minWidth:80,maxWidth:100,
-              },
-              title:att.name,
-              onClick:()=>{ if(att.dataUrl) window.open(att.dataUrl,'_blank'); }
-            },
-              isAttImg && att.dataUrl
-                ? h('img',{src:att.dataUrl,alt:att.name,style:{width:60,height:60,objectFit:'cover',borderRadius:4}})
-                : h('div',{style:{fontSize:28,lineHeight:1.2}},S(att.type)==='application/pdf'?'📑':'📄'),
-              h('div',{style:{fontSize:10,color:'var(--md)',textAlign:'center',wordBreak:'break-all',maxWidth:80}},
-                S(att.name).length > 14 ? att.name.substring(0,12)+'…' : att.name
-              ),
-              att.note && h('div',{style:{fontSize:9,color:'var(--t)',textAlign:'center'}},att.note)
-            );
-          })
-        )
-      ),
-
-      viewingImg && h('div',{
-        className:'att-viewer-ov',onClick:()=>setViewingImg(false)
-      },
-        h('div',{className:'att-viewer-modal',onClick:e=>e.stopPropagation()},
-          h('div',{className:'att-viewer-header'},
-            h('div',{style:{fontWeight:700,fontSize:14,color:'var(--dk)'}},entry.label||'Record'),
-            h('div',{style:{display:'flex',gap:8}},
-              scanUrl && h('a',{href:scanUrl,download:entry.label,className:'btn bg2 bsm'},'⬇ Download'),
-              h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)},'✕ Close')
-            )
-          ),
-          h('div',{className:'att-viewer-body'},
-            !scanUrl && h('div',{className:'att-viewer-nopreview'},
-              h('div',{style:{fontSize:36,marginBottom:8}},'⚠️'),
-              h('div',{style:{color:'#fff',fontWeight:700}},'Image not available'),
-              h('div',{style:{color:'#aaa',fontSize:12,marginTop:6,textAlign:'center',maxWidth:280}},
-                'The scan image was not saved (storage was full). Remove this entry and re-attach the file.'
-              )
-            ),
-            scanUrl && isImg && h('img',{src:scanUrl,alt:entry.label,style:{maxWidth:'100%',borderRadius:4}}),
-            scanUrl && isPdf && h('iframe',{src:scanUrl,style:{width:'100%',height:'70vh',border:'none'}})
-          )
-        )
-      )
-    );
-  }
-
-  return h('div',{className:'hist-entry'},
-    // Header (always visible)
-    h('div',{className:'hist-entry-header',onClick:()=>setExpanded(e=>!e)},
-      h('div',{className:'hist-entry-left'},
-        h('div',{className:'hist-entry-date'},
-          '📋 ', entry.scanDate || 'Unknown date'
-        ),
-        h('div',{className:'hist-entry-name'},
-          entry.name || 'Patient Record'
-        ),
-        entry.occupation && h('div',{className:'hist-entry-sub'}, entry.occupation)
-      ),
-      h('div',{className:'hist-entry-right'},
-        scanUrl && h('img',{
-          src:scanUrl,
-          alt:'Scan thumbnail',
-          className:'hist-entry-thumb',
+      h('div', {className:'hist-entry-right'},
+        scanUrl && h('img', {
+          src:scanUrl, alt:'Scan thumbnail', className:'hist-entry-thumb',
           style:{cursor:'pointer'},
-          onClick:e=>{e.stopPropagation();setViewingImg(true);}
+          onClick:e=>{ e.stopPropagation(); setViewingFile({
+            id: entry.id, name: entry.name||'Scan',
+            type: entry.fileType||(isImg?'image/jpeg':'application/pdf'),
+            dataUrl: scanUrl, storage:'local',
+          }); }
         }),
-        h('div',{className:'hist-entry-toggle'},expanded?'▲':'▼')
+        h('div', {className:'hist-entry-toggle'}, expanded?'▲':'▼')
       )
     ),
-
-    // Expanded content
-    expanded && h('div',{className:'hist-entry-body'},
-      // Quick stats row
-      h('div',{className:'hist-quick-stats'},
-        entry.bloodPressure && h('div',{className:'hist-stat'},
-          h('span',{className:'hist-stat-label'},'BP'),
-          h('span',{className:'hist-stat-value'},entry.bloodPressure)
-        ),
-        entry.oralHygiene && h('div',{className:'hist-stat'},
-          h('span',{className:'hist-stat-label'},'Oral Hygiene'),
-          h('span',{className:'hist-stat-value'},entry.oralHygiene)
-        ),
-        entry.occlusion && h('div',{className:'hist-stat'},
-          h('span',{className:'hist-stat-label'},'Occlusion'),
-          h('span',{className:'hist-stat-value'},entry.occlusion)
-        )
+    expanded && h('div', {className:'hist-entry-body'},
+      h('div', {className:'hist-quick-stats'},
+        entry.bloodPressure && h('div',{className:'hist-stat'},h('span',{className:'hist-stat-label'},'BP'),h('span',{className:'hist-stat-value'},entry.bloodPressure)),
+        entry.oralHygiene   && h('div',{className:'hist-stat'},h('span',{className:'hist-stat-label'},'Oral Hygiene'),h('span',{className:'hist-stat-value'},entry.oralHygiene)),
+        entry.occlusion     && h('div',{className:'hist-stat'},h('span',{className:'hist-stat-label'},'Occlusion'),h('span',{className:'hist-stat-value'},entry.occlusion))
       ),
-
-      // Two column grid: Clinical | Medical
-      h('div',{className:'hist-two-col'},
+      h('div', {className:'hist-two-col'},
         clinicalFields.length > 0 && h('div',{className:'hist-col'},
           h('div',{className:'hist-col-title'},'🦷 Clinical Findings'),
-          clinicalFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},
-            h('div',{className:'hist-row-label'},l),
-            h('div',{className:'hist-row-value'},v)
-          ))
+          clinicalFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},h('div',{className:'hist-row-label'},l),h('div',{className:'hist-row-value'},v)))
         ),
         medFields.length > 0 && h('div',{className:'hist-col'},
           h('div',{className:'hist-col-title'},'⚕️ Medical History'),
-          medFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},
-            h('div',{className:'hist-row-label'},l),
-            h('div',{className:'hist-row-value'},v)
-          ))
+          medFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},h('div',{className:'hist-row-label'},l),h('div',{className:'hist-row-value'},v)))
         )
       ),
-
-      // Clinical notes
-      entry.clinicalNotes && h('div',{className:'hist-notes'},
-        h('div',{className:'hist-col-title'},'📝 Clinical Notes'),
-        h('div',{className:'hist-notes-text'},entry.clinicalNotes)
+      entry.clinicalNotes    && h('div',{className:'hist-notes'},h('div',{className:'hist-col-title'},'📝 Clinical Notes'),h('div',{className:'hist-notes-text'},entry.clinicalNotes)),
+      entry.dentalChartNotes && h('div',{className:'hist-notes'},h('div',{className:'hist-col-title'},'🦷 Dental Chart Annotations'),h('div',{className:'hist-notes-text'},entry.dentalChartNotes)),
+      entry.teethConditions  && h('div',{className:'hist-notes'},h('div',{className:'hist-col-title'},'🔍 Observed Tooth Conditions'),h('div',{className:'hist-notes-text'},entry.teethConditions)),
+      // AttachmentPanel for supporting files — same as Files tab
+      h('div', {style:{marginTop:12}},
+        h(AttachmentPanel, {
+          attachments: safe(entry.attachments),
+          label: 'Supporting Files',
+          syncUrl, patientId, addToast,
+          ...makeAttCallbacks(),
+        })
       ),
-      entry.dentalChartNotes && h('div',{className:'hist-notes'},
-        h('div',{className:'hist-col-title'},'🦷 Dental Chart Annotations'),
-        h('div',{className:'hist-notes-text'},entry.dentalChartNotes)
-      ),
-      entry.teethConditions && h('div',{className:'hist-notes'},
-        h('div',{className:'hist-col-title'},'🔍 Observed Tooth Conditions'),
-        h('div',{className:'hist-notes-text'},entry.teethConditions)
-      ),
-
-      // Actions
-      h('div',{className:'hist-entry-actions'},
-        scanUrl && h('button',{
-          type:'button',className:'btn bg2 bsm',
-          onClick:()=>setViewingImg(true)
-        },'🖼 View Original Scan'),
-        h('button',{
-          type:'button',className:'btn bd2 bsm',
-          onClick:()=>confirmDelete('Delete this history entry?',()=>onDelete(entry.id))
-        },'🗑 Delete Entry')
+      h('div', {className:'hist-entry-actions'},
+        h('button', {
+          type:'button', className:'btn bg2 bsm',
+          disabled: scanLoading || !scanUrl,
+          onClick: () => scanUrl && setViewingFile({
+            id: entry.id, name: entry.name||'Scan',
+            type: entry.fileType||(isImg?'image/jpeg':'application/pdf'),
+            dataUrl: scanUrl, storage:'local',
+          })
+        }, scanLoading ? '⏳ Loading scan…' : scanUrl ? '🖼 View Original Scan' : '🖼 Scan Not Available'),
+        h('button', {type:'button', className:'btn bd2 bsm', onClick: handleDelete}, '🗑 Delete Entry')
       )
     ),
-
-    // Full-size image viewer — uses scanUrl (IDB-backed, survives localStorage quota eviction)
-    viewingImg && h('div',{
-      className:'att-viewer-ov',
-      onClick:()=>setViewingImg(false)
-    },
-      h('div',{className:'att-viewer-modal',onClick:e=>e.stopPropagation()},
-        h('div',{className:'att-viewer-header'},
-          h('div',{style:{color:'#fff',fontWeight:700}},'📋 Examination Record — '+entry.scanDate),
-          h('div',{style:{display:'flex',gap:8}},
-            scanUrl && h('a',{href:scanUrl,download:'exam-record-'+entry.scanDate+'.jpg',
-              className:'btn bg2 bsm'},'⬇ Download'),
-            h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)},'✕ Close')
-          )
-        ),
-        h('div',{className:'att-viewer-body'},
-          scanUrl
-            ? h('img',{src:scanUrl,alt:'Exam record',style:{maxWidth:'100%',borderRadius:4}})
-            : h('div',{className:'att-viewer-nopreview'},
-                h('div',{style:{fontSize:36,marginBottom:8}},'⚠️'),
-                h('div',{style:{color:'#fff',fontWeight:700}},'Image not available'),
-                h('div',{style:{color:'#aaa',fontSize:12,marginTop:6,textAlign:'center',maxWidth:280}},
-                  'Scan image was not saved (storage full). Delete and re-scan this record.'
-                )
-              )
-        )
-      )
-    )
+    viewingFile && h(AttachmentViewer, {file: viewingFile, onClose: () => setViewingFile(null)})
   );
 }
 
@@ -7586,42 +7612,25 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
  * ClinicalHistoryTab — the full "📋 History" tab in PatProfile.
  * Shows a timeline of scanned examination records.
  */
-function ClinicalHistoryTab({patient, history, onAddEntry, onDeleteEntry}) {
-  const [showScanner,  setShowScanner]  = useState(false);
-  const [attachBusy,   setAttachBusy]   = useState(false);
-  const fileRef = useRef(null);
+function ClinicalHistoryTab({patient, history, onAddEntry, onDeleteEntry, onUpdateEntry, syncUrl, addToast}) {
+  const [showScanner, setShowScanner] = useState(false);
   const entries = safe(history).slice().sort((a,b) =>
     (b.scanDate||'').localeCompare(a.scanDate||'')
   );
 
-  // Direct file attach — creates a history entry from a local file
-  // without AI extraction (just archives the file)
-  const handleDirectAttach = async (e) => {
-    const files = e.target.files;
-    if (!files || !files.length) return;
-    setAttachBusy(true);
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (file.size > 15 * 1024 * 1024) {
-        console.warn('[history] file too large:', file.name);
-        continue;
-      }
-      const dataUrl = await readFileAsDataUrl(file);
-      const entry = {
-        id:           'HIST-' + Date.now() + '-' + i,
-        type:         'attached_record',
-        status:       'archived',
-        scanDate:     localToday(),
-        label:        file.name,
-        scanImageUrl: dataUrl,  // full dataUrl stored locally
-        fileType:     file.type || 'image/jpeg',
-        fileSize:     file.size,
-        // No clinical fields extracted — manual entry
-      };
-      onAddEntry && onAddEntry(entry);
-    }
-    setAttachBusy(false);
-    e.target.value = '';
+  // "Attach Record" button — creates a new attached_record entry with an
+  // empty attachments array. The AttachmentPanel inside the entry handles
+  // the actual file upload (same flow as the Files tab).
+  const handleNewRecord = () => {
+    const entry = {
+      id:          'HIST-' + Date.now(),
+      type:        'attached_record',
+      status:      'archived',
+      scanDate:    localToday(),
+      label:       'Attached Record ' + localToday(),
+      attachments: [],
+    };
+    onAddEntry && onAddEntry(entry);
   };
 
   return h('div',{className:'hist-tab'},
@@ -7634,20 +7643,12 @@ function ClinicalHistoryTab({patient, history, onAddEntry, onDeleteEntry}) {
         )
       ),
       h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
-        // Direct file attach button
+        // Creates a new attached_record entry — files are added via the AttachmentPanel inside
         h('button',{
           type:'button', className:'btn bg2',
-          onClick:()=>fileRef.current&&fileRef.current.click(),
-          disabled:attachBusy,
-          title:'Attach a photo or PDF of a physical record card without AI extraction'
-        }, attachBusy ? '⏳ Attaching…' : '📎 Attach Record'),
-        h('input',{
-          ref:fileRef, type:'file',
-          accept:'image/*,application/pdf,.pdf,.jpg,.jpeg,.png,.heic',
-          multiple:true,
-          style:{display:'none'},
-          onChange:handleDirectAttach,
-        }),
+          onClick:handleNewRecord,
+          title:'Create a new record entry where you can attach photos, PDFs, or X-rays'
+        }, '📎 New Attached Record'),
         // AI scan button
         h('button',{
           type:'button',className:'btn bp',
@@ -7680,6 +7681,10 @@ function ClinicalHistoryTab({patient, history, onAddEntry, onDeleteEntry}) {
           entry,
           idx:i,
           onDelete:onDeleteEntry,
+          onUpdate:onUpdateEntry,
+          syncUrl,
+          patientId: patient && patient.id,
+          addToast,
         })
       )
     ),
@@ -8265,6 +8270,14 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
         setLocalPat({...p, history: updated});
         onUpdateTeeth(p.id, p.teeth, p.attachments, updated);
       },
+      onUpdateEntry: updatedEntry => {
+        const p = localPatRef.current;
+        const updated = safe(p.history).map(e => e.id === updatedEntry.id ? updatedEntry : e);
+        setLocalPat({...p, history: updated});
+        onUpdateTeeth(p.id, p.teeth, p.attachments, updated);
+      },
+      syncUrl,
+      addToast,
     }),
     showMedCert && h(MedCertModal, {patient:patient, onClose:()=>setShowMedCert(false)}),
     showRx      && h(RxModal,      {patient:patient, onClose:()=>setShowRx(false)})
@@ -9991,15 +10004,26 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ApptDetail — shows appointment details
-function ApptDetail({a,onClose}){
+function ApptDetail({a, onClose, syncUrl}){
+  const [viewing, setViewing] = useState(null);
   const rows=[['Patient',a.patientName],['Service',a.service],['Dentist',a.dentist],['Date',fmtDateFull(a.date)],['Time',fmtTime(a.time)],['When',fmtDateRelative(a.date)],['Fee','₱'+p$(a.fee)],['Phone',a.phone||'—'],['Email',a.email||'—'],['Notes',a.notes||'—']];
+  const atts = safe(a.attachments);
   return h(Modal,{title:'Appointment Details',sub:'#'+a.id,onClose,footer:h('button',{className:'btn bgh',onClick:onClose},'Close')},
     h('div',{style:{display:'flex',flexDirection:'column',gap:10}},
       rows.map(([l,v])=>h('div',{key:l,style:{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--bd)'}},
         h('span',{style:{color:'var(--md)',fontSize:12.5,textTransform:'uppercase',letterSpacing:.5}},l),
         h('span',{style:{fontWeight:600,maxWidth:'60%',textAlign:'right'}},v||'—')
-      ))
-    )
+      )),
+      atts.length > 0 && h('div',{style:{marginTop:8}},
+        h('div',{style:{color:'var(--md)',fontSize:12,textTransform:'uppercase',letterSpacing:.5,marginBottom:8,fontWeight:700}},
+          '📎 Attachments ('+atts.length+')'
+        ),
+        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+          atts.map(att => h(AttachThumb, {key:att.id, att, onClick:()=>setViewing(att)}))
+        )
+      )
+    ),
+    viewing && h(AttachmentViewer,{file:viewing, onClose:()=>setViewing(null)})
   );
 }
 
@@ -10097,11 +10121,10 @@ function PatientSearchInput({patients: patientsProp, value, onSelect, placeholde
     setCamOpen(false);
   };
   // File pick for photo
-  const pickPhoto = async (e) => {
+  const pickPhoto = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const dataUrl = await readFileAsDataUrl(file);
-    setNewF(x => ({...x, photoDataUrl: dataUrl}));
+    readFileAsDataUrl(file).then(url => setNewF(x => ({...x, photoDataUrl: url})));
     e.target.value = '';
   };
 
@@ -10848,7 +10871,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
         }, ...prev]);
       }
     }}),
-    detail&&h(ApptDetail,{a:detail,onClose:()=>setDetail(null)}),
+    detail&&h(ApptDetail,{a:detail,syncUrl,onClose:()=>setDetail(null)}),
     showAnalysis && h(ConflictAnalysisModal, {appointments, onClose: ()=>setShowAnalysis(false)})
   );
 }
