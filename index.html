@@ -4164,6 +4164,75 @@ function Toast({toasts,rm}){
   ));
 }
 
+// ── Shared utility helpers ─────────────────────────────────────────────────
+
+/**
+ * Build a Google Drive thumbnail URL.
+ * @param {string} id  - Drive file ID
+ * @param {string} [sz='w400'] - size hint, e.g. 'w200', 'w1600'
+ */
+function driveThumbnailUrl(id, sz) {
+  return 'https://drive.google.com/thumbnail?id=' + id + '&sz=' + (sz || 'w400');
+}
+
+/**
+ * Read a File object as a data-URL string (Promise-based wrapper).
+ * @param {File} file
+ * @returns {Promise<string>}
+ */
+function readFileAsDataUrl(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(ev) { resolve(ev.target.result || ''); };
+    reader.onerror = function() { reject(new Error('File read failed: ' + file.name)); };
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Show a browser confirm dialog; invoke fn() only if the user confirms.
+ * Centralises the confirm-then-delete pattern used across the app.
+ * @param {string} msg  - Message shown to the user
+ * @param {Function} fn - Callback executed on confirmation
+ */
+function confirmDelete(msg, fn) {
+  if (confirm(msg)) fn();
+}
+
+/**
+ * Tiny attachment thumbnail card — used in History and ApptDetail galleries.
+ * Props:
+ *   att      - attachment object {id, name, type, storage, driveFileId, dataUrl}
+ *   onClick  - called when the card is clicked
+ *   sz       - Drive thumbnail size hint (default 'w200')
+ */
+function AttachThumb({att, onClick, sz}) {
+  const isImg = S(att.type).startsWith('image/');
+  const thumbSrc = att.storage === 'drive' && att.driveFileId
+    ? driveThumbnailUrl(att.driveFileId, sz || 'w200')
+    : att.dataUrl || '';
+  const icon = att.type === 'application/pdf' ? '📑' : att.storage === 'drive' ? '☁️' : '📄';
+  const shortName = S(att.name).length > 14 ? att.name.substring(0, 12) + '…' : att.name;
+  return h('div', {
+    style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+      background:'var(--cr)',border:'1.5px solid var(--bd)',borderRadius:8,
+      padding:'8px',cursor:'pointer',minWidth:80,maxWidth:110},
+    title:att.name,
+    onClick:onClick,
+  },
+    isImg && thumbSrc
+      ? h('img',{src:thumbSrc,alt:att.name,style:{width:64,height:64,objectFit:'cover',borderRadius:6},
+          onError:function(e){e.target.style.display='none';}})
+      : h('div',{style:{fontSize:32,lineHeight:1.2}},icon),
+    h('div',{style:{fontSize:10,color:'var(--md)',textAlign:'center',wordBreak:'break-all',maxWidth:90}},
+      shortName
+    ),
+    att.storage === 'drive' && h('div',{style:{fontSize:9,color:'var(--t)',fontWeight:700}},'☁ Drive')
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function expCSV(data,fn){
   if(!data.length)return;
   const k=Object.keys(data[0]);
@@ -6387,25 +6456,23 @@ function PhotoCaptureWidget({patient, photoDataUrl, onPhotoChange, syncUrl, addT
     setBusy(false);
   };
 
-  const handleFile = (e) => {
+  const handleFile = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     setShowChooser(false); setBusy(true);
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      try {
-        const compressed = await compressImage(ev.target.result, 800, 0.82);
-        onPhotoChange(compressed);
-      } catch(err) { addToast && addToast('Image error: '+err.message, 'error'); }
-      setBusy(false);
-    };
-    reader.onerror = () => { addToast && addToast('File read failed','error'); setBusy(false); };
-    reader.readAsDataURL(file);
+    try {
+      const rawDataUrl = await readFileAsDataUrl(file);
+      const compressed = await compressImage(rawDataUrl, 800, 0.82);
+      onPhotoChange(compressed);
+    } catch(err) {
+      addToast && addToast('Image error: ' + err.message, 'error');
+    }
+    setBusy(false);
     e.target.value = '';
   };
 
   const removePhoto = () => {
-    if (confirm('Remove this patient photo?')) onPhotoChange('REMOVE');
+    confirmDelete('Remove this patient photo?', () => onPhotoChange('REMOVE'));
   };
 
   useEffect(() => () => stopCamera(), []);
@@ -6866,77 +6933,17 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, onUpdate, 
         toast && toast(file.name + ' is too large (max 8MB). Please compress it first.', 'error');
         continue;
       }
-      await new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-          const rawType  = file.type || '';
-          const dataUrl  = ev.target.result || '';
-          // Detect image type from dataUrl prefix when browser reports no/generic MIME type.
-          // This fixes iOS/HEIC photos that arrive with type='' or type='application/octet-stream'.
-          let resolvedType = rawType;
-          if (!rawType || rawType === 'application/octet-stream') {
-            if (dataUrl.startsWith('data:image/'))      resolvedType = dataUrl.substring(5, dataUrl.indexOf(';'));
-            else if (dataUrl.startsWith('data:application/pdf')) resolvedType = 'application/pdf';
-          }
-          const attId = 'ATT-' + Date.now() + '-' + i;
-          const att = {
-            id:      attId,
-            name:    file.name,
-            type:    resolvedType || 'application/octet-stream',
-            size:    file.size,
-            dataUrl: dataUrl,  // temporary: shown in UI while saving
-            note:    '',
-            date:    localToday(),
-            storage: 'local',  // will be updated to 'drive' or 'idb'
-          };
-          // Show immediately in UI with local dataUrl for instant preview
-          onAdd && onAdd(att);
-
-          // Now persist to Drive or IDB
-          const curSyncUrl = (typeof syncUrl === 'string') ? syncUrl : '';
-          if (curSyncUrl) {
-            try {
-              toast && toast('Uploading ' + file.name + ' to Drive...', 'info');
-              const result = await uploadFileToDrive(curSyncUrl, dataUrl, resolvedType, file.name, patientId || 'unknown');
-              // Update attachment: replace dataUrl with Drive URLs
-              const driveAtt = {
-                ...att,
-                dataUrl: result.embedUrl || result.viewUrl || '',
-                driveFileId: result.fileId,
-                driveViewUrl: result.viewUrl,
-                driveEmbedUrl: result.embedUrl,
-                driveThumbnailUrl: result.thumbnailUrl,
-                driveDownloadUrl: result.downloadUrl,
-                storage: 'drive',
-              };
-              onUpdate && onUpdate(attId, driveAtt);
-              toast && toast(file.name + ' uploaded to Drive ✓', 'ok');
-            } catch(err) {
-              // Drive upload failed — fall back to IndexedDB
-              console.warn('[attachment] Drive upload failed, falling back to IDB:', err.message);
-              try {
-                await idbPut(attId, dataUrl);
-                onUpdate && onUpdate(attId, {...att, dataUrl: '', storage: 'idb'});
-                toast && toast(file.name + ' saved locally (Drive upload failed)', 'ok');
-              } catch(idbErr) {
-                toast && toast('Could not save ' + file.name + ': ' + idbErr.message, 'error');
-              }
-            }
-          } else {
-            // No sync URL — save to IndexedDB
-            try {
-              await idbPut(attId, dataUrl);
-              onUpdate && onUpdate(attId, {...att, dataUrl: '', storage: 'idb'});
-            } catch(idbErr) {
-              // IDB failed — keep dataUrl in memory only (won't survive refresh)
-              console.warn('[attachment] IDB save failed:', idbErr.message);
-              toast && toast('⚠️ ' + file.name + ' saved in memory only — may be lost on refresh', 'warning');
-            }
-          }
-          resolve();
-        };
-        reader.readAsDataURL(file);
-      });
+      const dataUrl = await readFileAsDataUrl(file);
+      const att = {
+        id:      'ATT-' + Date.now() + '-' + i,
+        name:    file.name,
+        type:    file.type || 'application/octet-stream',
+        size:    file.size,
+        dataUrl: dataUrl,
+        note:    '',
+        date:    localToday(),
+      };
+      onAdd && onAdd(att);
     }
     setBusy(false);
     e.target.value = '';
@@ -7107,17 +7114,13 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
     await runExtraction(dataUrl,'image/jpeg');
   };
 
-  const handleFile = (e) => {
+  const handleFile = async (e) => {
     const file = e.target.files&&e.target.files[0];
     if (!file) return;
     const mime = file.type||'image/jpeg';
-    const reader = new FileReader();
-    reader.onload = async(ev) => {
-      const dataUrl = ev.target.result;
-      setImageUrl(dataUrl); setMimeType(mime);
-      await runExtraction(dataUrl, mime);
-    };
-    reader.readAsDataURL(file);
+    const dataUrl = await readFileAsDataUrl(file);
+    setImageUrl(dataUrl); setMimeType(mime);
+    await runExtraction(dataUrl, mime);
     e.target.value='';
   };
 
@@ -7399,7 +7402,7 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
           },'⬇'),
           h('button',{
             type:'button',className:'btn bd2 bsm',
-            onClick:e=>{e.stopPropagation();if(confirm('Delete?'))onDelete(entry.id);}
+            onClick:e=>{e.stopPropagation();confirmDelete('Delete?',()=>onDelete(entry.id));}
           },'✕')
         )
       ),
@@ -7544,7 +7547,7 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
         },'🖼 View Original Scan'),
         h('button',{
           type:'button',className:'btn bd2 bsm',
-          onClick:()=>{if(confirm('Delete this history entry?'))onDelete(entry.id);}
+          onClick:()=>confirmDelete('Delete this history entry?',()=>onDelete(entry.id))
         },'🗑 Delete Entry')
       )
     ),
@@ -7603,27 +7606,19 @@ function ClinicalHistoryTab({patient, history, onAddEntry, onDeleteEntry}) {
         console.warn('[history] file too large:', file.name);
         continue;
       }
-      await new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = async ev => {
-          const dataUrl = ev.target.result || '';
-          const entry = {
-            id:           'HIST-' + Date.now() + '-' + i,
-            type:         'attached_record',
-            status:       'archived',
-            scanDate:     localToday(),
-            label:        file.name,
-            scanImageUrl: dataUrl,  // kept for immediate display
-            fileType:     file.type || 'image/jpeg',
-            fileSize:     file.size,
-          };
-          onAddEntry && onAddEntry(entry);
-          // Save to IDB so it survives localStorage quota eviction on refresh
-          try { await idbPut(entry.id, dataUrl); } catch(e) {}
-          resolve();
-        };
-        reader.readAsDataURL(file);
-      });
+      const dataUrl = await readFileAsDataUrl(file);
+      const entry = {
+        id:           'HIST-' + Date.now() + '-' + i,
+        type:         'attached_record',
+        status:       'archived',
+        scanDate:     localToday(),
+        label:        file.name,
+        scanImageUrl: dataUrl,  // full dataUrl stored locally
+        fileType:     file.type || 'image/jpeg',
+        fileSize:     file.size,
+        // No clinical fields extracted — manual entry
+      };
+      onAddEntry && onAddEntry(entry);
     }
     setAttachBusy(false);
     e.target.value = '';
@@ -8573,14 +8568,10 @@ function RecordCardScanner({onExtracted, onClose}) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const mime = file.type || 'image/jpeg';
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const dataUrl = ev.target.result;
-      setImage(dataUrl);
-      setMimeType(mime);
-      await runExtraction(dataUrl, mime);
-    };
-    reader.readAsDataURL(file);
+    const dataUrl = await readFileAsDataUrl(file);
+    setImage(dataUrl);
+    setMimeType(mime);
+    await runExtraction(dataUrl, mime);
     e.target.value = '';
   };
 
@@ -9425,7 +9416,7 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
               h('button',{className:'btn bg2 bsm',onClick:()=>sendNow(r,true),title:'Test send — forces send NOW regardless of schedule, does NOT update next due date'},'🧪 Test'),
               h('button',{className:'btn bgh bsm',onClick:()=>{setEdit(r);setModal(true);}},h(Svg,{d:IC.edit,size:13})),
               h('button',{className:'btn bgh bsm',onClick:()=>toggleActive(r.id),title:r.active?'Pause':'Activate'},r.active?'⏸':'▶'),
-              h('button',{className:'btn bd2 bsm',onClick:()=>{if(confirm('Delete this reminder?'))deleteReminder(r.id);}},h(Svg,{d:IC.x,size:13}))
+              h('button',{className:'btn bd2 bsm',onClick:()=>confirmDelete('Delete this reminder?',()=>deleteReminder(r.id))},h(Svg,{d:IC.x,size:13}))
             ))
           );
         }))
@@ -10106,12 +10097,11 @@ function PatientSearchInput({patients: patientsProp, value, onSelect, placeholde
     setCamOpen(false);
   };
   // File pick for photo
-  const pickPhoto = (e) => {
+  const pickPhoto = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => setNewF(x => ({...x, photoDataUrl: ev.target.result}));
-    reader.readAsDataURL(file);
+    const dataUrl = await readFileAsDataUrl(file);
+    setNewF(x => ({...x, photoDataUrl: dataUrl}));
     e.target.value = '';
   };
 
