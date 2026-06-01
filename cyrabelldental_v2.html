@@ -10370,10 +10370,12 @@ function highlightMatch(text, query) {
 }
 
 
-function ApptForm({patients,appointments,onClose,onSave,onAddPatient}){
+function ApptForm({patients,appointments,onClose,onSave,onAddPatient,syncUrl,addToast}){
   const [f,setF]=useState({patientId:'',patientName:'',service:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:'',fee:'',phone:'',email:'',attachments:[]});
   const [selectedPatient, setSelectedPatient] = useState(null);
-  // localPatients is managed inside PSI component now
+  // Always-current ref so async Drive-upload callbacks don't see stale f.attachments
+  const fRef = useRef(f);
+  fRef.current = f;
 
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
 
@@ -10499,14 +10501,18 @@ function ApptForm({patients,appointments,onClose,onSave,onAddPatient}){
     h(AttachmentPanel, {
       attachments: safe(f.attachments),
       label: 'X-Rays & Clinical Photos',
-      onAdd: att => s('attachments', [...safe(f.attachments), att]),
-      onUpdate: (attId, newAtt) => s('attachments', safe(f.attachments).map(a=>a.id===attId?newAtt:a)),
+      syncUrl: syncUrl || '',
+      patientId: f.patientId || 'appt-draft',
+      addToast: addToast,
+      // Use fRef.current so async Drive-upload callbacks always see latest attachments
+      onAdd: att => setF(x => ({...x, attachments: [...safe(x.attachments), att]})),
+      onUpdate: (attId, newAtt) => setF(x => ({...x, attachments: safe(x.attachments).map(a=>a.id===attId?newAtt:a)})),
       onRemove: id => {
-        const att = safe(f.attachments).find(a => a.id === id);
+        const att = safe(fRef.current.attachments).find(a => a.id === id);
         if (att && att.storage === 'idb') idbDelete(id).catch(()=>{});
-        s('attachments', safe(f.attachments).filter(a=>a.id!==id));
+        setF(x => ({...x, attachments: safe(x.attachments).filter(a=>a.id!==id)}));
       },
-      onUpdateNote: (id, note) => s('attachments', safe(f.attachments).map(a=>a.id===id?{...a,note}:a)),
+      onUpdateNote: (id, note) => setF(x => ({...x, attachments: safe(x.attachments).map(a=>a.id===id?{...a,note}:a)})),
     })
   );
 }
@@ -10602,7 +10608,7 @@ function AppointmentCalendar({appointments, onDayClick}){
 }
 
 // Appointments — sortable table + calendar view + filters
-function Appointments({appointments,setAppointments,patients,setPatients,setNotifications,setPayments,addToast}){
+function Appointments({appointments,setAppointments,patients,setPatients,setNotifications,setPayments,addToast,syncUrl}){
   const [filter,setFilter]=useState('all');
   const [search,setSearch]=useState('');
   const [modal,setModal]=useState(false);
@@ -10788,7 +10794,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
       )
     ),
 
-    modal&&h(ApptForm,{patients,appointments,onClose:()=>setModal(false),onAddPatient:(np)=>{if(setPatients)setPatients(prev=>[np,...prev.filter(x=>x.id!==np.id)]);},onSave:d=>{
+    modal&&h(ApptForm,{patients,appointments,syncUrl,addToast,onClose:()=>setModal(false),onAddPatient:(np)=>{if(setPatients)setPatients(prev=>[np,...prev.filter(x=>x.id!==np.id)]);},onSave:d=>{
       const status = autoConfirmEnabled() ? 'confirmed' : 'pending';
       const newAppt = {...d,id:'A'+uid(),status,arrived:false};
       setAppointments(p=>[newAppt,...p]);
@@ -12201,7 +12207,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
   const renderPage = () => {
     try {
       if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments),onGoKiosk});
-      if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast});
+      if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast,syncUrl});
       if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),payments:safe(payments),addToast,syncUrl,user});
       if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),addToast});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
