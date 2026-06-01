@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0a7c6e"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self' blob:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com;">
 <!-- Performance: preconnect to font origin so the browser opens the TCP/TLS connection early -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3152,6 +3152,66 @@ const LS_KEYS = Object.freeze({
   DATA_VERSION:     'cyrabell_data_version',
   CRYPTO_SALT:      'cyrabell_crypto_salt',
 });
+
+// ── IndexedDB attachment store ─────────────────────────────────────────────
+// Stores raw base64 dataUrls keyed by attachment ID.
+// Used when Google Drive sync is not configured.
+const IDB_DB_NAME = 'CyrabellAttachments';
+const IDB_STORE   = 'attachments';
+
+function idbOpen() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(IDB_DB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+function idbPut(id, dataUrl) {
+  return idbOpen().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(dataUrl, id);
+    tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
+  }));
+}
+function idbGet(id) {
+  return idbOpen().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(id);
+    req.onsuccess = e => res(e.target.result || null);
+    req.onerror   = e => rej(e.target.error);
+  }));
+}
+function idbDelete(id) {
+  return idbOpen().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete(id);
+    tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
+  }));
+}
+
+// ── Google Drive file upload via Apps Script ───────────────────────────────
+// POST to Apps Script with action=uploadFile.
+// Returns {fileId, viewUrl, embedUrl, thumbnailUrl, downloadUrl} on success.
+async function uploadFileToDrive(syncUrl, base64Data, mimeType, filename, patientId) {
+  // Strip data URL prefix if present
+  const base64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+  const resp = await fetch(syncUrl, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      action: 'uploadFile',
+      patientId,
+      filename,
+      mimeType,
+      base64,
+    }),
+  });
+  if (!resp.ok) throw new Error('Drive upload failed: ' + resp.status);
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error);
+  return data; // {fileId, viewUrl, embedUrl, thumbnailUrl, downloadUrl}
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🔒  SECURITY UTILITIES
@@ -6674,35 +6734,82 @@ function PatientPhoto({patient, size, syncUrl}) {
  * Supports: images (JPEG/PNG/GIF), PDF embed, and downloads.
  */
 function AttachmentViewer({file, onClose}) {
-  const isImage = file.type && file.type.startsWith('image/');
-  const isPdf   = file.type === 'application/pdf';
+  const [dataUrl, setDataUrl] = useState(file.dataUrl || '');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Load from IndexedDB if stored there
+    if (!file.dataUrl && file.storage === 'idb') {
+      setLoading(true);
+      idbGet(file.id).then(url => {
+        setDataUrl(url || '');
+        setLoading(false);
+      }).catch(() => setLoading(false));
+    } else if (file.storage === 'drive' && file.driveEmbedUrl) {
+      // For Drive files the embed URL is used for display
+      setDataUrl(file.driveEmbedUrl);
+    }
+  }, [file.id]);
+
+  // Detect type from dataUrl prefix if MIME type is missing/generic (iOS photos etc.)
+  const effectiveType = (file.type && file.type !== 'application/octet-stream')
+    ? file.type
+    : (dataUrl || '').startsWith('data:image/') ? 'image/jpeg'
+    : (dataUrl || '').startsWith('data:application/pdf') ? 'application/pdf'
+    : file.type || '';
+  const isImage  = effectiveType.startsWith('image/');
+  const isPdf    = effectiveType === 'application/pdf';
+  const isDrive  = file.storage === 'drive' && file.driveEmbedUrl;
   const [zoom, setZoom] = useState(1);
+
+  const downloadHref = file.driveDownloadUrl || dataUrl || '';
 
   return h('div', {className:'att-viewer-ov', onClick:onClose},
     h('div', {className:'att-viewer-modal', onClick:e=>e.stopPropagation()},
       h('div', {className:'att-viewer-header'},
-        h('div', {style:{fontWeight:700,fontSize:14,color:'var(--dk)'}}, file.name || 'Attachment'),
+        h('div', {style:{fontWeight:700,fontSize:14,color:'var(--dk)'}},
+          file.name || 'Attachment',
+          file.storage === 'drive' && h('span',{style:{fontSize:10,marginLeft:8,background:'#e8f5f3',color:'var(--t)',padding:'2px 7px',borderRadius:10,fontWeight:600}},'Drive')
+        ),
         h('div', {style:{display:'flex',gap:8}},
-          isImage && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(z=>Math.max(0.3,z-0.2))},'−'),
-          isImage && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(1)},'1:1'),
-          isImage && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(z=>Math.min(4,z+0.2))},'+'),
-          h('a',{href:file.dataUrl,download:file.name||'attachment',className:'btn bg2 bsm'},'⬇ Download'),
+          isImage && !isDrive && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(z=>Math.max(0.3,z-0.2))},'−'),
+          isImage && !isDrive && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(1)},'1:1'),
+          isImage && !isDrive && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(z=>Math.min(4,z+0.2))},'+'),
+          downloadHref && h('a',{href:downloadHref,download:file.driveDownloadUrl?undefined:(file.name||'attachment'),target:file.driveDownloadUrl?'_blank':undefined,className:'btn bg2 bsm'},'⬇ Download'),
+          file.driveViewUrl && h('a',{href:file.driveViewUrl,target:'_blank',className:'btn bgh bsm'},'🔗 Open in Drive'),
           h('button',{type:'button',className:'btn bgh bsm',onClick:onClose},'✕ Close')
         )
       ),
       h('div', {className:'att-viewer-body'},
-        isImage && h('div', {className:'att-viewer-img-wrap', style:{overflow:'auto'}},
+        loading && h('div',{className:'att-viewer-nopreview'},
+          h('div',{style:{color:'#fff',fontSize:14}},'Loading…')
+        ),
+        !loading && isDrive && h('iframe',{
+          src: file.driveEmbedUrl,
+          className:'att-viewer-pdf',
+          title:file.name,
+          allow:'autoplay',
+        }),
+        !loading && !isDrive && !dataUrl && h('div',{className:'att-viewer-nopreview'},
+          h('div',{style:{fontSize:40,marginBottom:8}},'⚠️'),
+          h('div',{style:{color:'#fff',fontWeight:700,fontSize:15,marginBottom:8}},'File data not available'),
+          h('div',{style:{color:'#aaa',fontSize:13,marginBottom:16,textAlign:'center',maxWidth:320}},
+            'The image data was not saved. Please remove this entry and re-attach the file.'
+          ),
+          h('button',{type:'button',className:'btn bgh bsm',onClick:onClose},'Close')
+        ),
+        !loading && !isDrive && dataUrl && isImage && h('div', {className:'att-viewer-img-wrap', style:{overflow:'auto'}},
           h('img',{
-            src: file.dataUrl,
+            src: dataUrl,
             alt: file.name,
             style:{transform:`scale(${zoom})`,transformOrigin:'top left',display:'block',maxWidth:zoom===1?'100%':'none'},
           })
         ),
-        isPdf && h('iframe',{src:file.dataUrl,className:'att-viewer-pdf',title:file.name}),
-        !isImage && !isPdf && h('div',{className:'att-viewer-nopreview'},
+        !loading && !isDrive && dataUrl && isPdf && h('iframe',{src:dataUrl,className:'att-viewer-pdf',title:file.name}),
+        !loading && !isDrive && dataUrl && !isImage && !isPdf && h('div',{className:'att-viewer-nopreview'},
           h('div',{style:{fontSize:48}},'📄'),
-          h('div',{style:{marginTop:12,color:'var(--md)',fontSize:14}},file.name),
-          h('a',{href:file.dataUrl,download:file.name,className:'btn bp'},'\u2b07 Download')
+          h('div',{style:{marginTop:12,color:'#ccc',fontSize:14}},file.name),
+          h('a',{href:dataUrl,download:file.name,className:'btn bp'},'⬇ Download')
         )
       )
     )
@@ -6719,13 +6826,15 @@ function AttachmentViewer({file, onClose}) {
  *   label         - heading text (default: "Attachments")
  *   compact       - if true, shows smaller layout
  */
-function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, compact}) {
+function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, onUpdate, label, compact, syncUrl, patientId, addToast: addToastProp}) {
   const fileRef  = useRef(null);
   const [viewing, setViewing] = useState(null);
   const [busy,    setBusy]    = useState(false);
   const [noteEdit, setNoteEdit] = useState({}); // id → string
 
   const atts = safe(attachments);
+  // Support addToast from prop or global
+  const toast = addToastProp || (typeof addToast !== 'undefined' ? addToast : null);
 
   const handleFiles = async (e) => {
     const files = e.target.files;
@@ -6735,22 +6844,76 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, com
       const file = files[i];
       // Limit to 8MB per file
       if (file.size > 8 * 1024 * 1024) {
-        addToast && addToast(file.name + ' is too large (max 8MB). Please compress it first.', 'error'); setBusy(false);
+        toast && toast(file.name + ' is too large (max 8MB). Please compress it first.', 'error');
         continue;
       }
       await new Promise(resolve => {
         const reader = new FileReader();
-        reader.onload = (ev) => {
+        reader.onload = async (ev) => {
+          const rawType  = file.type || '';
+          const dataUrl  = ev.target.result || '';
+          // Detect image type from dataUrl prefix when browser reports no/generic MIME type.
+          // This fixes iOS/HEIC photos that arrive with type='' or type='application/octet-stream'.
+          let resolvedType = rawType;
+          if (!rawType || rawType === 'application/octet-stream') {
+            if (dataUrl.startsWith('data:image/'))      resolvedType = dataUrl.substring(5, dataUrl.indexOf(';'));
+            else if (dataUrl.startsWith('data:application/pdf')) resolvedType = 'application/pdf';
+          }
+          const attId = 'ATT-' + Date.now() + '-' + i;
           const att = {
-            id:      'ATT-' + Date.now() + '-' + i,
+            id:      attId,
             name:    file.name,
-            type:    file.type || 'application/octet-stream',
+            type:    resolvedType || 'application/octet-stream',
             size:    file.size,
-            dataUrl: ev.target.result,
+            dataUrl: dataUrl,  // temporary: shown in UI while saving
             note:    '',
             date:    localToday(),
+            storage: 'local',  // will be updated to 'drive' or 'idb'
           };
+          // Show immediately in UI with local dataUrl for instant preview
           onAdd && onAdd(att);
+
+          // Now persist to Drive or IDB
+          const curSyncUrl = (typeof syncUrl === 'string') ? syncUrl : '';
+          if (curSyncUrl) {
+            try {
+              toast && toast('Uploading ' + file.name + ' to Drive...', 'info');
+              const result = await uploadFileToDrive(curSyncUrl, dataUrl, resolvedType, file.name, patientId || 'unknown');
+              // Update attachment: replace dataUrl with Drive URLs
+              const driveAtt = {
+                ...att,
+                dataUrl: result.embedUrl || result.viewUrl || '',
+                driveFileId: result.fileId,
+                driveViewUrl: result.viewUrl,
+                driveEmbedUrl: result.embedUrl,
+                driveThumbnailUrl: result.thumbnailUrl,
+                driveDownloadUrl: result.downloadUrl,
+                storage: 'drive',
+              };
+              onUpdate && onUpdate(attId, driveAtt);
+              toast && toast(file.name + ' uploaded to Drive ✓', 'ok');
+            } catch(err) {
+              // Drive upload failed — fall back to IndexedDB
+              console.warn('[attachment] Drive upload failed, falling back to IDB:', err.message);
+              try {
+                await idbPut(attId, dataUrl);
+                onUpdate && onUpdate(attId, {...att, dataUrl: '', storage: 'idb'});
+                toast && toast(file.name + ' saved locally (Drive upload failed)', 'ok');
+              } catch(idbErr) {
+                toast && toast('Could not save ' + file.name + ': ' + idbErr.message, 'error');
+              }
+            }
+          } else {
+            // No sync URL — save to IndexedDB
+            try {
+              await idbPut(attId, dataUrl);
+              onUpdate && onUpdate(attId, {...att, dataUrl: '', storage: 'idb'});
+            } catch(idbErr) {
+              // IDB failed — keep dataUrl in memory only (won't survive refresh)
+              console.warn('[attachment] IDB save failed:', idbErr.message);
+              toast && toast('⚠️ ' + file.name + ' saved in memory only — may be lost on refresh', 'warning');
+            }
+          }
           resolve();
         };
         reader.readAsDataURL(file);
@@ -6813,11 +6976,20 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, com
             className:'att-thumb',
             onClick:()=>setViewing(att),
             title:'Click to view',
-          },
-            att.type && att.type.startsWith('image/')
-              ? h('img',{src:att.dataUrl,alt:att.name,className:'att-thumb-img'})
-              : h('div',{className:'att-thumb-icon'},fileIcon(att.type))
-          ),
+          }, (() => {
+            // Drive files: use thumbnail URL if available
+            if (att.storage === 'drive' && att.driveThumbnailUrl) {
+              return h('img',{src:att.driveThumbnailUrl,alt:att.name,className:'att-thumb-img',
+                onError:e=>{e.target.style.display='none';}});
+            }
+            const t = (att.type && att.type !== 'application/octet-stream') ? att.type
+              : (att.dataUrl||'').startsWith('data:image/') ? 'image/jpeg' : att.type;
+            return t && t.startsWith('image/') && att.dataUrl
+              ? h('img',{src:att.dataUrl,alt:att.name,className:'att-thumb-img',
+                  onError:e=>{e.target.style.display='none';e.target.nextSibling&&(e.target.nextSibling.style.display='flex');}})
+              : h('div',{className:'att-thumb-icon'},
+                  att.storage === 'drive' ? '☁️' : fileIcon(t));
+          })()),
           // Info
           h('div', {className:'att-info'},
             h('div', {className:'att-name',onClick:()=>setViewing(att),title:'Click to view'},
@@ -6825,7 +6997,9 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, com
             ),
             h('div', {className:'att-meta'},
               att.date && h('span',null,att.date),
-              att.size && h('span',null,' · '+fmt(att.size))
+              att.size && h('span',null,' · '+fmt(att.size)),
+              att.storage === 'drive' && h('span',{style:{color:'var(--t)',fontWeight:700}},' · ☁ Drive'),
+              att.storage === 'idb'   && h('span',{style:{color:'var(--md)'}},             ' · Local')
             ),
             // Inline note editor
             h('input',{
@@ -6843,7 +7017,11 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, com
           // Actions
           h('div', {className:'att-actions'},
             h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewing(att),title:'View'},'👁'),
-            h('a',{href:att.dataUrl,download:att.name||'file',className:'btn bgh bsm',title:'Download'},'⬇'),
+            att.storage === 'drive' && att.driveDownloadUrl
+              ? h('a',{href:att.driveDownloadUrl,target:'_blank',className:'btn bgh bsm',title:'Download'},'⬇')
+              : att.dataUrl
+                ? h('a',{href:att.dataUrl,download:att.name||'file',className:'btn bgh bsm',title:'Download'},'⬇')
+                : null,
             h('button',{type:'button',className:'btn bd2 bsm',onClick:()=>onRemove&&onRemove(att.id),title:'Remove'},'✕')
           )
         )
@@ -7992,12 +8170,23 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
     tab==='attachments' && h(AttachmentPanel, {
       attachments: safe(patient.attachments),
       label: 'Patient Files & X-Rays',
+      syncUrl: syncUrl,
+      patientId: patient.id,
+      addToast: addToast,
       onAdd: att => {
         const updated = [...safe(patient.attachments), att];
         setLocalPat(p => ({...p, attachments: updated}));
         onUpdateTeeth(patient.id, patient.teeth, updated);
       },
+      onUpdate: (attId, newAtt) => {
+        const updated = safe(patient.attachments).map(a => a.id === attId ? newAtt : a);
+        setLocalPat(p => ({...p, attachments: updated}));
+        onUpdateTeeth(patient.id, patient.teeth, updated);
+      },
       onRemove: id => {
+        // Also clean up from Drive/IDB when removing
+        const att = safe(patient.attachments).find(a => a.id === id);
+        if (att && att.storage === 'idb') idbDelete(id).catch(()=>{});
         const updated = safe(patient.attachments).filter(a => a.id !== id);
         setLocalPat(p => ({...p, attachments: updated}));
         onUpdateTeeth(patient.id, patient.teeth, updated);
@@ -10269,7 +10458,12 @@ function ApptForm({patients,appointments,onClose,onSave,onAddPatient}){
       attachments: safe(f.attachments),
       label: 'X-Rays & Clinical Photos',
       onAdd: att => s('attachments', [...safe(f.attachments), att]),
-      onRemove: id => s('attachments', safe(f.attachments).filter(a=>a.id!==id)),
+      onUpdate: (attId, newAtt) => s('attachments', safe(f.attachments).map(a=>a.id===attId?newAtt:a)),
+      onRemove: id => {
+        const att = safe(f.attachments).find(a => a.id === id);
+        if (att && att.storage === 'idb') idbDelete(id).catch(()=>{});
+        s('attachments', safe(f.attachments).filter(a=>a.id!==id));
+      },
       onUpdateNote: (id, note) => s('attachments', safe(f.attachments).map(a=>a.id===id?{...a,note}:a)),
     })
   );
@@ -12565,11 +12759,15 @@ function App(){
               const lp = localById[sp.id];
               if (!lp) return sp;
               // Restore attachment dataUrls that Sheets stripped
+              const sheetAttIds = new Set((sp.attachments || []).map(a => a.id));
               const mergedAtts = (sp.attachments || []).map(sa => {
                 if (sa.dataUrl) return sa; // Sheets has the data (small file) — keep it
                 const la = (lp.attachments || []).find(a => a.id === sa.id);
                 return la ? {...sa, dataUrl: la.dataUrl || ''} : sa;
               });
+              // Preserve local-only attachments not yet pushed to Sheets
+              const localOnlyAtts = (lp.attachments || []).filter(a => !sheetAttIds.has(a.id));
+              const finalAtts = [...mergedAtts, ...localOnlyAtts];
               // Restore history scanImageUrls and nested attachment dataUrls
               const mergedHist = (sp.history || []).map(sh => {
                 const lh = (lp.history || []).find(h => h.id === sh.id);
@@ -12589,7 +12787,7 @@ function App(){
               return {
                 ...sp,
                 photoDataUrl: sp.photoDataUrl || lp.photoDataUrl || '',
-                attachments: mergedAtts,
+                attachments: finalAtts,
                 history: mergedHist,
               };
             });
@@ -12740,29 +12938,26 @@ function App(){
         localStorage.setItem(LS_KEYS.REMINDERS,     JSON.stringify(reminders));
         localStorage.setItem(LS_KEYS.REMINDER_LOG,   JSON.stringify(reminderLog));
       } catch(e) {
-        // Quota exceeded — strip very large dataUrls (> 100KB) and retry
+        // Quota exceeded — only strip patient profile photos (large, re-uploadable).
+        // NEVER strip attachment dataUrls — those are the user's clinical files and
+        // cannot be re-created if lost. If quota is still exceeded after photo strip,
+        // warn the user rather than silently deleting their files.
         try {
-          const slim = patients.map(p => {
-            const r = {...p};
-            const strip = url => (url && url.length > 102400) ? '' : url;
-            if (r.attachments) r.attachments = r.attachments.map(a => ({...a, dataUrl: strip(a.dataUrl)}));
-            if (r.history)     r.history     = r.history.map(h => ({...h,
-              scanImageUrl: strip(h.scanImageUrl),
-              attachments: h.attachments ? h.attachments.map(a=>({...a,dataUrl:strip(a.dataUrl)})) : h.attachments,
-            }));
-            return r;
-          });
+          const slim = patients.map(p => ({
+            ...p,
+            // Strip only the profile photo (re-uploadable), keep all attachment dataUrls intact
+            photoDataUrl: (p.photoDataUrl && p.photoDataUrl.length > 51200) ? '' : (p.photoDataUrl || ''),
+          }));
           localStorage.setItem(LS_KEYS.PATIENTS,      JSON.stringify(slim));
           localStorage.setItem(LS_KEYS.APPOINTMENTS,  JSON.stringify(appointments));
           localStorage.setItem(LS_KEYS.PAYMENTS,      JSON.stringify(payments));
           localStorage.setItem(LS_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
           localStorage.setItem(LS_KEYS.REMINDERS,     JSON.stringify(reminders));
           localStorage.setItem(LS_KEYS.REMINDER_LOG,   JSON.stringify(reminderLog));
-          console.warn('[localsave] Stripped very large (>100KB) images to fit storage quota');
+          console.warn('[localsave] Stripped large profile photos to fit storage quota; attachments preserved');
         } catch(e2) {
-          // Still quota exceeded after stripping — notify user (Finding #21)
           if (e2 && (e2.name === 'QuotaExceededError' || e2.code === 22)) {
-            addToast('⚠️ Storage full — export your data and clear old records', 'error');
+            addToast('⚠️ Storage almost full — export your data or remove unused attachments to free space', 'error');
           }
           console.warn('[localsave] Storage full:', e2.message);
         }
