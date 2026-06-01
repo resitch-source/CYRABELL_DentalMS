@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta name="theme-color" content="#0a7c6e"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
+<!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com;">
+<!-- Performance: preconnect to font origin so the browser opens the TCP/TLS connection early -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <title>Cyrabell Dental Management System</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -1724,74 +1729,6 @@ th:hover .sort-icon{opacity:.9}
 }
 
 
-/* ── PHOTO WIDGET ── */
-.photo-widget-body{
-  display:flex;flex-direction:column;align-items:center;
-  gap:10px;padding:10px;
-  background:var(--cr);border-radius:11px;
-  border:1px solid var(--bd);
-}
-.photo-preview{
-  width:120px;height:120px;border-radius:50%;
-  background:#fff;border:3px solid var(--bd);
-  display:flex;align-items:center;justify-content:center;
-  overflow:hidden;
-}
-.photo-img{width:100%;height:100%;object-fit:cover}
-.photo-empty{display:flex;flex-direction:column;align-items:center;justify-content:center}
-.photo-actions{display:flex;gap:6px}
-
-.patform-photo-section{
-  display:flex;justify-content:center;
-  margin-bottom:14px;padding-bottom:14px;
-  border-bottom:1px solid var(--bd);
-}
-
-/* Chooser modal */
-.photo-chooser-ov{
-  position:fixed;inset:0;background:rgba(0,0,0,.5);
-  display:flex;align-items:center;justify-content:center;z-index:999;
-}
-.photo-chooser-modal{
-  background:#fff;border-radius:14px;padding:16px;
-  width:90%;max-width:380px;
-}
-.photo-chooser-header{
-  font-weight:700;font-size:15px;margin-bottom:12px;
-  padding-bottom:8px;border-bottom:1px solid var(--bd);
-}
-.photo-chooser-body{display:flex;flex-direction:column;gap:8px}
-.photo-chooser-btn{
-  display:flex;align-items:center;gap:14px;
-  padding:14px;border:1px solid var(--bd);
-  background:#fff;border-radius:9px;
-  cursor:pointer;font-family:inherit;text-align:left;
-  transition:all .15s;
-}
-.photo-chooser-btn:hover{background:var(--tp);border-color:var(--t)}
-
-/* Live camera modal */
-.photo-livecam-ov{
-  position:fixed;inset:0;background:#000;z-index:9999;
-  display:flex;flex-direction:column;
-}
-.photo-livecam-modal{
-  flex:1;display:flex;flex-direction:column;
-  width:100%;height:100%;
-}
-.photo-livecam-header{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:14px;background:rgba(0,0,0,.85);
-}
-.photo-livecam-video{
-  flex:1;width:100%;background:#000;object-fit:contain;
-}
-.photo-livecam-controls{
-  display:flex;justify-content:center;gap:12px;
-  padding:18px;background:rgba(0,0,0,.85);
-}
-
-
 /* ── FDI gum strips ── */
 .fdi-gum{
   height:10px;
@@ -1845,15 +1782,8 @@ th:hover .sort-icon{opacity:.9}
 }
 
 
-/* ── FDI VIEW TOGGLE (Buccal vs Occlusal) ── */
-.fdi-view-toggle{
-  display:inline-flex;
-  background:var(--cr);
-  border-radius:8px;
-  padding:3px;
-  border:1px solid var(--bd);
-  gap:3px;
-}
+/* .fdi-view-toggle duplicate removed (Finding #9) — see definition above */
+/* Keep aliases for backward-compat JavaScript references */
 .fdi-vt-btn{
   padding:6px 11px;
   border:none;background:none;
@@ -3032,6 +2962,720 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
 </script>
 <script>
+/**
+ * ╔══════════════════════════════════════════════════════════════════════════╗
+ * ║          CYRABELL DENTAL MANAGEMENT SYSTEM — v2 (Refactored)           ║
+ * ║                                                                          ║
+ * ║  Original: cyrabelldental_24.html                                        ║
+ * ║  Refactored: cyrabelldental_v2.html                                      ║
+ * ║  Audit date: 2026-05-31                                                  ║
+ * ║                                                                          ║
+ * ║  CHANGES FROM v1:                                                        ║
+ * ║  - CONFIG object centralizing all configurable values                    ║
+ * ║  - LS_KEYS constants object eliminating magic localStorage strings       ║
+ * ║  - escapeHTML() to prevent XSS in medical document templates             ║
+ * ║  - Login lockout after 5 failed attempts (30-second cooldown)            ║
+ * ║  - Removed on-screen credential hints from login form                    ║
+ * ║  - Session inactivity timeout (default: 15 minutes)                     ║
+ * ║  - Modal focus-trap for accessibility                                    ║
+ * ║  - Toast notifications with role="alert" for screen readers              ║
+ * ║  - Tooth chart cells with tabIndex, role, aria-label                     ║
+ * ║  - Time-of-day greeting on Dashboard                                     ║
+ * ║  - JSDoc comments on all major functions and components                  ║
+ * ║  - Workflow/data-flow block comments at each major section               ║
+ * ║  - All original functionality preserved                                  ║
+ * ╚══════════════════════════════════════════════════════════════════════════╝
+ *
+ * ── ARCHITECTURE OVERVIEW ──────────────────────────────────────────────────
+ *
+ * This is a self-contained single-file React application.
+ * No build step, no bundler. React and XLSX are embedded inline.
+ *
+ * TECHNOLOGY STACK:
+ *   - React 18.3.1 (CDN embedded, hyperscript h() API, no JSX)
+ *   - SheetJS/XLSX (CDN embedded, used only for CSV/Excel export)
+ *   - Vanilla CSS (embedded, ~2500 lines)
+ *   - localStorage for primary client-side persistence
+ *   - Google Apps Script (optional) for cloud sync to Google Sheets
+ *
+ * DATA FLOW:
+ *   Google Sheets ←──→ Apps Script API ←──→ fetch() ←──→ App state (React)
+ *                                                               │
+ *                                              localStorage ←───┤
+ *                                              (cache/fallback) │
+ *                                                               ↓
+ *                                                          React DOM
+ *
+ * STATE HIERARCHY:
+ *   App (root)
+ *   ├─ patients[]        — patient demographics, dental chart, attachments
+ *   ├─ appointments[]    — scheduled and completed visits
+ *   ├─ payments[]        — payment transactions
+ *   ├─ notifications[]   — sent SMS/email/WhatsApp records
+ *   ├─ reminders[]       — scheduled recurring reminder configs
+ *   └─ reminderLog[]     — log of sent reminder messages
+ *
+ * AUTH MODEL:
+ *   Login compares username/password against CONFIG.ADMIN_USERS array.
+ *   No tokens or cookies. Auth lives only in React useState memory.
+ *   Session clears on page refresh. Inactivity timeout enforced by timer.
+ *
+ * ── PRODUCTION DEPLOYMENT NOTES ───────────────────────────────────────────
+ *   1. Change CONFIG.ADMIN_USERS credentials before going live.
+ *   2. Change CONFIG.KIOSK_EXIT_PIN before going live.
+ *   3. Set up a Google Apps Script web app and enter the URL in Sync page.
+ *   4. Consider serving over HTTPS only.
+ *   5. See QUALITY_REPORT.md for full security audit findings.
+ */
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ⚙️  CENTRAL CONFIGURATION OBJECT
+//
+// DATA FLOW: This object is the single source of truth for all configurable
+// values. Change values here rather than hunting through the codebase.
+//
+// ⚠️  PRODUCTION NOTICE: Before deploying with real patient data:
+//     1. Change ADMIN_USERS passwords to strong unique values.
+//     2. Change KIOSK_EXIT_PIN to a clinic-specific PIN.
+//     3. Remove or set SHOW_DEMO_CREDENTIALS to false.
+// ══════════════════════════════════════════════════════════════════════════════
+const CONFIG = Object.freeze({
+
+  // ── Clinic Information ─────────────────────────────────────────────────
+  // Used in medical certificates, prescriptions, and UI branding.
+  CLINIC: {
+    name:       'COLAO, ARNOLD A. DENTAL CLINIC',
+    specialty:  'General Dentistry / Orthodontics',
+    address:    'Rm 301, Eltanal Building, Roxas Avenue, Iligan City',
+    tel:        '(063) 221-0033',
+    cel:        '09709197795',
+    hours:      '9:00 AM to 5:00 PM  |  Monday to Saturday',
+    doctor:     'COLAO, ARNOLD D.M.D.',
+    license:    '0040566',
+  },
+
+  // ── Authentication ─────────────────────────────────────────────────────
+  // ⚠️  CHANGE THESE CREDENTIALS BEFORE PRODUCTION DEPLOYMENT.
+  // ⚠️  DO NOT COMMIT REAL PASSWORDS TO VERSION CONTROL.
+  // These are plain-text client-side credentials — NOT suitable for
+  // high-security environments. For HIPAA compliance, consider moving
+  // authentication to a proper server-side system.
+  ADMIN_USERS: [
+    { username: 'admin',     password: 'cyrabell2026',  role: 'Administrator', name: 'Admin' },
+    { username: 'reception', password: 'reception123',  role: 'Receptionist',  name: 'Reception Staff' },
+  ],
+
+  // ⚠️  CHANGE THIS PIN BEFORE PRODUCTION DEPLOYMENT.
+  KIOSK_EXIT_PIN: '2580',
+
+  // Set to false in production to remove on-screen demo hints.
+  SHOW_DEMO_CREDENTIALS: false,
+
+  // ── Security Settings ──────────────────────────────────────────────────
+  /** Maximum failed login attempts before lockout. */
+  LOGIN_MAX_ATTEMPTS: 5,
+  /** Lockout duration in milliseconds (30 seconds). */
+  LOGIN_LOCKOUT_MS: 30 * 1000,
+  /** Session inactivity timeout in milliseconds (15 minutes). */
+  SESSION_TIMEOUT_MS: 15 * 60 * 1000,
+
+  // ── Scheduling Settings ────────────────────────────────────────────────
+  /** Default appointment slot duration in minutes. */
+  DEFAULT_SLOT_MIN: 45,
+  /** Available appointment times. */
+  APPOINTMENT_TIMES: ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'],
+  /** Dentists available for scheduling. */
+  DENTISTS: ['Dr. Arnold Colao'],
+
+  // ── Data Limits ────────────────────────────────────────────────────────
+  /** Strip base64 data URLs larger than this for Google Sheets sync. */
+  SYNC_STRIP_THRESHOLD_BYTES: 30 * 1024,
+  /** Strip base64 data URLs larger than this for localStorage. */
+  LS_STRIP_THRESHOLD_BYTES: 100 * 1024,
+  /** Maximum log entries kept in memory. */
+  MAX_LOG_ENTRIES: 500,
+  /** Maximum persisted error log entries in localStorage. */
+  MAX_PERSISTED_ERRORS: 50,
+
+  // ── Auto-Sync Settings ─────────────────────────────────────────────────
+  /** Debounce delay before auto-syncing to Google Sheets (ms). */
+  AUTO_SYNC_DEBOUNCE_MS: 2000,
+  /** Delay before auto-saving to localStorage (ms). */
+  LS_SAVE_DEBOUNCE_MS: 1000,
+  /** Reminder auto-trigger interval (hours). */
+  REMINDER_TRIGGER_HOURS: 6,
+
+  // ── UI Settings ────────────────────────────────────────────────────────
+  /** Number of recent appointments shown on Dashboard. */
+  DASHBOARD_RECENT_COUNT: 5,
+  /** Kiosk success screen auto-dismiss delay (ms). */
+  KIOSK_AUTO_RETURN_MS: 6000,
+
+  // ── PHI Encryption (Finding #3) ────────────────────────────────────────────
+  /**
+   * When true: all PHI localStorage saves are encrypted with AES-256-GCM.
+   * Key derived from login password via PBKDF2. Set false for legacy/migration.
+   */
+  ENCRYPT_LOCALSTORAGE: false,
+
+  // ── Pagination (Finding #16) ─────────────────────────────────────────────
+  /** Rows per page in Patients, Appointments, Payments, Notifications tables. */
+  PAGE_SIZE: 20,
+
+  // ── Data Versioning (Finding #22) ─────────────────────────────────────────
+  /** Bump this constant when adding required fields to existing records. */
+  DATA_VERSION: '2.0',
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🗝️  LOCALSTORAGE KEY CONSTANTS
+//
+// DATA FLOW: All localStorage reads and writes MUST use these constants.
+// Never use raw string literals for localStorage keys — a typo silently
+// breaks persistence with no error message.
+// ══════════════════════════════════════════════════════════════════════════════
+const LS_KEYS = Object.freeze({
+  PATIENTS:         'cyrabell_v2_patients',
+  APPOINTMENTS:     'cyrabell_v2_appointments',
+  PAYMENTS:         'cyrabell_v2_payments',
+  NOTIFICATIONS:    'cyrabell_v2_notifications',
+  REMINDERS:        'cyrabell_v2_reminders',
+  REMINDER_LOG:     'cyrabell_v2_reminderLog',
+  SYNC_URL:         'cyrabell_sync_url',
+  LAST_SYNC:        'cyrabell_last_sync',
+  AUTO_SYNC:        'cyrabell_auto_sync',
+  AUTO_CONFIRM:     'cyrabell_auto_confirm',
+  REMINDER_AUTO:    'cyrabell_reminder_auto',
+  REMINDER_LAST_RUN:'cyrabell_reminder_last_run',
+  ERROR_LOG:        'cyrabell_error_log',
+  SERVICES:         'cyrabell_v2_services',
+  DATA_VERSION:     'cyrabell_data_version',
+  CRYPTO_SALT:      'cyrabell_crypto_salt',
+});
+
+// ── IndexedDB attachment store ─────────────────────────────────────────────
+// Stores raw base64 dataUrls keyed by attachment ID.
+// Used when Google Drive sync is not configured.
+const IDB_DB_NAME = 'CyrabellAttachments';
+const IDB_STORE   = 'attachments';
+
+function idbOpen() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(IDB_DB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+function idbPut(id, dataUrl) {
+  return idbOpen().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(dataUrl, id);
+    tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
+  }));
+}
+function idbGet(id) {
+  return idbOpen().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(id);
+    req.onsuccess = e => res(e.target.result || null);
+    req.onerror   = e => rej(e.target.error);
+  }));
+}
+function idbDelete(id) {
+  return idbOpen().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete(id);
+    tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
+  }));
+}
+
+// ── Shared utility helpers ────────────────────────────────────────────────
+
+/** Build a Google Drive thumbnail URL for direct <img> embedding. */
+function driveThumbnailUrl(id, sz) {
+  return 'https://drive.google.com/thumbnail?id=' + id + '&sz=' + (sz || 'w400');
+}
+
+/** Read a File object as a base64 data URL. Returns a Promise<string>. */
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = e => resolve(e.target.result || '');
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Show a confirm dialog; if confirmed, call fn(). */
+function confirmDelete(msg, fn) {
+  if (window.confirm(msg || 'Delete this item?')) fn();
+}
+
+/**
+ * AttachThumb — reusable mini attachment card (thumbnail or icon + name).
+ * Props: att {id, name, type, dataUrl?, driveFileId?, storage}, onClick, sz (Drive thumbnail size)
+ */
+function AttachThumb({att, onClick, sz}) {
+  const isImg = (att.type||'').startsWith('image/');
+  const isPdf = att.type === 'application/pdf';
+  const thumbSrc = att.storage === 'drive' && att.driveFileId
+    ? driveThumbnailUrl(att.driveFileId, sz || 'w200')
+    : (att.dataUrl || '');
+  return h('div', {
+    style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+      background:'#fff',border:'1.5px solid var(--bd)',borderRadius:8,
+      padding:'6px',cursor:onClick?'pointer':'default',minWidth:80,maxWidth:100},
+    title: att.name,
+    onClick: onClick ? ()=>onClick(att) : undefined
+  },
+    isImg && thumbSrc
+      ? h('img',{src:thumbSrc, alt:att.name,
+          style:{width:60,height:60,objectFit:'cover',borderRadius:4},
+          onError:e=>{e.target.style.display='none';}})
+      : h('div',{style:{fontSize:28,lineHeight:1.2}}, isPdf ? '📑' : '📄'),
+    h('div',{style:{fontSize:10,color:'var(--md)',textAlign:'center',wordBreak:'break-all',maxWidth:80}},
+      (att.name||'').length > 14 ? (att.name||'').substring(0,12)+'…' : (att.name||'')
+    )
+  );
+}
+
+// ── Google Drive file upload via Apps Script ───────────────────────────────
+// POST to Apps Script with action=uploadFile.
+// Returns {fileId, viewUrl, embedUrl, thumbnailUrl, downloadUrl} on success.
+async function uploadFileToDrive(syncUrl, base64Data, mimeType, filename, patientId) {
+  // Strip data URL prefix if present
+  const base64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+  const resp = await fetch(syncUrl, {
+    method: 'POST',
+    headers: {'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({
+      action: 'uploadFile',
+      patientId,
+      filename,
+      mimeType,
+      base64,
+    }),
+  });
+  if (!resp.ok) throw new Error('Drive upload failed: ' + resp.status);
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error);
+  return data; // {fileId, viewUrl, embedUrl, thumbnailUrl, downloadUrl}
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🔒  SECURITY UTILITIES
+//
+// These functions should be used whenever user-supplied data is rendered into
+// HTML strings. All medical document generators and print functions MUST use
+// escapeHTML() on every variable interpolated into HTML.
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Escapes a string for safe interpolation into HTML.
+ * Converts <, >, &, ", and ' to their HTML entity equivalents.
+ *
+ * @param {*} str - The value to escape (will be coerced to string).
+ * @returns {string} HTML-safe string.
+ *
+ * SECURITY: This function is the primary defense against XSS in all
+ * medical document templates (buildMedCertHTML, buildRxHTML, printDoc).
+ * Do NOT skip calling this function because the value "looks safe".
+ * Patient names and addresses can contain angle brackets or quotes.
+ */
+function escapeHTML(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Validates that a value is a safe date string (YYYY-MM-DD).
+ * Returns empty string for invalid/dangerous values.
+ *
+ * @param {*} val - The value to validate.
+ * @returns {string} Safe date string or empty string.
+ */
+function safeDateStr(val) {
+  if (!val || typeof val !== 'string') return '';
+  // Only allow YYYY-MM-DD format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  return '';
+}
+
+/**
+ * Validates and sanitizes a phone number string.
+ * Strips everything except digits, +, -, (, ), and spaces.
+ *
+ * @param {string} phone - The phone number to sanitize.
+ * @returns {string} Sanitized phone number.
+ */
+function sanitizePhone(phone) {
+  if (!phone || typeof phone !== 'string') return '';
+  return phone.replace(/[^0-9+\-() ]/g, '').trim().substring(0, 20);
+}
+
+/**
+ * Validates and sanitizes an email address.
+ * Returns empty string if format is clearly invalid.
+ *
+ * @param {string} email - The email to validate.
+ * @returns {string} Validated email or empty string.
+ */
+function sanitizeEmail(email) {
+  if (!email || typeof email !== 'string') return '';
+  const trimmed = email.trim().substring(0, 254);
+  // Basic email format check
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return trimmed;
+  return '';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🔐  PHI ENCRYPTION HELPERS  (Finding #3)
+//
+// AES-256-GCM encryption for localStorage PHI data.
+// Key is derived per-session from the login password using PBKDF2.
+// Opt-in via CONFIG.ENCRYPT_LOCALSTORAGE = true.
+// When false, data is stored as plaintext JSON (legacy mode).
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Module-level crypto key (set on login, cleared on logout)
+let _cryptoKey = null;
+
+/** Derive AES-256-GCM key from password + salt using PBKDF2. */
+async function deriveCryptoKey(password, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await window.crypto.subtle.importKey(
+    'raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveKey']
+  );
+  return window.crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 100000, hash: 'SHA-256' },
+    keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+
+/** Get or create the per-device salt (stored in localStorage unencrypted). */
+function getCryptoSalt() {
+  try {
+    let salt = localStorage.getItem(LS_KEYS.CRYPTO_SALT);
+    if (!salt) {
+      const arr = new Uint8Array(16);
+      window.crypto.getRandomValues(arr);
+      salt = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem(LS_KEYS.CRYPTO_SALT, salt);
+    }
+    return salt;
+  } catch(e) { return 'cyrabell-default-salt'; }
+}
+
+/**
+ * Initialise encryption on login.
+ * Call this with the user's plaintext password right after authentication.
+ */
+async function initCryptoKey(password) {
+  if (!CONFIG.ENCRYPT_LOCALSTORAGE) return;
+  if (!window.crypto || !window.crypto.subtle) return; // Web Crypto not available
+  try {
+    const salt = getCryptoSalt();
+    _cryptoKey = await deriveCryptoKey(password, salt);
+  } catch(e) {
+    console.warn('[crypto] Key derivation failed:', e.message);
+    _cryptoKey = null;
+  }
+}
+
+/** Clear the in-memory key on logout. */
+function clearCryptoKey() { _cryptoKey = null; }
+
+/** Encrypt a JSON string. Returns base64-encoded ciphertext or null on failure. */
+async function encryptData(plaintext) {
+  if (!_cryptoKey) return null;
+  try {
+    const enc = new TextEncoder();
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const cipherBuf = await window.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv }, _cryptoKey, enc.encode(plaintext)
+    );
+    // Prepend IV to ciphertext, then base64-encode the whole thing
+    const combined = new Uint8Array(iv.length + cipherBuf.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(cipherBuf), iv.length);
+    return btoa(String.fromCharCode(...combined));
+  } catch(e) { return null; }
+}
+
+/** Decrypt a base64-encoded ciphertext. Returns plaintext string or null. */
+async function decryptData(b64) {
+  if (!_cryptoKey) return null;
+  try {
+    const combined = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const iv = combined.slice(0, 12);
+    const data = combined.slice(12);
+    const dec = new TextDecoder();
+    const plainBuf = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, _cryptoKey, data);
+    return dec.decode(plainBuf);
+  } catch(e) { return null; }
+}
+
+/**
+ * Safe encrypted localStorage set.
+ * Falls back to plaintext if encryption is disabled or unavailable.
+ * Shows a toast on QuotaExceededError (Finding #21).
+ */
+async function lsSetEncrypted(key, jsonStr, toastFn) {
+  try {
+    let value = jsonStr;
+    if (CONFIG.ENCRYPT_LOCALSTORAGE && _cryptoKey) {
+      const enc = await encryptData(jsonStr);
+      if (enc) value = '__ENC__' + enc;
+    }
+    localStorage.setItem(key, value);
+  } catch(e) {
+    if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+      if (typeof toastFn === 'function') {
+        toastFn('⚠️ Storage full — export your data and clear old records', 'error');
+      }
+    }
+    throw e;
+  }
+}
+
+/**
+ * Safe encrypted localStorage get.
+ * Detects __ENC__ prefix and decrypts if needed.
+ * Returns parsed JSON value or null.
+ */
+async function lsGetDecrypted(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    if (raw.startsWith('__ENC__')) {
+      if (!_cryptoKey) return null; // key not yet derived
+      const plain = await decryptData(raw.slice(7));
+      return plain ? JSON.parse(plain) : null;
+    }
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 📦  DATA VERSION MIGRATION  (Finding #22)
+//
+// On app init, check localStorage for the stored data version.
+// If missing or older, run a migration that fills in any required new fields.
+// ══════════════════════════════════════════════════════════════════════════════
+
+/** Run data migration if stored version < CONFIG.DATA_VERSION. */
+function runDataMigration(patients, appointments, payments, notifications) {
+  let storedVersion = '';
+  try { storedVersion = localStorage.getItem(LS_KEYS.DATA_VERSION) || ''; } catch(e) {}
+  if (storedVersion === CONFIG.DATA_VERSION) return { patients, appointments, payments, notifications };
+
+  // Migration: ensure all patients have required fields added in v2.0
+  const migratedPatients = (Array.isArray(patients) ? patients : []).map(p => ({
+    balance: 0,
+    teeth: {},
+    attachments: [],
+    history: [],
+    allergies: 'None',
+    ...p,
+  }));
+
+  // Migration: ensure all appointments have required fields
+  const migratedAppts = (Array.isArray(appointments) ? appointments : []).map(a => ({
+    arrived: false,
+    notes: '',
+    ...a,
+  }));
+
+  // Stamp the new version
+  try { localStorage.setItem(LS_KEYS.DATA_VERSION, CONFIG.DATA_VERSION); } catch(e) {}
+
+  return { patients: migratedPatients, appointments: migratedAppts, payments, notifications };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🛡️  ROLE-BASED ACCESS CONTROL  (Finding #8)
+//
+// canDo(user, action) returns true if the user's role permits the action.
+// Receptionist is restricted from: deleting patients, exporting data,
+// accessing Settings/Sync tab, and viewing financial analytics.
+// ══════════════════════════════════════════════════════════════════════════════
+
+const RBAC = {
+  Administrator: {
+    delete_patient: true,
+    export_data:    true,
+    view_sync:      true,
+    view_analytics: true,
+    view_logs:      true,
+    edit_services:  true,
+  },
+  Receptionist: {
+    delete_patient: false,
+    export_data:    false,
+    view_sync:      false,
+    view_analytics: false,
+    view_logs:      false,
+    edit_services:  false,
+  },
+};
+
+/**
+ * Check if the logged-in user can perform a given action.
+ * @param {object|null} user - The current user object (has .role).
+ * @param {string} action - One of the RBAC action keys.
+ * @returns {boolean}
+ */
+function canDo(user, action) {
+  if (!user) return false;
+  const perms = RBAC[user.role] || RBAC.Receptionist;
+  return perms[action] === true;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🔐  LOGIN LOCKOUT TRACKER
+//
+// Tracks failed login attempts and lockout state in module scope.
+// This is intentionally NOT in localStorage (would allow bypass by clearing).
+// Resets on page refresh — acceptable trade-off for a client-side system.
+// ══════════════════════════════════════════════════════════════════════════════
+const _loginState = {
+  attempts: 0,
+  lockedUntil: 0,
+
+  /** @returns {boolean} True if currently locked out. */
+  isLocked() {
+    return Date.now() < this.lockedUntil;
+  },
+
+  /** @returns {number} Seconds remaining in lockout (0 if not locked). */
+  lockSecondsRemaining() {
+    return Math.max(0, Math.ceil((this.lockedUntil - Date.now()) / 1000));
+  },
+
+  /** Records a failed attempt. Returns true if now locked. */
+  recordFailure() {
+    this.attempts++;
+    if (this.attempts >= CONFIG.LOGIN_MAX_ATTEMPTS) {
+      this.lockedUntil = Date.now() + CONFIG.LOGIN_LOCKOUT_MS;
+      this.attempts = 0; // Reset counter; lockout timer takes over
+      return true;
+    }
+    return false;
+  },
+
+  /** Records a successful login. Resets state. */
+  recordSuccess() {
+    this.attempts = 0;
+    this.lockedUntil = 0;
+  },
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ⏱️  SESSION INACTIVITY TIMEOUT
+//
+// WORKFLOW: After CONFIG.SESSION_TIMEOUT_MS of no user interaction,
+// the session is automatically cleared and the user is returned to the
+// login screen. This prevents unauthorized access to an unattended clinic
+// computer. The timer resets on any mouse move, click, or keypress.
+//
+// DATA FLOW: Only clears React auth state. localStorage PHI is NOT cleared
+// on timeout (would require page reload to re-login, losing unsaved state).
+// For full PHI clearance, see QUALITY_REPORT.md recommendation #3.
+// ══════════════════════════════════════════════════════════════════════════════
+let _sessionTimeoutHandle = null;
+let _onSessionExpire = null;
+
+/**
+ * Starts (or resets) the session inactivity timer.
+ * Call this after successful login and pass the logout callback.
+ *
+ * @param {Function} onExpire - Callback to invoke when session expires.
+ */
+function startSessionTimer(onExpire) {
+  _onSessionExpire = onExpire;
+  resetSessionTimer();
+
+  // Listen for user activity
+  ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll'].forEach(event => {
+    document.addEventListener(event, resetSessionTimer, { passive: true });
+  });
+}
+
+/** Resets the inactivity countdown. Called on any user activity. */
+function resetSessionTimer() {
+  if (_sessionTimeoutHandle) clearTimeout(_sessionTimeoutHandle);
+  _sessionTimeoutHandle = setTimeout(() => {
+    if (_onSessionExpire) _onSessionExpire();
+  }, CONFIG.SESSION_TIMEOUT_MS);
+}
+
+/** Stops the session timer. Call on explicit logout. */
+function stopSessionTimer() {
+  if (_sessionTimeoutHandle) clearTimeout(_sessionTimeoutHandle);
+  _sessionTimeoutHandle = null;
+  _onSessionExpire = null;
+  ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll'].forEach(event => {
+    document.removeEventListener(event, resetSessionTimer);
+  });
+}
+
+</script>
+<script>
+// ── Backward compatibility alias: CLINIC_INFO → CONFIG.CLINIC ─────────────
+// All original code that references CLINIC_INFO continues to work unchanged.
+// The value is now configurable via the CONFIG object at the top of this file.
+const CLINIC_INFO = CONFIG.CLINIC;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 📄  PAGINATION HOOK  (Finding #16)
+//
+// Simple prev/next pagination with CONFIG.PAGE_SIZE rows per page.
+// Returns { page, setPage, pageItems, totalPages, PagerUI }
+// ══════════════════════════════════════════════════════════════════════════════
+function usePagination(items, pageSize) {
+  pageSize = pageSize || CONFIG.PAGE_SIZE;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil((items ? items.length : 0) / pageSize));
+  // Clamp page if items shrink (e.g., after a search)
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * pageSize;
+  const pageItems = (items || []).slice(start, start + pageSize);
+
+  function PagerUI() {
+    if (totalPages <= 1) return null;
+    return h('div', {
+      style: { display:'flex', alignItems:'center', gap:8, padding:'10px 0 2px', justifyContent:'flex-end' }
+    },
+      h('button', {
+        className: 'btn bgh bsm',
+        disabled: safePage <= 1,
+        onClick: () => setPage(p => Math.max(1, p - 1))
+      }, '← Prev'),
+      h('span', { style: { fontSize:12, color:'var(--md)' } },
+        'Page ' + safePage + ' of ' + totalPages + ' (' + (items ? items.length : 0) + ' total)'
+      ),
+      h('button', {
+        className: 'btn bgh bsm',
+        disabled: safePage >= totalPages,
+        onClick: () => setPage(p => Math.min(totalPages, p + 1))
+      }, 'Next →')
+    );
+  }
+
+  // Reset to page 1 when items array reference changes (e.g., after search filter)
+  useEffect(() => { setPage(1); }, [items ? items.length : 0]);
+
+  return { page: safePage, setPage, pageItems, totalPages, PagerUI };
+}
+
+</script>
+<script>
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
 const INIT_P=[
@@ -3232,19 +3876,30 @@ const SVCS_BY_CAT = SVCS.reduce((acc, sv) => {
   acc[sv.cat].push(sv);
   return acc;
 }, {});
+
+// Finding #20: load custom services from localStorage if saved
+function getActiveSvcs() {
+  try {
+    const raw = localStorage.getItem(LS_KEYS.SERVICES);
+    if (raw) { const d = JSON.parse(raw); if (Array.isArray(d) && d.length) return d; }
+  } catch(e){}
+  return SVCS;
+}
+function getActiveSvcsByCat() {
+  return getActiveSvcs().reduce((acc, sv) => {
+    if (!acc[sv.cat]) acc[sv.cat] = [];
+    acc[sv.cat].push(sv);
+    return acc;
+  }, {});
+}
 const BLOOD=['A+','A-','B+','B-','AB+','AB-','O+','O-'];
 const METHODS=['Cash','GCash','Maya','Bank Transfer','Credit Card','Debit Card','PhilHealth'];
-const TIMES=['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
-const DENTISTS=['Dr. Arnold Colao'];
+const TIMES = CONFIG.APPOINTMENT_TIMES;
+const DENTISTS = CONFIG.DENTISTS;
 
-// ─── ADMIN CREDENTIALS ──────────────────────────────────────────────────────
-// Default: admin / cyrabell2026
-const ADMIN_USERS = [
-  {username:'admin',password:'cyrabell2026',role:'Administrator',name:'Admin'},
-  {username:'reception',password:'reception123',role:'Receptionist',name:'Reception Staff'},
-];
-// Kiosk PIN to exit kiosk mode (4 digits)
-const KIOSK_EXIT_PIN = '2580';
+// ─── ADMIN CREDENTIALS ─── See CONFIG.ADMIN_USERS above ─────────────────────
+const ADMIN_USERS = CONFIG.ADMIN_USERS;
+const KIOSK_EXIT_PIN = CONFIG.KIOSK_EXIT_PIN;
 
 // FDI tooth numbering (Fédération Dentaire Internationale)
 const TEETH_UPPER = [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
@@ -3425,10 +4080,10 @@ const {createElement:h,useState,useEffect,useCallback,useRef,Fragment,useMemo}=R
     // Persist errors to localStorage so they survive a reload (last 50 only)
     if (level === 'error') {
       try {
-        const persisted = JSON.parse(localStorage.getItem('cyrabell_error_log') || '[]');
+        const persisted = JSON.parse(localStorage.getItem(LS_KEYS.ERROR_LOG) || '[]');
         persisted.push(entry);
         while (persisted.length > 50) persisted.shift();
-        localStorage.setItem('cyrabell_error_log', JSON.stringify(persisted));
+        localStorage.setItem(LS_KEYS.ERROR_LOG, JSON.stringify(persisted));
       } catch(e) {/* ignore quota errors */}
     }
     // Notify any listening UI
@@ -3440,7 +4095,7 @@ const {createElement:h,useState,useEffect,useCallback,useRef,Fragment,useMemo}=R
 
   // Restore persisted error logs from previous session (so we don't lose history)
   try {
-    const persisted = JSON.parse(localStorage.getItem('cyrabell_error_log') || '[]');
+    const persisted = JSON.parse(localStorage.getItem(LS_KEYS.ERROR_LOG) || '[]');
     persisted.forEach(e => window.__cyrabellLogs.push(e));
   } catch(e) {/* ignore */}
 
@@ -3547,85 +4202,17 @@ const IC={
 const Svg=({d,size,color})=>h('svg',{width:size||18,height:size||18,viewBox:'0 0 24 24',fill:'none',stroke:color||'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round',style:{flexShrink:0}},h('path',{d}));
 
 const BMAP={pending:'bpend',confirmed:'bconf',cancelled:'bcanc',completed:'bcomp',paid:'bpaid',unpaid:'bcanc',sent:'bsent',failed:'bcanc'};
-const SBadge=({status})=>h('span',{className:'badge '+(BMAP[status]||'bpend')},h('span',{className:'bdot'}),status);
+// aria-label provides screen-reader text for colour-only status dots (Finding #14)
+const SBadge=({status})=>h('span',{className:'badge '+(BMAP[status]||'bpend'),'aria-label':'Status: '+(status||'unknown')},h('span',{className:'bdot','aria-hidden':'true'}),status);
 
 function Toast({toasts,rm}){
-  return h('div',{className:'tc'},toasts.map(t=>
+  return h('div',{className:'tc',role:'alert','aria-live':'polite','aria-atomic':'false'},toasts.map(t=>
     h('div',{key:t.id,className:'toast '+(t.type==='success'?'ok':t.type==='error'?'err':''),onClick:()=>rm(t.id)},
       h('span',{style:{fontSize:15,flexShrink:0}},t.type==='success'?'✓':t.type==='error'?'✕':'ℹ'),
       h('span',{style:{flex:1}},t.message)
     )
   ));
 }
-
-// ── Shared utility helpers ─────────────────────────────────────────────────
-
-/**
- * Build a Google Drive thumbnail URL.
- * @param {string} id  - Drive file ID
- * @param {string} [sz='w400'] - size hint, e.g. 'w200', 'w1600'
- */
-function driveThumbnailUrl(id, sz) {
-  return 'https://drive.google.com/thumbnail?id=' + id + '&sz=' + (sz || 'w400');
-}
-
-/**
- * Read a File object as a data-URL string (Promise-based wrapper).
- * @param {File} file
- * @returns {Promise<string>}
- */
-function readFileAsDataUrl(file) {
-  return new Promise(function(resolve, reject) {
-    var reader = new FileReader();
-    reader.onload = function(ev) { resolve(ev.target.result || ''); };
-    reader.onerror = function() { reject(new Error('File read failed: ' + file.name)); };
-    reader.readAsDataURL(file);
-  });
-}
-
-/**
- * Show a browser confirm dialog; invoke fn() only if the user confirms.
- * Centralises the confirm-then-delete pattern used across the app.
- * @param {string} msg  - Message shown to the user
- * @param {Function} fn - Callback executed on confirmation
- */
-function confirmDelete(msg, fn) {
-  if (confirm(msg)) fn();
-}
-
-/**
- * Tiny attachment thumbnail card — used in History and ApptDetail galleries.
- * Props:
- *   att      - attachment object {id, name, type, storage, driveFileId, dataUrl}
- *   onClick  - called when the card is clicked
- *   sz       - Drive thumbnail size hint (default 'w200')
- */
-function AttachThumb({att, onClick, sz}) {
-  const isImg = S(att.type).startsWith('image/');
-  const thumbSrc = att.storage === 'drive' && att.driveFileId
-    ? driveThumbnailUrl(att.driveFileId, sz || 'w200')
-    : att.dataUrl || '';
-  const icon = att.type === 'application/pdf' ? '📑' : att.storage === 'drive' ? '☁️' : '📄';
-  const shortName = S(att.name).length > 14 ? att.name.substring(0, 12) + '…' : att.name;
-  return h('div', {
-    style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
-      background:'var(--cr)',border:'1.5px solid var(--bd)',borderRadius:8,
-      padding:'8px',cursor:'pointer',minWidth:80,maxWidth:110},
-    title:att.name,
-    onClick:onClick,
-  },
-    isImg && thumbSrc
-      ? h('img',{src:thumbSrc,alt:att.name,style:{width:64,height:64,objectFit:'cover',borderRadius:6},
-          onError:function(e){e.target.style.display='none';}})
-      : h('div',{style:{fontSize:32,lineHeight:1.2}},icon),
-    h('div',{style:{fontSize:10,color:'var(--md)',textAlign:'center',wordBreak:'break-all',maxWidth:90}},
-      shortName
-    ),
-    att.storage === 'drive' && h('div',{style:{fontSize:9,color:'var(--t)',fontWeight:700}},'☁ Drive')
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 function expCSV(data,fn){
   if(!data.length)return;
@@ -3648,11 +4235,35 @@ function Modal({title,sub,onClose,children,footer,large,xl}){
   let maxW = 620;
   if(large) maxW = 700;
   if(xl) maxW = 920;
+  const modalRef = useRef(null);
+  // Focus trap: keep Tab/Shift-Tab cycling within the modal (Finding #12)
+  useEffect(() => {
+    const modal = modalRef.current;
+    if (!modal) return;
+    // Focus the first focusable element on open
+    const focusable = 'button,input,select,textarea,[tabindex]:not([tabindex="-1"])';
+    const elements = modal.querySelectorAll(focusable);
+    if (elements.length) elements[0].focus();
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') { onClose && onClose(); return; }
+      if (e.key !== 'Tab') return;
+      const els = Array.from(modal.querySelectorAll(focusable)).filter(el => !el.disabled && el.offsetParent !== null);
+      if (!els.length) return;
+      const first = els[0], last = els[els.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
   // Note: We deliberately do NOT close on backdrop click. Users must click ✕ or
   // Cancel/Save explicitly. This prevents accidental data loss especially when
   // adding photos, where browser file pickers can cause spurious click events.
-  return h('div',{className:'ov'},
-    h('div',{className:'modal',style:{maxWidth:maxW}},
+  return h('div',{className:'ov',role:'dialog','aria-modal':'true','aria-label':title},
+    h('div',{className:'modal',style:{maxWidth:maxW},ref:modalRef},
       h('div',{className:'mdrag'}),
       h('div',{className:'mh'},
         h('div',{style:{flex:1,minWidth:0}},
@@ -4389,17 +5000,17 @@ function dedupePatients(patients) {
 // Can be disabled via localStorage.cyrabell_reminder_auto = 'false'
 
 function reminderAutoEnabled() {
-  try { return localStorage.getItem('cyrabell_reminder_auto') !== 'false'; }
+  try { return localStorage.getItem(LS_KEYS.REMINDER_AUTO) !== 'false'; }
   catch (e) { return true; }
 }
 
 function reminderLastRunDate() {
-  try { return localStorage.getItem('cyrabell_reminder_last_run') || ''; }
+  try { return localStorage.getItem(LS_KEYS.REMINDER_LAST_RUN) || ''; }
   catch (e) { return ''; }
 }
 
 function setReminderLastRunDate(dateStr) {
-  try { localStorage.setItem('cyrabell_reminder_last_run', dateStr); }
+  try { localStorage.setItem(LS_KEYS.REMINDER_LAST_RUN, dateStr); }
   catch (e) {}
 }
 
@@ -4446,7 +5057,7 @@ async function runDailyReminderTrigger(reminders, patients, setReminders, setRem
     return { sent: 0 };
   }
 
-  const syncUrl = (function(){try{return localStorage.getItem('cyrabell_sync_url')||'';}catch(e){return '';}})();
+  const syncUrl = (function(){try{return localStorage.getItem(LS_KEYS.SYNC_URL)||'';}catch(e){return '';}})();
   let sentCount = 0;
   let failedCount = 0;
   const newLogs = [];
@@ -4517,13 +5128,25 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
 
   const submit=(e)=>{
     if(e&&e.preventDefault)e.preventDefault();
+    if(_loginState.isLocked()){
+      const secs=_loginState.lockSecondsRemaining();
+      setError('Too many failed attempts. Try again in '+secs+' second'+(secs!==1?'s':'')+'.');
+      return;
+    }
     const user = ADMIN_USERS.find(u=>u.username===username.trim().toLowerCase()&&u.password===password);
     if(user){
       setError('');
-      onAuth(user);
+      _loginState.recordSuccess();
+      // Pass the plaintext password so App can derive the encryption key (Finding #3)
+      onAuth(user, password);
     } else {
-      setAttempts(a=>a+1);
-      setError('Invalid username or password');
+      const locked = _loginState.recordFailure();
+      const remaining = CONFIG.LOGIN_MAX_ATTEMPTS - _loginState.attempts;
+      if(locked){
+        setError('Too many failed attempts. Locked for '+Math.ceil(CONFIG.LOGIN_LOCKOUT_MS/1000)+'s.');
+      } else {
+        setError('Invalid username or password. '+remaining+' attempt'+(remaining!==1?'s':'')+' remaining.');
+      }
       setPassword('');
     }
   };
@@ -4592,10 +5215,8 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
           disabled:!username||!password
         },h(Svg,{d:IC.lock,size:14}),' Sign In')
       ),
-      h('div',{className:'login-info'},
-        h('strong',null,'🔑 Demo Credentials'),
-        'Admin: ',h('code',null,'admin'),' / ',h('code',null,'cyrabell2026'),h('br'),
-        'Reception: ',h('code',null,'reception'),' / ',h('code',null,'reception123')
+      CONFIG.SHOW_DEMO_CREDENTIALS && h('div',{className:'login-info'},
+        h('strong',null,'⚠ Dev Mode: see CONFIG.ADMIN_USERS')
       ),
       h('div',{className:'login-back'},
         h('button',{onClick:()=>{setMode('choose');setError('');setUsername('');setPassword('');}},'← Back')
@@ -4816,7 +5437,7 @@ function KioskMode({appointments,onCheckIn,onExit,addToast}){
           },'Exit Kiosk')
         ),
         h('div',{style:{fontSize:10,color:'var(--lt)',marginTop:10,textAlign:'center'}},
-          'Demo PIN: '+KIOSK_EXIT_PIN
+          CONFIG.SHOW_DEMO_CREDENTIALS ? 'Demo PIN: '+KIOSK_EXIT_PIN : 'Enter admin PIN to exit'
         )
       )
     )
@@ -4922,6 +5543,11 @@ function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMod
     return h('div', {
       className: 'clin-tooth occlusal-view' + (selected ? ' sel' : '') + (missing ? ' miss' : '') + (hasIssues ? ' issue' : ''),
       onClick: e => { e.stopPropagation(); onSelect(fdi); },
+      onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onSelect(fdi); } },
+      tabIndex: 0,
+      role: 'button',
+      'aria-label': '#' + fdi + ' ' + toothName(fdi) + ' (' + cond.label + ')' + (missing ? ' — missing' : ''),
+      'aria-pressed': selected,
       title: '#' + fdi + ' · ' + toothName(fdi) + ' · ' + cond.label
     },
       h('svg', {
@@ -5012,6 +5638,11 @@ function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMod
     return h('div', {
     className: 'clin-tooth' + (selected ? ' sel' : '') + (missing ? ' miss' : '') + (hasIssues ? ' issue' : ''),
     onClick: e => { e.stopPropagation(); onSelect(fdi); },
+    onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onSelect(fdi); } },
+    tabIndex: 0,
+    role: 'button',
+    'aria-label': '#' + fdi + ' ' + toothName(fdi) + ' (' + cond.label + ')' + (missing ? ' — missing' : ''),
+    'aria-pressed': selected,
     title: '#' + fdi + ' · ' + toothName(fdi) + ' · ' + cond.label
   },
     h('svg', {
@@ -5806,18 +6437,19 @@ function PhotoCaptureWidget({patient, photoDataUrl, onPhotoChange, syncUrl, addT
     setBusy(false);
   };
 
-  const handleFile = async (e) => {
+  const handleFile = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     setShowChooser(false); setBusy(true);
-    try {
-      const rawDataUrl = await readFileAsDataUrl(file);
-      const compressed = await compressImage(rawDataUrl, 800, 0.82);
-      onPhotoChange(compressed);
-    } catch(err) {
-      addToast && addToast('Image error: ' + err.message, 'error');
-    }
-    setBusy(false);
+    readFileAsDataUrl(file)
+      .then(async dataUrl => {
+        try {
+          const compressed = await compressImage(dataUrl, 800, 0.82);
+          onPhotoChange(compressed);
+        } catch(err) { addToast && addToast('Image error: '+err.message, 'error'); }
+        setBusy(false);
+      })
+      .catch(() => { addToast && addToast('File read failed','error'); setBusy(false); });
     e.target.value = '';
   };
 
@@ -5907,6 +6539,19 @@ function PatForm({patient, onClose, onSave, syncUrl, addToast, onPhotoUploaded, 
 
   const handleSave = () => {
     if (!ok) { addToast && addToast('Name and phone are required','error'); return; }
+    // Validate phone — must contain only digits, +, -, (, ), spaces (Finding #10)
+    const cleanPhone = S(f.phone).trim();
+    if (!/^[0-9+\-() ]+$/.test(cleanPhone)) {
+      addToast && addToast('Phone number may only contain digits, +, -, (, ) and spaces','error'); return;
+    }
+    // Validate email format if provided (Finding #10)
+    if (f.email && S(f.email).trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(S(f.email).trim())) {
+      addToast && addToast('Please enter a valid email address','error'); return;
+    }
+    // Validate DOB date if provided (Finding #10)
+    if (f.dob && S(f.dob).trim() && !/^\d{4}-\d{2}-\d{2}$/.test(S(f.dob).trim())) {
+      addToast && addToast('Date of birth must be in YYYY-MM-DD format','error'); return;
+    }
 
     // ── CRITICAL: Assign ID NOW before calling onSave or starting upload ──
     // This ensures Drive upload and the saved record share the same ID.
@@ -6120,17 +6765,7 @@ function PatientPhoto({patient, size, syncUrl}) {
 // Matches actual Colao, Arnold A. Dental Clinic letterhead exactly.
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ── Clinic constants (matching the real letterheads) ─────────────────────
-const CLINIC_INFO = {
-  name:       'COLAO, ARNOLD A. DENTAL CLINIC',
-  specialty:  'General Dentistry / Orthodontics',
-  address:    'Rm 301, Eltanal Building, Roxas Avenue, Iligan City',
-  tel:        '(063) 221-0033',
-  cel:        '09709197795',
-  hours:      '9:00 AM to 5:00 PM  |  Monday to Saturday',
-  doctor:     'COLAO, ARNOLD D.M.D.',
-  license:    '0040566',
-};
+// ── Clinic constants sourced from CONFIG.CLINIC (set at top of file) ────
 
 /**
  * MedCertModal — issues and prints a Dental Medical Certificate.
@@ -6148,35 +6783,101 @@ const CLINIC_INFO = {
  * Supports: images (JPEG/PNG/GIF), PDF embed, and downloads.
  */
 function AttachmentViewer({file, onClose}) {
-  const isImage = file.type && file.type.startsWith('image/');
-  const isPdf   = file.type === 'application/pdf';
+  const [dataUrl, setDataUrl] = useState(file.dataUrl || '');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Load from IndexedDB if stored there
+    if (!file.dataUrl && file.storage === 'idb') {
+      setLoading(true);
+      idbGet(file.id).then(url => {
+        setDataUrl(url || '');
+        setLoading(false);
+      }).catch(() => setLoading(false));
+    } else if (file.storage === 'drive' && file.driveEmbedUrl) {
+      // For Drive files the embed URL is used for display
+      setDataUrl(file.driveEmbedUrl);
+    }
+  }, [file.id]);
+
+  // Detect type from dataUrl prefix if MIME type is missing/generic (iOS photos etc.)
+  const effectiveType = (file.type && file.type !== 'application/octet-stream')
+    ? file.type
+    : (dataUrl || '').startsWith('data:image/') ? 'image/jpeg'
+    : (dataUrl || '').startsWith('data:application/pdf') ? 'application/pdf'
+    : file.type || '';
+  const isImage  = effectiveType.startsWith('image/');
+  const isPdf    = effectiveType === 'application/pdf';
+  const isDrive  = file.storage === 'drive' && file.driveEmbedUrl;
   const [zoom, setZoom] = useState(1);
+
+  const downloadHref = file.driveDownloadUrl || dataUrl || '';
 
   return h('div', {className:'att-viewer-ov', onClick:onClose},
     h('div', {className:'att-viewer-modal', onClick:e=>e.stopPropagation()},
       h('div', {className:'att-viewer-header'},
-        h('div', {style:{fontWeight:700,fontSize:14,color:'var(--dk)'}}, file.name || 'Attachment'),
+        h('div', {style:{fontWeight:700,fontSize:14,color:'var(--dk)'}},
+          file.name || 'Attachment',
+          file.storage === 'drive' && h('span',{style:{fontSize:10,marginLeft:8,background:'#e8f5f3',color:'var(--t)',padding:'2px 7px',borderRadius:10,fontWeight:600}},'Drive')
+        ),
         h('div', {style:{display:'flex',gap:8}},
-          isImage && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(z=>Math.max(0.3,z-0.2))},'−'),
-          isImage && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(1)},'1:1'),
-          isImage && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(z=>Math.min(4,z+0.2))},'+'),
-          h('a',{href:file.dataUrl,download:file.name||'attachment',className:'btn bg2 bsm'},'⬇ Download'),
+          isImage && !isDrive && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(z=>Math.max(0.3,z-0.2))},'−'),
+          isImage && !isDrive && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(1)},'1:1'),
+          isImage && !isDrive && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(z=>Math.min(4,z+0.2))},'+'),
+          downloadHref && h('a',{href:downloadHref,download:file.driveDownloadUrl?undefined:(file.name||'attachment'),target:file.driveDownloadUrl?'_blank':undefined,className:'btn bg2 bsm'},'⬇ Download'),
+          file.driveViewUrl && h('a',{href:file.driveViewUrl,target:'_blank',className:'btn bgh bsm'},'🔗 Open in Drive'),
           h('button',{type:'button',className:'btn bgh bsm',onClick:onClose},'✕ Close')
         )
       ),
       h('div', {className:'att-viewer-body'},
-        isImage && h('div', {className:'att-viewer-img-wrap', style:{overflow:'auto'}},
+        loading && h('div',{className:'att-viewer-nopreview'},
+          h('div',{style:{color:'#fff',fontSize:14}},'Loading…')
+        ),
+        // Drive files: Google blocks iframe embedding from external origins (frame-ancestors CSP).
+        // thumbnail?sz=w1600 is reliable for publicly-shared images (no consent-page redirect).
+        !loading && isDrive && isImage && h('div',{className:'att-viewer-img-wrap',style:{overflow:'auto'}},
           h('img',{
-            src: file.dataUrl,
+            src:driveThumbnailUrl(file.driveFileId,'w1600'),
+            alt:file.name,
+            style:{transform:`scale(${zoom})`,transformOrigin:'top left',display:'block',maxWidth:zoom===1?'100%':'none'},
+            onError:e=>{
+              // Fallback chain: thumbnail → lh3 CDN → Open-in-Drive link
+              const id = file.driveFileId;
+              if(e.target.src.includes('thumbnail')){
+                e.target.src='https://lh3.googleusercontent.com/d/'+id+'=w1600';
+              } else {
+                e.target.style.display='none';
+                e.target.insertAdjacentHTML('afterend','<div style="color:#aaa;padding:20px;text-align:center;font-size:13px">Preview unavailable — <a href="'+(file.driveViewUrl||'#')+'" target="_blank" style="color:#4dd">Open in Drive</a></div>');
+              }
+            }
+          })
+        ),
+        !loading && isDrive && !isImage && h('div',{className:'att-viewer-nopreview'},
+          h('div',{style:{fontSize:52,marginBottom:12}},isPdf?'📑':'📄'),
+          h('div',{style:{color:'#fff',fontWeight:700,fontSize:15,marginBottom:8}},file.name),
+          h('div',{style:{color:'#aaa',fontSize:13,marginBottom:16}},'Preview requires opening in Google Drive.'),
+          file.driveViewUrl && h('a',{href:file.driveViewUrl,target:'_blank',className:'btn bg2'},'🔗 Open in Drive')
+        ),
+        !loading && !isDrive && !dataUrl && h('div',{className:'att-viewer-nopreview'},
+          h('div',{style:{fontSize:40,marginBottom:8}},'⚠️'),
+          h('div',{style:{color:'#fff',fontWeight:700,fontSize:15,marginBottom:8}},'File data not available'),
+          h('div',{style:{color:'#aaa',fontSize:13,marginBottom:16,textAlign:'center',maxWidth:320}},
+            'The image data was not saved. Please remove this entry and re-attach the file.'
+          ),
+          h('button',{type:'button',className:'btn bgh bsm',onClick:onClose},'Close')
+        ),
+        !loading && !isDrive && dataUrl && isImage && h('div', {className:'att-viewer-img-wrap', style:{overflow:'auto'}},
+          h('img',{
+            src: dataUrl,
             alt: file.name,
             style:{transform:`scale(${zoom})`,transformOrigin:'top left',display:'block',maxWidth:zoom===1?'100%':'none'},
           })
         ),
-        isPdf && h('iframe',{src:file.dataUrl,className:'att-viewer-pdf',title:file.name}),
-        !isImage && !isPdf && h('div',{className:'att-viewer-nopreview'},
+        !loading && !isDrive && dataUrl && isPdf && h('iframe',{src:dataUrl,className:'att-viewer-pdf',title:file.name}),
+        !loading && !isDrive && dataUrl && !isImage && !isPdf && h('div',{className:'att-viewer-nopreview'},
           h('div',{style:{fontSize:48}},'📄'),
-          h('div',{style:{marginTop:12,color:'var(--md)',fontSize:14}},file.name),
-          h('a',{href:file.dataUrl,download:file.name,className:'btn bp'},'\u2b07 Download')
+          h('div',{style:{marginTop:12,color:'#ccc',fontSize:14}},file.name),
+          h('a',{href:dataUrl,download:file.name,className:'btn bp'},'⬇ Download')
         )
       )
     )
@@ -6193,13 +6894,15 @@ function AttachmentViewer({file, onClose}) {
  *   label         - heading text (default: "Attachments")
  *   compact       - if true, shows smaller layout
  */
-function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, compact}) {
+function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, onUpdate, label, compact, syncUrl, patientId, addToast: addToastProp}) {
   const fileRef  = useRef(null);
   const [viewing, setViewing] = useState(null);
   const [busy,    setBusy]    = useState(false);
   const [noteEdit, setNoteEdit] = useState({}); // id → string
 
   const atts = safe(attachments);
+  // Support addToast from prop or global
+  const toast = addToastProp || (typeof addToast !== 'undefined' ? addToast : null);
 
   const handleFiles = async (e) => {
     const files = e.target.files;
@@ -6209,20 +6912,77 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, com
       const file = files[i];
       // Limit to 8MB per file
       if (file.size > 8 * 1024 * 1024) {
-        addToast && addToast(file.name + ' is too large (max 8MB). Please compress it first.', 'error'); setBusy(false);
+        toast && toast(file.name + ' is too large (max 8MB). Please compress it first.', 'error');
         continue;
       }
-      const dataUrl = await readFileAsDataUrl(file);
-      const att = {
-        id:      'ATT-' + Date.now() + '-' + i,
-        name:    file.name,
-        type:    file.type || 'application/octet-stream',
-        size:    file.size,
-        dataUrl: dataUrl,
-        note:    '',
-        date:    localToday(),
-      };
-      onAdd && onAdd(att);
+      await (async () => {
+        const dataUrl  = await readFileAsDataUrl(file);
+        {
+          const rawType  = file.type || '';
+          // Detect image type from dataUrl prefix when browser reports no/generic MIME type.
+          // This fixes iOS/HEIC photos that arrive with type='' or type='application/octet-stream'.
+          let resolvedType = rawType;
+          if (!rawType || rawType === 'application/octet-stream') {
+            if (dataUrl.startsWith('data:image/'))      resolvedType = dataUrl.substring(5, dataUrl.indexOf(';'));
+            else if (dataUrl.startsWith('data:application/pdf')) resolvedType = 'application/pdf';
+          }
+          const attId = 'ATT-' + Date.now() + '-' + i;
+          const att = {
+            id:      attId,
+            name:    file.name,
+            type:    resolvedType || 'application/octet-stream',
+            size:    file.size,
+            dataUrl: dataUrl,  // temporary: shown in UI while saving
+            note:    '',
+            date:    localToday(),
+            storage: 'local',  // will be updated to 'drive' or 'idb'
+          };
+          // Show immediately in UI with local dataUrl for instant preview
+          onAdd && onAdd(att);
+
+          // Now persist to Drive or IDB
+          const curSyncUrl = (typeof syncUrl === 'string') ? syncUrl : '';
+          if (curSyncUrl) {
+            try {
+              toast && toast('Uploading ' + file.name + ' to Drive...', 'info');
+              const result = await uploadFileToDrive(curSyncUrl, dataUrl, resolvedType, file.name, patientId || 'unknown');
+              // Update attachment: replace dataUrl with Drive URLs
+              const driveAtt = {
+                ...att,
+                dataUrl: result.embedUrl || result.viewUrl || '',
+                driveFileId: result.fileId,
+                driveViewUrl: result.viewUrl,
+                driveEmbedUrl: result.embedUrl,
+                driveThumbnailUrl: result.thumbnailUrl,
+                driveDownloadUrl: result.downloadUrl,
+                storage: 'drive',
+              };
+              onUpdate && onUpdate(attId, driveAtt);
+              toast && toast(file.name + ' uploaded to Drive ✓', 'ok');
+            } catch(err) {
+              // Drive upload failed — fall back to IndexedDB
+              console.warn('[attachment] Drive upload failed, falling back to IDB:', err.message);
+              try {
+                await idbPut(attId, dataUrl);
+                onUpdate && onUpdate(attId, {...att, dataUrl: '', storage: 'idb'});
+                toast && toast(file.name + ' saved locally (Drive upload failed)', 'ok');
+              } catch(idbErr) {
+                toast && toast('Could not save ' + file.name + ': ' + idbErr.message, 'error');
+              }
+            }
+          } else {
+            // No sync URL — save to IndexedDB
+            try {
+              await idbPut(attId, dataUrl);
+              onUpdate && onUpdate(attId, {...att, dataUrl: '', storage: 'idb'});
+            } catch(idbErr) {
+              // IDB failed — keep dataUrl in memory only (won't survive refresh)
+              console.warn('[attachment] IDB save failed:', idbErr.message);
+              toast && toast('⚠️ ' + file.name + ' saved in memory only — may be lost on refresh', 'warning');
+            }
+          }
+        }
+      })();
     }
     setBusy(false);
     e.target.value = '';
@@ -6281,11 +7041,20 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, com
             className:'att-thumb',
             onClick:()=>setViewing(att),
             title:'Click to view',
-          },
-            att.type && att.type.startsWith('image/')
-              ? h('img',{src:att.dataUrl,alt:att.name,className:'att-thumb-img'})
-              : h('div',{className:'att-thumb-icon'},fileIcon(att.type))
-          ),
+          }, (() => {
+            // Drive files: use thumbnail URL if available
+            if (att.storage === 'drive' && att.driveThumbnailUrl) {
+              return h('img',{src:att.driveThumbnailUrl,alt:att.name,className:'att-thumb-img',
+                onError:e=>{e.target.style.display='none';}});
+            }
+            const t = (att.type && att.type !== 'application/octet-stream') ? att.type
+              : (att.dataUrl||'').startsWith('data:image/') ? 'image/jpeg' : att.type;
+            return t && t.startsWith('image/') && att.dataUrl
+              ? h('img',{src:att.dataUrl,alt:att.name,className:'att-thumb-img',
+                  onError:e=>{e.target.style.display='none';e.target.nextSibling&&(e.target.nextSibling.style.display='flex');}})
+              : h('div',{className:'att-thumb-icon'},
+                  att.storage === 'drive' ? '☁️' : fileIcon(t));
+          })()),
           // Info
           h('div', {className:'att-info'},
             h('div', {className:'att-name',onClick:()=>setViewing(att),title:'Click to view'},
@@ -6293,7 +7062,9 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, com
             ),
             h('div', {className:'att-meta'},
               att.date && h('span',null,att.date),
-              att.size && h('span',null,' · '+fmt(att.size))
+              att.size && h('span',null,' · '+fmt(att.size)),
+              att.storage === 'drive' && h('span',{style:{color:'var(--t)',fontWeight:700}},' · ☁ Drive'),
+              att.storage === 'idb'   && h('span',{style:{color:'var(--md)'}},             ' · Local')
             ),
             // Inline note editor
             h('input',{
@@ -6311,7 +7082,11 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, label, com
           // Actions
           h('div', {className:'att-actions'},
             h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewing(att),title:'View'},'👁'),
-            h('a',{href:att.dataUrl,download:att.name||'file',className:'btn bgh bsm',title:'Download'},'⬇'),
+            att.storage === 'drive' && att.driveDownloadUrl
+              ? h('a',{href:att.driveDownloadUrl,target:'_blank',className:'btn bgh bsm',title:'Download'},'⬇')
+              : att.dataUrl
+                ? h('a',{href:att.dataUrl,download:att.name||'file',className:'btn bgh bsm',title:'Download'},'⬇')
+                : null,
             h('button',{type:'button',className:'btn bd2 bsm',onClick:()=>onRemove&&onRemove(att.id),title:'Remove'},'✕')
           )
         )
@@ -6378,19 +7153,20 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
     await runExtraction(dataUrl,'image/jpeg');
   };
 
-  const handleFile = async (e) => {
+  const handleFile = (e) => {
     const file = e.target.files&&e.target.files[0];
     if (!file) return;
     const mime = file.type||'image/jpeg';
-    const dataUrl = await readFileAsDataUrl(file);
-    setImageUrl(dataUrl); setMimeType(mime);
-    await runExtraction(dataUrl, mime);
+    readFileAsDataUrl(file).then(async dataUrl => {
+      setImageUrl(dataUrl); setMimeType(mime);
+      await runExtraction(dataUrl, mime);
+    });
     e.target.value='';
   };
 
   const runExtraction = async (dataUrl, mime) => {
     setStep('processing'); setErrorMsg('');
-    const syncUrl = (() => { try { return localStorage.getItem('cyrabell_sync_url')||''; } catch(e){return '';} })();
+    const syncUrl = (() => { try { return localStorage.getItem(LS_KEYS.SYNC_URL)||''; } catch(e){return '';} })();
     try {
       // Use 'examination' scanType for full record chart extraction
       const result = await extractPatientDataFromCard(dataUrl, mime, syncUrl, 'examination');
@@ -6406,16 +7182,16 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
   const ed = (k,v) => setEditData(p=>({...p,[k]:v}));
 
   const handleSave = () => {
-    // Create a history entry with the scan image + all extracted data
     const entry = {
       id:          'HIST-' + Date.now(),
       scanDate:    editData.scanDate || localToday(),
-      scanImageUrl: imageUrl,        // thumbnail of original card
+      scanImageUrl: imageUrl,
       type:        'examination_record',
       patientName: editData.name || S(patient&&patient.name),
-      // Clinical data
       ...editData,
     };
+    // Persist scan image to IDB so it survives localStorage quota eviction on refresh
+    if (imageUrl) idbPut(entry.id, imageUrl).catch(()=>{});
     onSaved(entry);
   };
 
@@ -6586,234 +7362,210 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
 }
 
 /**
- * ClinicalHistoryEntry — renders a single history record card in the timeline.
+ * useHistoryScanImage — loads a history entry's scan image.
+ * Priority: inlineUrl (from entry.scanImageUrl) → IndexedDB → empty.
+ * IDB is the durable store; inlineUrl is only set on first render.
+ */
+function useHistoryScanImage(id, inlineUrl) {
+  const [url,     setUrl]     = useState(inlineUrl || '');
+  const [loading, setLoading] = useState(!inlineUrl && !!id);
+  useEffect(() => {
+    if (inlineUrl) { setUrl(inlineUrl); setLoading(false); return; }
+    if (!id)       { setUrl('');        setLoading(false); return; }
+    setLoading(true);
+    idbGet(id)
+      .then(stored => { setUrl(stored || ''); setLoading(false); })
+      .catch(()    => {                        setLoading(false); });
+  }, [id, inlineUrl]);
+  return { url, loading };
+}
+
+/**
+ * ClinicalHistoryEntry — single card in the history timeline.
+ * Handles three entry types: attached_record, appointment_record, examination_record.
+ * Image data is always loaded via useHistoryScanImage (IDB-backed).
  */
 function ClinicalHistoryEntry({entry, onDelete, idx}) {
-  const [expanded, setExpanded] = useState(idx===0); // first entry open by default
+  const [expanded,   setExpanded]   = useState(idx === 0);
   const [viewingImg, setViewingImg] = useState(false);
+  const { url: scanUrl, loading: scanLoading } = useHistoryScanImage(entry.id, entry.scanImageUrl || '');
 
-  const clinicalFields = [
-    ['Occlusion',            entry.occlusion],
-    ['Periodontal',          entry.periodontalCondition],
-    ['Oral Hygiene',         entry.oralHygiene],
-    ['Denture Upper',        entry.dentureUpper],
-    ['Denture Lower',        entry.dentureLower],
-    ['Abnormalities',        entry.abnormalities],
-    ['General Condition',    entry.generalCondition],
-  ].filter(([,v]) => v && S(v).trim());
+  // Delete: clean up IDB then notify parent
+  const handleDelete = () => {
+    if (!confirm('Delete this history entry?')) return;
+    idbDelete(entry.id).catch(() => {});
+    onDelete && onDelete(entry.id);
+  };
 
-  const medFields = [
-    ['Physician',        entry.physician],
-    ['Blood Pressure',   entry.bloodPressure],
-    ['Allergies',        entry.allergies],
-    ['Chronic Ailments', entry.chronicAilments],
-    ['Bleeding Hx',      entry.previousHistoryOfBleeding],
-    ['Medications',      entry.drugsBeingTaken],
-    ['Treatment',        entry.natureOfTreatment],
-  ].filter(([,v]) => v && S(v).trim());
+  const isImg = S(entry.fileType).startsWith('image/') ||
+                (entry.type === 'examination_record' && scanUrl.startsWith('data:image/'));
+  const isPdf = entry.fileType === 'application/pdf' ||
+                (scanUrl.startsWith('data:application/pdf'));
 
-  // Attached records (no AI extraction) show a compact file card
+  // ── Shared full-screen viewer ─────────────────────────────────────────────
+  const viewer = viewingImg && h('div', {className:'att-viewer-ov', onClick:()=>setViewingImg(false)},
+    h('div', {className:'att-viewer-modal', onClick:e=>e.stopPropagation()},
+      h('div', {className:'att-viewer-header'},
+        h('div', {style:{fontWeight:700,fontSize:14,color:'var(--dk)'}},
+          entry.label || entry.name || 'History Record'
+        ),
+        h('div', {style:{display:'flex',gap:8}},
+          scanUrl && h('a', {
+            href:scanUrl,
+            download:(entry.label||entry.name||'record')+'.'+(isPdf?'pdf':'jpg'),
+            className:'btn bg2 bsm'
+          }, '⬇ Download'),
+          h('button', {type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)}, '✕ Close')
+        )
+      ),
+      h('div', {className:'att-viewer-body'},
+        scanLoading && h('div', {className:'att-viewer-nopreview'},
+          h('div', {style:{color:'#aaa',fontSize:14}}, '⏳ Loading…')
+        ),
+        !scanLoading && !scanUrl && h('div', {className:'att-viewer-nopreview'},
+          h('div', {style:{fontSize:36,marginBottom:8}}, '⚠️'),
+          h('div', {style:{color:'#fff',fontWeight:700}}, 'Image not available'),
+          h('div', {style:{color:'#aaa',fontSize:12,marginTop:6,textAlign:'center',maxWidth:280}},
+            'File data was not saved (storage full at upload time). Delete and re-attach.'
+          )
+        ),
+        !scanLoading && scanUrl && isImg &&
+          h('img', {src:scanUrl, alt:entry.label||'Record', style:{maxWidth:'100%',borderRadius:4}}),
+        !scanLoading && scanUrl && isPdf &&
+          h('iframe', {src:scanUrl, style:{width:'100%',height:'70vh',border:'none'}, title:entry.label})
+      )
+    )
+  );
+
+  // ── attached_record / appointment_record ──────────────────────────────────
   if (entry.type === 'attached_record' || entry.type === 'appointment_record') {
     const isAppt = entry.type === 'appointment_record';
     const atts   = safe(entry.attachments);
-    const isImg = S(entry.fileType).startsWith('image/');
-    const isPdf = entry.fileType === 'application/pdf';
-    return h('div',{className:'hist-entry hist-entry-attached'},
-      h('div',{className:'hist-entry-header',style:{cursor:'default'}},
-        h('div',{className:'hist-entry-left',style:{display:'flex',alignItems:'center',gap:12}},
-          entry.scanImageUrl && isImg && h('img',{
-            src:entry.scanImageUrl,
-            alt:entry.label,
-            className:'hist-entry-thumb',
-            style:{cursor:'pointer'},
-            onClick:e=>{e.stopPropagation();setViewingImg(true);}
-          }),
-          !isImg && h('div',{style:{fontSize:32}},isPdf?'📑':'📄'),
-          h('div',null,
-            h('div',{className:'hist-entry-date'},
-              isAppt ? '📅 ' : '📎 ',
-              entry.scanDate||'Unknown date'
-            ),
-            h('div',{className:'hist-entry-name'},entry.label||'Attached Record'),
-            h('div',{className:'hist-entry-sub',style:{fontSize:11}},
+    return h('div', {className:'hist-entry hist-entry-attached'},
+      h('div', {className:'hist-entry-header', style:{cursor:'default'}},
+        h('div', {className:'hist-entry-left', style:{display:'flex',alignItems:'center',gap:12}},
+          // Thumbnail
+          scanLoading
+            ? h('div', {style:{width:52,height:52,borderRadius:6,background:'var(--bd)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}, '⏳')
+            : scanUrl && isImg
+              ? h('img', {src:scanUrl, alt:entry.label, className:'hist-entry-thumb',
+                  style:{cursor:'pointer'}, onClick:e=>{e.stopPropagation();setViewingImg(true);}})
+              : h('div', {style:{fontSize:36}}, isPdf ? '📑' : '📄'),
+          h('div', null,
+            h('div', {className:'hist-entry-date'}, isAppt ? '📅 ' : '📎 ', entry.scanDate||'Unknown date'),
+            h('div', {className:'hist-entry-name'}, entry.label||'Attached Record'),
+            h('div', {className:'hist-entry-sub', style:{fontSize:11}},
               isAppt
-                ? ('Service record' + (entry.dentist?' · '+entry.dentist:'') + (atts.length?' · '+atts.length+' file(s)':''))
-                : ('Attached file' + (entry.fileSize?' · '+Math.round(entry.fileSize/1024)+'KB':''))
+                ? 'Service record'+(entry.dentist?' · '+entry.dentist:'')+(atts.length?' · '+atts.length+' file(s)':'')
+                : 'Attached file'+(entry.fileSize?' · '+Math.round(entry.fileSize/1024)+'KB':'')
             )
           )
         ),
-        h('div',{className:'hist-entry-right',style:{display:'flex',gap:6,flexWrap:'wrap'}},
-          isImg && entry.scanImageUrl && h('button',{
-            type:'button',className:'btn bgh bsm',
-            onClick:e=>{e.stopPropagation();setViewingImg(true);}
-          },'👁 View'),
-          !isAppt && entry.scanImageUrl && h('a',{
-            href:entry.scanImageUrl, download:entry.label||'record',
+        h('div', {className:'hist-entry-right', style:{display:'flex',gap:6,flexWrap:'wrap'}},
+          (isImg || isPdf) && h('button', {
+            type:'button', className:'btn bgh bsm',
+            disabled: scanLoading || (!scanUrl),
+            title: !scanUrl && !scanLoading ? 'Image data not available — re-attach to restore' : 'View',
+            onClick: e => { e.stopPropagation(); setViewingImg(true); }
+          }, scanLoading ? '⏳' : '👁 View'),
+          !isAppt && scanUrl && h('a', {
+            href:scanUrl, download:entry.label||'record',
             className:'btn bgh bsm', onClick:e=>e.stopPropagation()
-          },'⬇'),
-          h('button',{
-            type:'button',className:'btn bd2 bsm',
-            onClick:e=>{e.stopPropagation();confirmDelete('Delete?',()=>onDelete(entry.id));}
-          },'✕')
+          }, '⬇'),
+          h('button', {
+            type:'button', className:'btn bd2 bsm',
+            onClick: e => { e.stopPropagation(); handleDelete(); }
+          }, '✕')
         )
       ),
-      // For appointment records: show all attached files as mini gallery
-      isAppt && atts.length > 0 && h('div',{
+      // Appointment record: mini gallery of attached files
+      isAppt && atts.length > 0 && h('div', {
         className:'hist-appt-files',
         style:{padding:'8px 12px 12px',borderTop:'1px solid var(--bd)',background:'var(--cr)'}
       },
-        h('div',{style:{fontSize:11,fontWeight:700,color:'var(--md)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.5px'}},
-          '📎 Attached Files ('+ atts.length +')'
+        h('div', {style:{fontSize:11,fontWeight:700,color:'var(--md)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.5px'}},
+          '📎 Attached Files ('+atts.length+')'
         ),
-        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
-          atts.map((att,i) => {
-            const isAttImg = S(att.type).startsWith('image/');
-            return h('div',{key:att.id||i,
-              style:{
-                display:'flex',flexDirection:'column',alignItems:'center',gap:4,
-                background:'#fff',border:'1.5px solid var(--bd)',borderRadius:8,
-                padding:'6px',cursor:'pointer',minWidth:80,maxWidth:100,
-              },
-              title:att.name,
-              onClick:()=>{ if(att.dataUrl) window.open(att.dataUrl,'_blank'); }
-            },
-              isAttImg && att.dataUrl
-                ? h('img',{src:att.dataUrl,alt:att.name,style:{width:60,height:60,objectFit:'cover',borderRadius:4}})
-                : h('div',{style:{fontSize:28,lineHeight:1.2}},S(att.type)==='application/pdf'?'📑':'📄'),
-              h('div',{style:{fontSize:10,color:'var(--md)',textAlign:'center',wordBreak:'break-all',maxWidth:80}},
-                S(att.name).length > 14 ? att.name.substring(0,12)+'…' : att.name
-              ),
-              att.note && h('div',{style:{fontSize:9,color:'var(--t)',textAlign:'center'}},att.note)
-            );
-          })
+        h('div', {style:{display:'flex',gap:8,flexWrap:'wrap'}},
+          atts.map((att,i) => h(AttachThumb, {
+            key: att.id||i,
+            att,
+            onClick: a => { const src = a.storage==='drive'&&a.driveFileId ? driveThumbnailUrl(a.driveFileId,'w1600') : a.dataUrl; if(src) window.open(src,'_blank'); }
+          }))
         )
       ),
-
-      viewingImg && entry.scanImageUrl && h('div',{
-        className:'att-viewer-ov',onClick:()=>setViewingImg(false)
-      },
-        h('div',{className:'att-viewer-modal',onClick:e=>e.stopPropagation()},
-          h('div',{className:'att-viewer-header'},
-            h('div',{style:{fontWeight:700,fontSize:14,color:'var(--dk)'}},entry.label||'Record'),
-            h('div',{style:{display:'flex',gap:8}},
-              h('a',{href:entry.scanImageUrl,download:entry.label,className:'btn bg2 bsm'},'⬇ Download'),
-              h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)},'✕ Close')
-            )
-          ),
-          h('div',{className:'att-viewer-body'},
-            isImg && h('img',{src:entry.scanImageUrl,alt:entry.label,style:{maxWidth:'100%',borderRadius:4}}),
-            isPdf && h('iframe',{src:entry.scanImageUrl,style:{width:'100%',height:'70vh',border:'none'}})
-          )
-        )
-      )
+      viewer
     );
   }
 
-  return h('div',{className:'hist-entry'},
-    // Header (always visible)
-    h('div',{className:'hist-entry-header',onClick:()=>setExpanded(e=>!e)},
-      h('div',{className:'hist-entry-left'},
-        h('div',{className:'hist-entry-date'},
-          '📋 ', entry.scanDate || 'Unknown date'
-        ),
-        h('div',{className:'hist-entry-name'},
-          entry.name || 'Patient Record'
-        ),
-        entry.occupation && h('div',{className:'hist-entry-sub'}, entry.occupation)
+  // ── examination_record (AI scan) ──────────────────────────────────────────
+  const clinicalFields = [
+    ['Occlusion',       entry.occlusion],
+    ['Periodontal',     entry.periodontalCondition],
+    ['Oral Hygiene',    entry.oralHygiene],
+    ['Denture Upper',   entry.dentureUpper],
+    ['Denture Lower',   entry.dentureLower],
+    ['Abnormalities',   entry.abnormalities],
+    ['General Condition',entry.generalCondition],
+  ].filter(([,v]) => v && S(v).trim());
+
+  const medFields = [
+    ['Physician',       entry.physician],
+    ['Blood Pressure',  entry.bloodPressure],
+    ['Allergies',       entry.allergies],
+    ['Chronic Ailments',entry.chronicAilments],
+    ['Bleeding Hx',     entry.previousHistoryOfBleeding],
+    ['Medications',     entry.drugsBeingTaken],
+    ['Treatment',       entry.natureOfTreatment],
+  ].filter(([,v]) => v && S(v).trim());
+
+  return h('div', {className:'hist-entry'},
+    h('div', {className:'hist-entry-header', onClick:()=>setExpanded(e=>!e)},
+      h('div', {className:'hist-entry-left'},
+        h('div', {className:'hist-entry-date'}, '📋 ', entry.scanDate||'Unknown date'),
+        h('div', {className:'hist-entry-name'}, entry.name||'Patient Record'),
+        entry.occupation && h('div', {className:'hist-entry-sub'}, entry.occupation)
       ),
-      h('div',{className:'hist-entry-right'},
-        entry.scanImageUrl && h('img',{
-          src:entry.scanImageUrl,
-          alt:'Scan thumbnail',
-          className:'hist-entry-thumb',
-          onClick:e=>{e.stopPropagation();setViewingImg(true);}
+      h('div', {className:'hist-entry-right'},
+        scanUrl && h('img', {
+          src:scanUrl, alt:'Scan thumbnail', className:'hist-entry-thumb',
+          style:{cursor:'pointer'}, onClick:e=>{e.stopPropagation();setViewingImg(true);}
         }),
-        h('div',{className:'hist-entry-toggle'},expanded?'▲':'▼')
+        h('div', {className:'hist-entry-toggle'}, expanded?'▲':'▼')
       )
     ),
-
-    // Expanded content
-    expanded && h('div',{className:'hist-entry-body'},
-      // Quick stats row
-      h('div',{className:'hist-quick-stats'},
-        entry.bloodPressure && h('div',{className:'hist-stat'},
-          h('span',{className:'hist-stat-label'},'BP'),
-          h('span',{className:'hist-stat-value'},entry.bloodPressure)
-        ),
-        entry.oralHygiene && h('div',{className:'hist-stat'},
-          h('span',{className:'hist-stat-label'},'Oral Hygiene'),
-          h('span',{className:'hist-stat-value'},entry.oralHygiene)
-        ),
-        entry.occlusion && h('div',{className:'hist-stat'},
-          h('span',{className:'hist-stat-label'},'Occlusion'),
-          h('span',{className:'hist-stat-value'},entry.occlusion)
-        )
+    expanded && h('div', {className:'hist-entry-body'},
+      h('div', {className:'hist-quick-stats'},
+        entry.bloodPressure && h('div',{className:'hist-stat'},h('span',{className:'hist-stat-label'},'BP'),h('span',{className:'hist-stat-value'},entry.bloodPressure)),
+        entry.oralHygiene   && h('div',{className:'hist-stat'},h('span',{className:'hist-stat-label'},'Oral Hygiene'),h('span',{className:'hist-stat-value'},entry.oralHygiene)),
+        entry.occlusion     && h('div',{className:'hist-stat'},h('span',{className:'hist-stat-label'},'Occlusion'),h('span',{className:'hist-stat-value'},entry.occlusion))
       ),
-
-      // Two column grid: Clinical | Medical
-      h('div',{className:'hist-two-col'},
+      h('div', {className:'hist-two-col'},
         clinicalFields.length > 0 && h('div',{className:'hist-col'},
           h('div',{className:'hist-col-title'},'🦷 Clinical Findings'),
-          clinicalFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},
-            h('div',{className:'hist-row-label'},l),
-            h('div',{className:'hist-row-value'},v)
-          ))
+          clinicalFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},h('div',{className:'hist-row-label'},l),h('div',{className:'hist-row-value'},v)))
         ),
         medFields.length > 0 && h('div',{className:'hist-col'},
           h('div',{className:'hist-col-title'},'⚕️ Medical History'),
-          medFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},
-            h('div',{className:'hist-row-label'},l),
-            h('div',{className:'hist-row-value'},v)
-          ))
+          medFields.map(([l,v])=>h('div',{key:l,className:'hist-row'},h('div',{className:'hist-row-label'},l),h('div',{className:'hist-row-value'},v)))
         )
       ),
-
-      // Clinical notes
-      entry.clinicalNotes && h('div',{className:'hist-notes'},
-        h('div',{className:'hist-col-title'},'📝 Clinical Notes'),
-        h('div',{className:'hist-notes-text'},entry.clinicalNotes)
-      ),
-      entry.dentalChartNotes && h('div',{className:'hist-notes'},
-        h('div',{className:'hist-col-title'},'🦷 Dental Chart Annotations'),
-        h('div',{className:'hist-notes-text'},entry.dentalChartNotes)
-      ),
-      entry.teethConditions && h('div',{className:'hist-notes'},
-        h('div',{className:'hist-col-title'},'🔍 Observed Tooth Conditions'),
-        h('div',{className:'hist-notes-text'},entry.teethConditions)
-      ),
-
-      // Actions
-      h('div',{className:'hist-entry-actions'},
-        entry.scanImageUrl && h('button',{
-          type:'button',className:'btn bg2 bsm',
-          onClick:()=>setViewingImg(true)
-        },'🖼 View Original Scan'),
-        h('button',{
-          type:'button',className:'btn bd2 bsm',
-          onClick:()=>confirmDelete('Delete this history entry?',()=>onDelete(entry.id))
-        },'🗑 Delete Entry')
+      entry.clinicalNotes    && h('div',{className:'hist-notes'},h('div',{className:'hist-col-title'},'📝 Clinical Notes'),h('div',{className:'hist-notes-text'},entry.clinicalNotes)),
+      entry.dentalChartNotes && h('div',{className:'hist-notes'},h('div',{className:'hist-col-title'},'🦷 Dental Chart Annotations'),h('div',{className:'hist-notes-text'},entry.dentalChartNotes)),
+      entry.teethConditions  && h('div',{className:'hist-notes'},h('div',{className:'hist-col-title'},'🔍 Observed Tooth Conditions'),h('div',{className:'hist-notes-text'},entry.teethConditions)),
+      h('div', {className:'hist-entry-actions'},
+        h('button', {
+          type:'button', className:'btn bg2 bsm',
+          disabled: scanLoading || !scanUrl,
+          onClick: ()=>setViewingImg(true)
+        }, scanLoading ? '⏳ Loading scan…' : scanUrl ? '🖼 View Original Scan' : '🖼 Scan Not Available'),
+        h('button', {
+          type:'button', className:'btn bd2 bsm',
+          onClick: handleDelete
+        }, '🗑 Delete Entry')
       )
     ),
-
-    // Full-size image viewer
-    viewingImg && entry.scanImageUrl && h('div',{
-      className:'att-viewer-ov',
-      onClick:()=>setViewingImg(false)
-    },
-      h('div',{className:'att-viewer-modal',onClick:e=>e.stopPropagation()},
-        h('div',{className:'att-viewer-header'},
-          h('div',{style:{color:'#fff',fontWeight:700}},'📋 Examination Record — '+entry.scanDate),
-          h('div',{style:{display:'flex',gap:8}},
-            h('a',{href:entry.scanImageUrl,download:'exam-record-'+entry.scanDate+'.jpg',
-              className:'btn bg2 bsm'},'⬇ Download'),
-            h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)},'✕ Close')
-          )
-        ),
-        h('div',{className:'att-viewer-body'},
-          h('img',{src:entry.scanImageUrl,alt:'Exam record',style:{maxWidth:'100%',borderRadius:4}})
-        )
-      )
-    )
+    viewer
   );
 }
 
@@ -6848,12 +7600,13 @@ function ClinicalHistoryTab({patient, history, onAddEntry, onDeleteEntry}) {
         status:       'archived',
         scanDate:     localToday(),
         label:        file.name,
-        scanImageUrl: dataUrl,  // full dataUrl stored locally
+        scanImageUrl: dataUrl,  // kept for immediate display
         fileType:     file.type || 'image/jpeg',
         fileSize:     file.size,
-        // No clinical fields extracted — manual entry
       };
       onAddEntry && onAddEntry(entry);
+      // Save to IDB so it survives localStorage quota eviction on refresh
+      try { await idbPut(entry.id, dataUrl); } catch(e) {}
     }
     setAttachBusy(false);
     e.target.value = '';
@@ -7153,7 +7906,7 @@ function buildMedCertHTML({patName, patAddress, age, procedure, certDate, ptrNo,
     }
   `;
 
-  return `<!DOCTYPE html><html><head>
+  return `<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8">
 <title>Dental Certification — ${patName || 'Patient'}</title>
 <style>${css}</style>
@@ -7182,14 +7935,14 @@ function buildMedCertHTML({patName, patAddress, age, procedure, certDate, ptrNo,
   <p>To whom it may concern:</p>
   <br>
   <p>&nbsp;&nbsp;&nbsp;&nbsp;This is to certify that&nbsp;
-    <strong>${patName || '________________________________'}</strong>
+    <strong>${escapeHTML(patName) || '________________________________'}</strong>
     of&nbsp;<span style="font-size:9pt;color:#555">(address)</span>&nbsp;
-    <strong>${patAddress || '____________________________'}</strong>
+    <strong>${escapeHTML(patAddress) || '____________________________'}</strong>
     &nbsp;had undergone / is scheduled for
   </p>
   <div class="cert-procedure">
     ${procedure
-      ? procedure.split('\n').map(l => `<div class="cert-procedure-line">${l||'&nbsp;'}</div>`).join('')
+      ? procedure.split('\n').map(l => `<div class="cert-procedure-line">${escapeHTML(l)||'&nbsp;'}</div>`).join('')
       : '<div class="cert-procedure-line">&nbsp;</div><div class="cert-procedure-line">&nbsp;</div><div class="cert-procedure-line">&nbsp;</div>'
     }
     <div class="cert-procedure-line">&nbsp;</div>
@@ -7216,7 +7969,7 @@ function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
   };
 
   const rxLines = rx
-    ? rx.split('\n').map(l => `<div class="rx-line">${l||'&nbsp;'}</div>`).join('')
+    ? rx.split('\n').map(l => `<div class="rx-line">${escapeHTML(l)||'&nbsp;'}</div>`).join('')
     : Array(10).fill('<div class="rx-line">&nbsp;</div>').join('');
 
   const css = `
@@ -7321,15 +8074,15 @@ function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
   <div class="patient-info">
     <div class="patient-field">
       <label>Name:</label>
-      <span>${patName || ''}</span>
+      <span>${escapeHTML(patName) || ''}</span>
     </div>
     <div class="patient-field">
       <label>Age:</label>
-      <span>${age || ''}</span>
+      <span>${escapeHTML(String(age || ''))}</span>
     </div>
     <div class="patient-field">
       <label>Address:</label>
-      <span>${patAddress || ''}</span>
+      <span>${escapeHTML(patAddress) || ''}</span>
     </div>
     <div class="patient-field">
       <label>Sex:</label>
@@ -7358,6 +8111,9 @@ function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
 function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl}){
   // Local copy so file/history updates reflect instantly without waiting for parent re-render
   const [localPat, setLocalPat] = useState(patientProp);
+  // Always-current ref — async callbacks (Drive upload) read this instead of stale closure
+  const localPatRef = useRef(localPat);
+  localPatRef.current = localPat; // updated every render, no useEffect lag
   // Sync if parent sends a fresh patient (e.g. after full refresh)
   const patient = localPat;
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
@@ -7450,34 +8206,52 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
     tab==='attachments' && h(AttachmentPanel, {
       attachments: safe(patient.attachments),
       label: 'Patient Files & X-Rays',
+      syncUrl: syncUrl,
+      patientId: patient.id,
+      addToast: addToast,
       onAdd: att => {
-        const updated = [...safe(patient.attachments), att];
-        setLocalPat(p => ({...p, attachments: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, updated);
+        // Read latest state from ref — avoids stale closure when Drive upload is async
+        const p = localPatRef.current;
+        const updated = [...safe(p.attachments), att];
+        setLocalPat({...p, attachments: updated});
+        onUpdateTeeth(p.id, p.teeth, updated);
+      },
+      onUpdate: (attId, newAtt) => {
+        // Called after async Drive upload — ref always has current state, closure does not
+        const p = localPatRef.current;
+        const updated = safe(p.attachments).map(a => a.id === attId ? newAtt : a);
+        setLocalPat({...p, attachments: updated});
+        onUpdateTeeth(p.id, p.teeth, updated);
       },
       onRemove: id => {
-        const updated = safe(patient.attachments).filter(a => a.id !== id);
-        setLocalPat(p => ({...p, attachments: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, updated);
+        const p = localPatRef.current;
+        const att = safe(p.attachments).find(a => a.id === id);
+        if (att && att.storage === 'idb') idbDelete(id).catch(()=>{});
+        const updated = safe(p.attachments).filter(a => a.id !== id);
+        setLocalPat({...p, attachments: updated});
+        onUpdateTeeth(p.id, p.teeth, updated);
       },
       onUpdateNote: (id, note) => {
-        const updated = safe(patient.attachments).map(a => a.id===id ? {...a,note} : a);
-        setLocalPat(p => ({...p, attachments: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, updated);
+        const p = localPatRef.current;
+        const updated = safe(p.attachments).map(a => a.id===id ? {...a,note} : a);
+        setLocalPat({...p, attachments: updated});
+        onUpdateTeeth(p.id, p.teeth, updated);
       },
     }),
     tab==='history' && h(ClinicalHistoryTab, {
       patient: patient,
       history: safe(patient.history),
       onAddEntry: entry => {
-        const updated = [...safe(patient.history), entry];
-        setLocalPat(p => ({...p, history: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, patient.attachments, updated);
+        const p = localPatRef.current;
+        const updated = [...safe(p.history), entry];
+        setLocalPat({...p, history: updated});
+        onUpdateTeeth(p.id, p.teeth, p.attachments, updated);
       },
       onDeleteEntry: id => {
-        const updated = safe(patient.history).filter(e => e.id !== id);
-        setLocalPat(p => ({...p, history: updated}));
-        onUpdateTeeth(patient.id, patient.teeth, patient.attachments, updated);
+        const p = localPatRef.current;
+        const updated = safe(p.history).filter(e => e.id !== id);
+        setLocalPat({...p, history: updated});
+        onUpdateTeeth(p.id, p.teeth, p.attachments, updated);
       },
     }),
     showMedCert && h(MedCertModal, {patient:patient, onClose:()=>setShowMedCert(false)}),
@@ -7794,7 +8568,7 @@ function RecordCardScanner({onExtracted, onClose}) {
     setErrorMsg('');
     try {
       const syncUrl = (() => {
-        try { return localStorage.getItem('cyrabell_sync_url') || ''; } catch(e) { return ''; }
+        try { return localStorage.getItem(LS_KEYS.SYNC_URL) || ''; } catch(e) { return ''; }
       })();
       // Pass mimeType correctly — some browsers give image/heic etc.
       const safeMime = (mime && mime.startsWith('image/')) ? mime : 'image/jpeg';
@@ -7987,7 +8761,7 @@ function RecordCardScanner({onExtracted, onClose}) {
 }
 
 
-function Patients({patients,setPatients,appointments,payments,addToast,syncUrl}){
+function Patients({patients,setPatients,appointments,payments,addToast,syncUrl,user}){
   const [search,setSearch]=useState('');
   const [modal,setModal]=useState(false);
   const [edit,setEdit]=useState(null);
@@ -7995,6 +8769,7 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
   const [showScanner,setShowScanner]=useState(false);    // OCR scanner modal
   const [scanPrefill,setScanPrefill]=useState(null);     // pre-filled data from scan
   const filtered=patients.filter(p=>!search||S(p.name).toLowerCase().includes(S(search).toLowerCase())||S(p.id).includes(S(search)));
+  const { pageItems: pagedPatients, PagerUI: PatientsPager } = usePagination(filtered);
   const save = d => {
     // Determine if this is editing an EXISTING patient or adding a NEW one.
     // PatForm now always provides d.id (generated inside handleSave for new patients),
@@ -8061,7 +8836,7 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
     h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
       h('thead',null,h('tr',null,['','Name','Phone','Blood','Dental','Balance',''].map(c=>h('th',{key:c},c)))),
       h('tbody',null,filtered.length===0?h('tr',null,h('td',{colSpan:7},h('div',{className:'empty'},'No patients found'))):
-        filtered.map(p=>{
+        pagedPatients.map(p=>{
           const issues = Object.values(p.teeth||{}).filter(v=>v&&v!=='healthy').length;
           return h('tr',{key:p.id},
             h('td',null,h(PatientPhoto,{patient:p,size:36,syncUrl:syncUrl})),
@@ -8077,10 +8852,10 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl})
           );
         })
       )
-    ))),
+    )),h(PatientsPager)),
     h('div',{className:'ml'},
       filtered.length===0&&h('div',{className:'empty'},'No patients found'),
-      filtered.map(p=>{
+      pagedPatients.map(p=>{
         const issues = Object.values(p.teeth||{}).filter(v=>v&&v!=='healthy').length;
         return h('div',{key:p.id,className:'mc'},
           h('div',{className:'mc-top'},
@@ -8157,7 +8932,7 @@ function PayForm({patients,onClose,onSave}){
         }
       })
     ),
-    h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>{s('service',e.target.value);const sv=SVCS.find(x=>x.name===e.target.value);if(sv)s('amount',sv.fee);}},h('option',{value:''},'Select service…'),Object.entries(SVCS_BY_CAT).map(([cat, svcs]) =>
+    h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>{s('service',e.target.value);const sv=getActiveSvcs().find(x=>x.name===e.target.value);if(sv)s('amount',sv.fee);}},h('option',{value:''},'Select service…'),Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
         h('optgroup', {key:cat, label:cat},
           svcs.map(sv => h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
         )
@@ -8184,6 +8959,7 @@ function Payments({payments,setPayments,patients,addToast}){
   const [modal,setModal]=useState(false);
   const [receipt,setReceipt]=useState(null);
   const filtered=payments.filter(p=>filter==='all'||p.status===filter);
+  const { pageItems: pagedPayments, PagerUI: PaymentsPager } = usePagination(filtered);
   const paid=payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
   const unpaid=payments.filter(p=>p.status==='unpaid').reduce((s,p)=>s+p.amount,0);
   const save=d=>{
@@ -8204,7 +8980,7 @@ function Payments({payments,setPayments,patients,addToast}){
     h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
       h('thead',null,h('tr',null,['Ref','Patient','Service','Amount','Method','Date','Status',''].map(c=>h('th',{key:c},c)))),
       h('tbody',null,filtered.length===0?h('tr',null,h('td',{colSpan:8},h('div',{className:'empty'},'No records'))):
-        filtered.map(p=>h('tr',{key:p.id},
+        pagedPayments.map(p=>h('tr',{key:p.id},
           h('td',null,h('code',{style:{fontSize:11,background:'var(--cr)',padding:'2px 6px',borderRadius:5}},p.ref)),
           h('td',null,h('strong',null,p.patientName)),
           h('td',null,p.service),
@@ -8215,10 +8991,10 @@ function Payments({payments,setPayments,patients,addToast}){
           h('td',null,h('button',{className:'btn bgh bsm',onClick:()=>setReceipt(p)},'Receipt'))
         ))
       )
-    ))),
+    )),h(PaymentsPager)),
     h('div',{className:'ml'},
       filtered.length===0&&h('div',{className:'empty'},'No payment records'),
-      filtered.map(p=>h('div',{key:p.id,className:'mc'},
+      pagedPayments.map(p=>h('div',{key:p.id,className:'mc'},
         h('div',{className:'mc-top'},
           h('div',null,h('div',{className:'mc-nm'},p.patientName),h('div',{className:'mc-sb'},p.service)),
           h('div',{style:{textAlign:'right'}},h('div',{style:{fontWeight:700,color:'var(--t)',fontSize:16}},'₱'+p$(p.amount)),h(SBadge,{status:p.status}))
@@ -8243,6 +9019,7 @@ const TMPL={
 };
 function Notifications({notifications,setNotifications,appointments,addToast}){
   const [tab,setTab]=useState('send');
+  const { pageItems: pagedNotifs, PagerUI: NotifsPager } = usePagination(notifications);
   const [ntype,setNtype]=useState('sms');
   const [apptId,setApptId]=useState('');
   const [tmpl,setTmpl]=useState('confirmation');
@@ -8255,7 +9032,7 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
   const send=async()=>{
     if(!curA||!preview)return;
     setSendingNow(true);
-    const syncUrl=(function(){try{return localStorage.getItem('cyrabell_sync_url')||'';}catch(e){return '';}})();
+    const syncUrl=(function(){try{return localStorage.getItem(LS_KEYS.SYNC_URL)||'';}catch(e){return '';}})();
     const patient={
       name:curA.patientName,
       phone:curA.phone,
@@ -8340,7 +9117,7 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
       h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
         h('thead',null,h('tr',null,['Type','Recipient','Contact','Message','Sent At','Status'].map(c=>h('th',{key:c},c)))),
         h('tbody',null,notifications.length===0?h('tr',null,h('td',{colSpan:6},h('div',{className:'empty'},'No notifications yet'))):
-          notifications.map(n=>h('tr',{key:n.id},
+          pagedNotifs.map(n=>h('tr',{key:n.id},
             h('td',null,h('span',{className:'tag',style:{background:n.type==='sms'?'#e8f5f3':'#e8eeff',color:n.type==='sms'?'var(--t)':'var(--bl)'}},n.type==='sms'?'📱 SMS':'📧 Email')),
             h('td',null,h('strong',null,n.recipient)),
             h('td',{style:{fontSize:12,color:'var(--md)'}},n.type==='sms'?n.phone:n.email),
@@ -8349,10 +9126,10 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
             h('td',null,h(SBadge,{status:n.status}))
           ))
         )
-      ))),
+      )),h(NotifsPager)),
       h('div',{className:'ml'},
         notifications.length===0&&h('div',{className:'empty'},'No notifications yet'),
-        notifications.map(n=>h('div',{key:n.id,className:'mc'},
+        pagedNotifs.map(n=>h('div',{key:n.id,className:'mc'},
           h('div',{className:'mc-top'},
             h('div',null,h('div',{className:'mc-nm'},n.recipient),h('div',{className:'mc-sb'},n.sentAt)),
             h('span',{className:'tag',style:{background:n.type==='sms'?'#e8f5f3':'#e8eeff',color:n.type==='sms'?'var(--t)':'var(--bl)'}},n.type==='sms'?'📱':'📧')
@@ -8521,7 +9298,7 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
     if(!type)return;
     let message = type.template(patient);
     if(isTest) message = '🧪 [TEST] ' + message;
-    const syncUrl = (function(){try{return localStorage.getItem('cyrabell_sync_url')||'';}catch(e){return '';}})();
+    const syncUrl = (function(){try{return localStorage.getItem(LS_KEYS.SYNC_URL)||'';}catch(e){return '';}})();
 
     if(isTest){
       addToast('🧪 Test send started for '+reminder.patientName+' on '+reminder.channels.length+' channel'+(reminder.channels.length>1?'s':'')+'…','info');
@@ -8707,14 +9484,14 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
   const [autoTrigger, setAutoTrigger] = useState(reminderAutoEnabled());
   const toggleAutoTrigger = () => {
     const v = !autoTrigger;
-    try { localStorage.setItem('cyrabell_reminder_auto', v?'true':'false'); } catch(e) {}
+    try { localStorage.setItem(LS_KEYS.REMINDER_AUTO, v?'true':'false'); } catch(e) {}
     setAutoTrigger(v);
     addToast(v ? '⏰ Daily auto-trigger enabled' : 'Daily auto-trigger disabled', 'info');
   };
   const forceRunNow = async () => {
     if (!confirm('Run reminder trigger now? This will send all DUE reminders immediately.')) return;
     // Force-reset the "last run today" so trigger isn't skipped
-    try { localStorage.setItem('cyrabell_reminder_last_run', ''); } catch(e) {}
+    try { localStorage.setItem(LS_KEYS.REMINDER_LAST_RUN, ''); } catch(e) {}
     await runDailyReminderTrigger(reminders, patients, setReminders, setReminderLog, addToast);
   };
 
@@ -8929,7 +9706,7 @@ function sanitizeDate(s) {
 // ✅ APPOINTMENT AVAILABILITY CHECKER
 // ═══════════════════════════════════════════════════════════════════════════
 
-const DEFAULT_SLOT_MIN = 45;
+const DEFAULT_SLOT_MIN = CONFIG.DEFAULT_SLOT_MIN;
 
 function timeToMinutes(t) {
   if (!t) return 0;
@@ -9060,7 +9837,7 @@ function AvailabilityBanner({appointments, date, time, service, excludeId}) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function autoConfirmEnabled() {
-  try { return localStorage.getItem('cyrabell_auto_confirm') === 'true'; }
+  try { return localStorage.getItem(LS_KEYS.AUTO_CONFIRM) === 'true'; }
   catch (e) { return false; }
 }
 
@@ -9135,7 +9912,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
   return h('div',null,
     h('div',{className:'ph'},
       h('div',null,
-        h('div',{className:'ptl'},'Good morning, Admin 👋'),
+        h('div',{className:'ptl'},(function(){var hr=new Date().getHours();var p=hr<12?'morning':hr<17?'afternoon':'evening';return 'Good '+p+' 👋';}())),
         h('div',{className:'psl'},'Welcome to Cyrabell Dental Management System')
       ),
       h('div',{className:'ph-act'},
@@ -9202,15 +9979,26 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ApptDetail — shows appointment details
-function ApptDetail({a,onClose}){
+function ApptDetail({a, onClose, syncUrl}){
+  const [viewing, setViewing] = useState(null);
   const rows=[['Patient',a.patientName],['Service',a.service],['Dentist',a.dentist],['Date',fmtDateFull(a.date)],['Time',fmtTime(a.time)],['When',fmtDateRelative(a.date)],['Fee','₱'+p$(a.fee)],['Phone',a.phone||'—'],['Email',a.email||'—'],['Notes',a.notes||'—']];
+  const atts = safe(a.attachments);
   return h(Modal,{title:'Appointment Details',sub:'#'+a.id,onClose,footer:h('button',{className:'btn bgh',onClick:onClose},'Close')},
     h('div',{style:{display:'flex',flexDirection:'column',gap:10}},
       rows.map(([l,v])=>h('div',{key:l,style:{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--bd)'}},
         h('span',{style:{color:'var(--md)',fontSize:12.5,textTransform:'uppercase',letterSpacing:.5}},l),
         h('span',{style:{fontWeight:600,maxWidth:'60%',textAlign:'right'}},v||'—')
-      ))
-    )
+      )),
+      atts.length > 0 && h('div',{style:{marginTop:8}},
+        h('div',{style:{color:'var(--md)',fontSize:12,textTransform:'uppercase',letterSpacing:.5,marginBottom:8,fontWeight:700}},
+          '📎 Attachments ('+atts.length+')'
+        ),
+        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+          atts.map(att => h(AttachThumb, {key:att.id, att, onClick:()=>setViewing(att)}))
+        )
+      )
+    ),
+    viewing && h(AttachmentViewer,{file:viewing, onClose:()=>setViewing(null)})
   );
 }
 
@@ -9308,11 +10096,10 @@ function PatientSearchInput({patients: patientsProp, value, onSelect, placeholde
     setCamOpen(false);
   };
   // File pick for photo
-  const pickPhoto = async (e) => {
+  const pickPhoto = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const dataUrl = await readFileAsDataUrl(file);
-    setNewF(x => ({...x, photoDataUrl: dataUrl}));
+    readFileAsDataUrl(file).then(url => setNewF(x => ({...x, photoDataUrl: url})));
     e.target.value = '';
   };
 
@@ -9589,10 +10376,12 @@ function highlightMatch(text, query) {
 }
 
 
-function ApptForm({patients,appointments,onClose,onSave,onAddPatient}){
+function ApptForm({patients,appointments,onClose,onSave,onAddPatient,syncUrl,addToast}){
   const [f,setF]=useState({patientId:'',patientName:'',service:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:'',fee:'',phone:'',email:'',attachments:[]});
   const [selectedPatient, setSelectedPatient] = useState(null);
-  // localPatients is managed inside PSI component now
+  // Always-current ref so async Drive-upload callbacks don't see stale f.attachments
+  const fRef = useRef(f);
+  fRef.current = f;
 
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
 
@@ -9621,7 +10410,7 @@ function ApptForm({patients,appointments,onClose,onSave,onAddPatient}){
     // Select them
     selectPatient(newPat);
   };
-  const hsv=n=>{const sv=SVCS.find(x=>x.name===n);s('service',n);if(sv)s('fee',sv.fee);};
+  const hsv=n=>{const sv=getActiveSvcs().find(x=>x.name===n);s('service',n);if(sv)s('fee',sv.fee);};
 
   const check = (f.date && f.time && f.service)
     ? checkAvailability(appointments || [], f.date, f.time, f.service)
@@ -9676,7 +10465,7 @@ function ApptForm({patients,appointments,onClose,onSave,onAddPatient}){
       )
     ),
     h('div',{className:'fg2'},
-      h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>hsv(e.target.value)},h('option',{value:''},'Select…'),Object.entries(SVCS_BY_CAT).map(([cat, svcs]) =>
+      h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>hsv(e.target.value)},h('option',{value:''},'Select…'),Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
         h('optgroup', {key:cat, label:cat},
           svcs.map(sv => h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
         )
@@ -9718,9 +10507,18 @@ function ApptForm({patients,appointments,onClose,onSave,onAddPatient}){
     h(AttachmentPanel, {
       attachments: safe(f.attachments),
       label: 'X-Rays & Clinical Photos',
-      onAdd: att => s('attachments', [...safe(f.attachments), att]),
-      onRemove: id => s('attachments', safe(f.attachments).filter(a=>a.id!==id)),
-      onUpdateNote: (id, note) => s('attachments', safe(f.attachments).map(a=>a.id===id?{...a,note}:a)),
+      syncUrl: syncUrl || '',
+      patientId: f.patientId || 'appt-draft',
+      addToast: addToast,
+      // Use fRef.current so async Drive-upload callbacks always see latest attachments
+      onAdd: att => setF(x => ({...x, attachments: [...safe(x.attachments), att]})),
+      onUpdate: (attId, newAtt) => setF(x => ({...x, attachments: safe(x.attachments).map(a=>a.id===attId?newAtt:a)})),
+      onRemove: id => {
+        const att = safe(fRef.current.attachments).find(a => a.id === id);
+        if (att && att.storage === 'idb') idbDelete(id).catch(()=>{});
+        setF(x => ({...x, attachments: safe(x.attachments).filter(a=>a.id!==id)}));
+      },
+      onUpdateNote: (id, note) => setF(x => ({...x, attachments: safe(x.attachments).map(a=>a.id===id?{...a,note}:a)})),
     })
   );
 }
@@ -9816,7 +10614,7 @@ function AppointmentCalendar({appointments, onDayClick}){
 }
 
 // Appointments — sortable table + calendar view + filters
-function Appointments({appointments,setAppointments,patients,setPatients,setNotifications,setPayments,addToast}){
+function Appointments({appointments,setAppointments,patients,setPatients,setNotifications,setPayments,addToast,syncUrl}){
   const [filter,setFilter]=useState('all');
   const [search,setSearch]=useState('');
   const [modal,setModal]=useState(false);
@@ -9847,6 +10645,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
     const cmp = (sortFns[sortBy] || sortFns.datetime)(a,b);
     return sortDir==='asc' ? cmp : -cmp;
   });
+  const { pageItems: pagedAppts, PagerUI: ApptsPager } = usePagination(filtered);
 
   const toggleSort = (col)=>{
     if (sortBy === col) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
@@ -9927,7 +10726,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
           h('th', null, 'Actions')
         )),
         h('tbody',null,filtered.length===0?h('tr',null,h('td',{colSpan:6},h('div',{className:'empty'},'No appointments found'))):
-          filtered.map(a=>h('tr',{key:a.id},
+          pagedAppts.map(a=>h('tr',{key:a.id},
             h('td',null,
               h('strong',null,a.patientName),
               a.arrived&&h('span',{className:'kiosk-arrived-badge',style:{marginLeft:6,fontSize:9}},'🪑'),
@@ -9948,10 +10747,10 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
             ))
           ))
         )
-      ))),
+      )),h(ApptsPager)),
       h('div',{className:'ml'},
         filtered.length===0&&h('div',{className:'empty'},'No appointments found'),
-        filtered.map(a=>h('div',{key:a.id,className:'mc'},
+        pagedAppts.map(a=>h('div',{key:a.id,className:'mc'},
           h('div',{className:'mc-top'},
             h('div',null,
               h('div',{className:'mc-nm'},a.patientName,a.arrived&&h('span',{style:{marginLeft:6,fontSize:13}},'🪑')),
@@ -10001,7 +10800,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
       )
     ),
 
-    modal&&h(ApptForm,{patients,appointments,onClose:()=>setModal(false),onAddPatient:(np)=>{if(setPatients)setPatients(prev=>[np,...prev.filter(x=>x.id!==np.id)]);},onSave:d=>{
+    modal&&h(ApptForm,{patients,appointments,syncUrl,addToast,onClose:()=>setModal(false),onAddPatient:(np)=>{if(setPatients)setPatients(prev=>[np,...prev.filter(x=>x.id!==np.id)]);},onSave:d=>{
       const status = autoConfirmEnabled() ? 'confirmed' : 'pending';
       const newAppt = {...d,id:'A'+uid(),status,arrived:false};
       setAppointments(p=>[newAppt,...p]);
@@ -10047,7 +10846,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
         }, ...prev]);
       }
     }}),
-    detail&&h(ApptDetail,{a:detail,onClose:()=>setDetail(null)}),
+    detail&&h(ApptDetail,{a:detail,syncUrl,onClose:()=>setDetail(null)}),
     showAnalysis && h(ConflictAnalysisModal, {appointments, onClose: ()=>setShowAnalysis(false)})
   );
 }
@@ -10058,7 +10857,7 @@ function AutoConfirmBanner({appointments, setAppointments, addToast}){
 
   const toggle = () => {
     const newVal = !enabled;
-    try { localStorage.setItem('cyrabell_auto_confirm', newVal ? 'true' : 'false'); } catch (e) {}
+    try { localStorage.setItem(LS_KEYS.AUTO_CONFIRM, newVal ? 'true' : 'false'); } catch (e) {}
     setEnabled(newVal);
     addToast(newVal ? '✓ Auto-confirm enabled' : 'Auto-confirm disabled', 'info');
   };
@@ -10195,10 +10994,130 @@ function applyDataBlob(blob, setters) {
   if (Array.isArray(blob.reminderLog))   setters.setReminderLog(blob.reminderLog);
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// 🛠️  SERVICES PAGE  (Finding #20)
+//
+// Admin-only page to add, edit, delete service catalog entries.
+// Services are stored in localStorage under LS_KEYS.SERVICES.
+// Falls back to the default SVCS array on first load.
+// ══════════════════════════════════════════════════════════════════════════════
+function ServicesPage({addToast}){
+  const loadServices = () => {
+    try {
+      const raw = localStorage.getItem(LS_KEYS.SERVICES);
+      if (raw) { const d = JSON.parse(raw); if (Array.isArray(d)) return d; }
+    } catch(e){}
+    return SVCS.map(s => ({...s})); // copy of defaults
+  };
+  const [services, setServices] = useState(loadServices);
+  const [editing, setEditing] = useState(null); // null | 'new' | {index, item}
+  const [form, setForm] = useState({name:'', fee:'', cat:''});
+  const cats = [...new Set(services.map(s => s.cat))].sort();
+
+  const save = () => {
+    try { localStorage.setItem(LS_KEYS.SERVICES, JSON.stringify(services)); } catch(e){}
+  };
+
+  const openNew = () => { setForm({name:'', fee:'', cat:'Consultation'}); setEditing('new'); };
+  const openEdit = (i) => { setForm({...services[i]}); setEditing({index:i, item:services[i]}); };
+  const closeEdit = () => setEditing(null);
+
+  const saveForm = () => {
+    if (!form.name.trim() || !form.fee || !form.cat.trim()) {
+      addToast('Name, fee, and category are required', 'error'); return;
+    }
+    const entry = {name: form.name.trim(), fee: +form.fee, cat: form.cat.trim()};
+    let updated;
+    if (editing === 'new') {
+      updated = [...services, entry];
+    } else {
+      updated = services.map((s, i) => i === editing.index ? entry : s);
+    }
+    setServices(updated);
+    try { localStorage.setItem(LS_KEYS.SERVICES, JSON.stringify(updated)); } catch(e){}
+    addToast(editing === 'new' ? 'Service added!' : 'Service updated!', 'success');
+    setEditing(null);
+  };
+
+  const del = (i) => {
+    if (!confirm('Delete service "' + services[i].name + '"?')) return;
+    const updated = services.filter((_, j) => j !== i);
+    setServices(updated);
+    try { localStorage.setItem(LS_KEYS.SERVICES, JSON.stringify(updated)); } catch(e){}
+    addToast('Service deleted', 'info');
+  };
+
+  const reset = () => {
+    if (!confirm('Reset to default service catalog? This cannot be undone.')) return;
+    const defaults = SVCS.map(s => ({...s}));
+    setServices(defaults);
+    try { localStorage.setItem(LS_KEYS.SERVICES, JSON.stringify(defaults)); } catch(e){}
+    addToast('Service catalog reset to defaults', 'success');
+  };
+
+  return h('div', null,
+    h('div', {className:'ph'},
+      h('div', null,
+        h('div', {className:'ptl'}, 'Service Catalog'),
+        h('div', {className:'psl'}, 'Manage available dental services and fees')
+      ),
+      h('div', {className:'ph-act'},
+        h('button', {className:'btn bgh bsm', onClick:reset}, '↺ Reset Defaults'),
+        h('button', {className:'btn bp', onClick:openNew}, '+ Add Service')
+      )
+    ),
+    h('div', {className:'card dt'},
+      h('div', {className:'tw'},
+        h('table', null,
+          h('thead', null, h('tr', null,
+            h('th', null, 'Service Name'),
+            h('th', null, 'Category'),
+            h('th', null, 'Fee (₱)'),
+            h('th', null, '')
+          )),
+          h('tbody', null,
+            services.length === 0
+              ? h('tr', null, h('td', {colSpan:4}, h('div', {className:'empty'}, 'No services')))
+              : services.map((sv, i) => h('tr', {key:i},
+                  h('td', null, sv.name),
+                  h('td', null, h('span', {className:'tag', style:{background:'#e8eeff',color:'var(--bl)'}}, sv.cat)),
+                  h('td', {style:{fontWeight:700, color:'var(--t)'}}, '₱' + p$(sv.fee)),
+                  h('td', null, h('div', {className:'gap8'},
+                    h('button', {className:'btn bgh bsm', onClick:()=>openEdit(i)}, '✏️'),
+                    h('button', {className:'btn bd2 bsm', onClick:()=>del(i)}, '🗑')
+                  ))
+                ))
+          )
+        )
+      )
+    ),
+    editing && h(Modal, {
+      title: editing === 'new' ? 'Add Service' : 'Edit Service',
+      onClose: closeEdit,
+      footer: h(Fragment, null,
+        h('button', {className:'btn bgh', onClick:closeEdit}, 'Cancel'),
+        h('button', {className:'btn bp', onClick:saveForm}, editing === 'new' ? 'Add' : 'Save')
+      )
+    },
+      h(Field, {label:'Service Name *'},
+        h('input', {type:'text', value:form.name, onChange:e=>setForm(p=>({...p,name:e.target.value})), placeholder:'e.g. Teeth Cleaning'})
+      ),
+      h(Field, {label:'Category *'},
+        h('input', {type:'text', value:form.cat, onChange:e=>setForm(p=>({...p,cat:e.target.value})),
+          placeholder:'e.g. Prophylaxis', list:'svc-cats-list'}),
+        h('datalist', {id:'svc-cats-list'}, cats.map(c => h('option', {key:c, value:c})))
+      ),
+      h(Field, {label:'Fee (₱) *'},
+        h('input', {type:'number', value:form.fee, onChange:e=>setForm(p=>({...p,fee:e.target.value})), placeholder:'0', min:'0'})
+      )
+    )
+  );
+}
+
 function SyncPage({patients, appointments, payments, notifications, reminders, reminderLog, setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, addToast}){
-  const [url, setUrl] = useState(()=>lsGet('cyrabell_sync_url', ''));
-  const [autoSync, setAutoSync] = useState(()=>lsGet('cyrabell_auto_sync','true')!=='false');
-  const [lastSync, setLastSync] = useState(()=>lsGet('cyrabell_last_sync',''));
+  const [url, setUrl] = useState(()=>lsGet(LS_KEYS.SYNC_URL, ''));
+  const [autoSync, setAutoSync] = useState(()=>lsGet(LS_KEYS.AUTO_SYNC,'true')!=='false');
+  const [lastSync, setLastSync] = useState(()=>lsGet(LS_KEYS.LAST_SYNC,''));
   const [busy, setBusy] = useState(null);
   const [log, setLog] = useState([]);
   const fileInputRef = useRef(null);
@@ -10217,7 +11136,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
 
   const saveUrl = (v)=>{
     setUrl(v);
-    lsSet('cyrabell_sync_url', v);
+    lsSet(LS_KEYS.SYNC_URL, v);
   };
 
   const isValidUrl = url && /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec\b/.test(url);
@@ -10267,7 +11186,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
       if (data.ok) {
         const now = new Date().toLocaleString();
         setLastSync(now);
-        lsSet('cyrabell_last_sync', now);
+        lsSet(LS_KEYS.LAST_SYNC, now);
         addLog('✅ Pushed ' + Object.values(data.stats||{}).reduce((a,b)=>a+b,0) + ' rows', 'ok');
         addToast('Pushed to Google Sheets!', 'success');
       } else {
@@ -10297,7 +11216,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
         applyDataBlob(data.data, {setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog});
         const now = new Date().toLocaleString();
         setLastSync(now);
-        lsSet('cyrabell_last_sync', now);
+        lsSet(LS_KEYS.LAST_SYNC, now);
         const total = Object.values(data.data||{}).reduce((s,arr)=>s+(Array.isArray(arr)?arr.length:0),0);
         addLog('✅ Pulled ' + total + ' records', 'ok');
         addToast('Pulled from Google Sheets!', 'success');
@@ -10409,7 +11328,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
 
   // Auto-sync timer
   useEffect(()=>{
-    lsSet('cyrabell_auto_sync', autoSync ? 'true' : 'false');
+    lsSet(LS_KEYS.AUTO_SYNC, autoSync ? 'true' : 'false');
     if (!autoSync || !isValidUrl) return;
     const t = setInterval(()=>{
       if (!busy) pushToSheets();
@@ -10533,14 +11452,14 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
           h('div',{style:{fontWeight:700,fontSize:14}},'💾 Local Cache'),
           h('div',{style:{display:'flex',gap:6}},
             h('button',{className:'btn bg2 bsm',onClick:()=>{
-              const ks=['cyrabell_v2_patients','cyrabell_v2_appointments','cyrabell_v2_payments',
-                        'cyrabell_v2_notifications','cyrabell_v2_reminders','cyrabell_v2_reminderLog'];
+              const ks=[LS_KEYS.PATIENTS,LS_KEYS.APPOINTMENTS,LS_KEYS.PAYMENTS,
+                        LS_KEYS.NOTIFICATIONS,LS_KEYS.REMINDERS,LS_KEYS.REMINDER_LOG];
               addToast('Cache: '+ks.map(k=>{try{const v=localStorage.getItem(k);return k.replace('cyrabell_v2_','')+':'+(v?Math.round(v.length/1024)+'KB':'0');}catch(e){return '';}}).join(' '),  'info');
             }},'📊 Size'),
             h('button',{className:'btn bd2 bsm',onClick:()=>{
               if(!confirm('Clear local cache? Demo data will show until you log in again. Google Sheets is unaffected.')) return;
-              ['cyrabell_v2_patients','cyrabell_v2_appointments','cyrabell_v2_payments',
-               'cyrabell_v2_notifications','cyrabell_v2_reminders','cyrabell_v2_reminderLog']
+              [LS_KEYS.PATIENTS,LS_KEYS.APPOINTMENTS,LS_KEYS.PAYMENTS,
+               LS_KEYS.NOTIFICATIONS,LS_KEYS.REMINDERS,LS_KEYS.REMINDER_LOG]
                 .forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
               addToast('Cache cleared','info');
             }},'🗑 Clear')
@@ -10923,7 +11842,7 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
             style:{fontSize:14},
           },
             h('option',{value:''},'— Choose a service —'),
-            Object.entries(SVCS_BY_CAT).map(([cat, svcs]) =>
+            Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
               h('optgroup',{key:cat, label:cat},
                 svcs.map(sv => h('option',{key:sv.name, value:sv.name},
                   sv.name + ' — ₱' + p$(sv.fee)
@@ -11099,7 +12018,7 @@ function LogsViewer({addToast}) {
   const clearLogs = () => {
     if (!confirm('Clear all logs? This cannot be undone.')) return;
     window.__cyrabellLogs.length = 0;
-    try { localStorage.removeItem('cyrabell_error_log'); } catch(e){}
+    try { localStorage.removeItem(LS_KEYS.ERROR_LOG); } catch(e){}
     setLogs([]);
     addToast('Logs cleared', 'info');
   };
@@ -11257,7 +12176,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
   const [sideOpen,setSideOpen]=useState(false);
   // Read sync URL from localStorage so PatForm/Patients can upload photos.
   // It gets set by the Sync page. Re-read on every render is cheap.
-  const syncUrl = (function(){ try { return localStorage.getItem('cyrabell_sync_url') || ''; } catch(e) { return ''; } })();
+  const syncUrl = (function(){ try { return localStorage.getItem(LS_KEYS.SYNC_URL) || ''; } catch(e) { return ''; } })();
   const pending=appointments.filter(a=>a.status==='pending').length;
   const today=localToday();
   const dueRemindersCount=reminders.filter(r=>r.active&&r.nextDue<=today).length;
@@ -11271,11 +12190,12 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
     {id:'payments',l:'Payments',d:IC.credit},
     {id:'reminders',l:'Reminders',d:IC.repeat,badge:dueRemindersCount||null,sec:'TOOLS'},
     {id:'notifications',l:'Notifications',d:IC.bell},
-    {id:'sync',l:'Sync & Backup',d:IC.cloud},
-    {id:'export',l:'Export',d:IC.dl},
-    {id:'analytics',l:'Analytics',d:IC.report},
-    {id:'logs', l:'🪵 Logs', d:IC.bell, sec:''},
-  ];
+    canDo(user,'edit_services')&&{id:'services',l:'Service Catalog',d:IC.credit,sec:'SETTINGS'},
+    canDo(user,'view_sync')&&{id:'sync',l:'Sync & Backup',d:IC.cloud},
+    canDo(user,'export_data')&&{id:'export',l:'Export',d:IC.dl},
+    canDo(user,'view_analytics')&&{id:'analytics',l:'Analytics',d:IC.report},
+    canDo(user,'view_logs')&&{id:'logs', l:'🪵 Logs', d:IC.bell, sec:''},
+  ].filter(Boolean);
   const BOT=[
     {id:'dashboard',l:'Home',d:IC.dash},
     {id:'appointments',l:'Visits',d:IC.cal,badge:pending||null},
@@ -11293,15 +12213,16 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
   const renderPage = () => {
     try {
       if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments),onGoKiosk});
-      if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast});
-      if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),payments:safe(payments),addToast,syncUrl});
+      if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast,syncUrl});
+      if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),payments:safe(payments),addToast,syncUrl,user});
       if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),addToast});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
-      if(page==='sync')return h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,addToast});
+      if(page==='services')return canDo(user,'edit_services')?h(ServicesPage,{addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+      if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='notifications')return h(Notifications,{notifications:safe(notifications),setNotifications,appointments:safe(appointments),addToast});
-      if(page==='export')return h(ExportPage,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments)});
-      if(page==='analytics')return h(Analytics,{appointments:safe(appointments),payments:safe(payments),patients:safe(patients)});
-      if(page==='logs') return h(ErrorBoundary,null,h(LogsViewer,{addToast}));
+      if(page==='export')return canDo(user,'export_data')?h(ExportPage,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+      if(page==='analytics')return canDo(user,'view_analytics')?h(Analytics,{appointments:safe(appointments),payments:safe(payments),patients:safe(patients)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+      if(page==='logs') return canDo(user,'view_logs')?h(ErrorBoundary,null,h(LogsViewer,{addToast})):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       return h('div',{style:{padding:30,textAlign:'center',color:'var(--md)'}}, 'Page not found: ' + page);
     } catch (err) {
       console.error('[renderPage]', err);
@@ -11504,7 +12425,7 @@ function getSyncWorker() {
         __autoSync.lastError = null;
         __autoSync.inFlight = false;
         __autoSync.notify('synced', { rows: m.rows, time: m.time });
-        try { localStorage.setItem('cyrabell_last_sync', new Date().toLocaleString()); } catch (e) {}
+        try { localStorage.setItem(LS_KEYS.LAST_SYNC, new Date().toLocaleString()); } catch (e) {}
       } else if (m.type === 'error') {
         asLog('worker:error', m.message);
         __autoSync.lastError = m.message;
@@ -11571,7 +12492,7 @@ async function performAutoPushMain(syncUrl, data) {
     if (!result.ok) throw new Error(result.error || 'Sync failed');
     const totalRows = Object.values(result.stats || {}).reduce(function(a,b){return a+b;}, 0);
     __autoSync.notify('synced', { rows: totalRows, time: new Date().toLocaleTimeString() });
-    try { localStorage.setItem('cyrabell_last_sync', new Date().toLocaleString()); } catch (e) {}
+    try { localStorage.setItem(LS_KEYS.LAST_SYNC, new Date().toLocaleString()); } catch (e) {}
   } catch (err) {
     asLog('push:error', err.message);
     __autoSync.lastError = err.message;
@@ -11644,7 +12565,7 @@ function useSyncStatus() {
 function SyncStatusBadge() {
   const { status, extra } = useSyncStatus();
   const [autoSyncEnabled] = useState(() => {
-    try { return localStorage.getItem('cyrabell_auto_sync') !== 'false'; }
+    try { return localStorage.getItem(LS_KEYS.AUTO_SYNC) !== 'false'; }
     catch (e) { return true; }
   });
 
@@ -11748,19 +12669,20 @@ function App(){
   // 'login' | 'admin' | 'kiosk' | 'booking'
   const [view,setView]=useState('login');
   const [user,setUser]=useState(null);
-  const [patients,setPatients]=useState(()=>{try{const s=localStorage.getItem('cyrabell_v2_patients');if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length>0)return d;}}catch(e){}return INIT_P;});
-  const [appointments,setAppointments]=useState(()=>{try{const s=localStorage.getItem('cyrabell_v2_appointments');if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_A;});
-  const [payments,setPayments]=useState(()=>{try{const s=localStorage.getItem('cyrabell_v2_payments');if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_PAY;});
-  const [notifications,setNotifications]=useState(()=>{try{const s=localStorage.getItem('cyrabell_v2_notifications');if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_N;});
-  const [reminders,setReminders]=useState(()=>{try{const s=localStorage.getItem('cyrabell_v2_reminders');if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_REMINDERS;});
-  const [reminderLog,setReminderLog]=useState(()=>{try{const s=localStorage.getItem('cyrabell_v2_reminderLog');if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_REMINDER_LOG;});
+  const logoutRef = useRef(null);
+  const [patients,setPatients]=useState(()=>{try{const s=localStorage.getItem(LS_KEYS.PATIENTS);if(s){const d=JSON.parse(s);if(Array.isArray(d)&&d.length>0)return d;}}catch(e){}return INIT_P;});
+  const [appointments,setAppointments]=useState(()=>{try{const s=localStorage.getItem(LS_KEYS.APPOINTMENTS);if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_A;});
+  const [payments,setPayments]=useState(()=>{try{const s=localStorage.getItem(LS_KEYS.PAYMENTS);if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_PAY;});
+  const [notifications,setNotifications]=useState(()=>{try{const s=localStorage.getItem(LS_KEYS.NOTIFICATIONS);if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_N;});
+  const [reminders,setReminders]=useState(()=>{try{const s=localStorage.getItem(LS_KEYS.REMINDERS);if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_REMINDERS;});
+  const [reminderLog,setReminderLog]=useState(()=>{try{const s=localStorage.getItem(LS_KEYS.REMINDER_LOG);if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_REMINDER_LOG;});
   const [toasts,setToasts]=useState([]);
 
   // ───── INITIAL PULL: Google Sheets is the source of truth ─────
   // bootState: 'pulling' | 'ready' | 'no-sync' | 'pull-failed'
   const [bootState, setBootState] = useState(()=>{
     let syncUrl = '';
-    try { syncUrl = localStorage.getItem('cyrabell_sync_url') || ''; } catch (e) {}
+    try { syncUrl = localStorage.getItem(LS_KEYS.SYNC_URL) || ''; } catch (e) {}
     return syncUrl ? 'pulling' : 'no-sync';
   });
   const [bootError, setBootError] = useState('');
@@ -11772,7 +12694,7 @@ function App(){
   // Run the initial pull ONCE on mount
   useEffect(() => {
     let syncUrl = '';
-    try { syncUrl = localStorage.getItem('cyrabell_sync_url') || ''; } catch (e) {}
+    try { syncUrl = localStorage.getItem(LS_KEYS.SYNC_URL) || ''; } catch (e) {}
 
     if (!syncUrl) {
       asLog('boot:no-sync-url-configured');
@@ -11813,12 +12735,12 @@ function App(){
         });
         // Update localStorage cache with fresh Sheets data
         try {
-          if(data.patients)      localStorage.setItem('cyrabell_v2_patients',      JSON.stringify(data.patients));
-          if(data.appointments)  localStorage.setItem('cyrabell_v2_appointments',  JSON.stringify(data.appointments));
-          if(data.payments)      localStorage.setItem('cyrabell_v2_payments',      JSON.stringify(data.payments));
-          if(data.notifications) localStorage.setItem('cyrabell_v2_notifications', JSON.stringify(data.notifications));
-          if(data.reminders)     localStorage.setItem('cyrabell_v2_reminders',     JSON.stringify(data.reminders));
-          if(data.reminderLog)   localStorage.setItem('cyrabell_v2_reminderLog',   JSON.stringify(data.reminderLog));
+          if(data.patients)      localStorage.setItem(LS_KEYS.PATIENTS,      JSON.stringify(data.patients));
+          if(data.appointments)  localStorage.setItem(LS_KEYS.APPOINTMENTS,  JSON.stringify(data.appointments));
+          if(data.payments)      localStorage.setItem(LS_KEYS.PAYMENTS,      JSON.stringify(data.payments));
+          if(data.notifications) localStorage.setItem(LS_KEYS.NOTIFICATIONS, JSON.stringify(data.notifications));
+          if(data.reminders)     localStorage.setItem(LS_KEYS.REMINDERS,     JSON.stringify(data.reminders));
+          if(data.reminderLog)   localStorage.setItem(LS_KEYS.REMINDER_LOG,   JSON.stringify(data.reminderLog));
         } catch(e) { console.warn('[boot] localStorage cache update failed:', e.message); }
 
         // Detect first-time-empty: if every table is empty, seed with demo data
@@ -11873,8 +12795,62 @@ function App(){
             ...r, lastSent: fixDateStr(r.lastSent), nextDue: fixDateStr(r.nextDue)
           }));
 
-          // Replace local state with sheet data (sheets is source of truth)
-          if (Array.isArray(data.patients))      setPatients(cleanedPatients);
+          // Replace local state with sheet data (sheets is source of truth).
+          // IMPORTANT: Sheets strips images >30KB before pushing, so the pulled
+          // patients will have empty dataUrl fields. We merge Sheets metadata with
+          // locally-stored images so attachments survive a page refresh.
+          if (Array.isArray(data.patients)) {
+            let localPatients = [];
+            try {
+              const ls = localStorage.getItem(LS_KEYS.PATIENTS);
+              if (ls) localPatients = JSON.parse(ls) || [];
+            } catch(e) {}
+            // Build a quick lookup: patientId → local attachment/history arrays (with images)
+            const localById = {};
+            localPatients.forEach(p => { localById[p.id] = p; });
+            // Merge: take all metadata from Sheets, but restore local dataUrls where Sheets stripped them
+            const mergedPatients = cleanedPatients.map(sp => {
+              const lp = localById[sp.id];
+              if (!lp) return sp;
+              // Restore attachment dataUrls that Sheets stripped
+              const sheetAttIds = new Set((sp.attachments || []).map(a => a.id));
+              const mergedAtts = (sp.attachments || []).map(sa => {
+                if (sa.dataUrl) return sa; // Sheets has the data (small file) — keep it
+                const la = (lp.attachments || []).find(a => a.id === sa.id);
+                return la ? {...sa, dataUrl: la.dataUrl || ''} : sa;
+              });
+              // Preserve local-only attachments not yet pushed to Sheets
+              const localOnlyAtts = (lp.attachments || []).filter(a => !sheetAttIds.has(a.id));
+              const finalAtts = [...mergedAtts, ...localOnlyAtts];
+              // Restore history scanImageUrls and nested attachment dataUrls
+              const sheetHistIds = new Set((sp.history || []).map(h => h.id));
+              const mergedHist = (sp.history || []).map(sh => {
+                const lh = (lp.history || []).find(h => h.id === sh.id);
+                if (!lh) return sh;
+                const restoredAtts = (sh.attachments || []).map(sa => {
+                  if (sa.dataUrl) return sa;
+                  const la = (lh.attachments || []).find(a => a.id === sa.id);
+                  return la ? {...sa, dataUrl: la.dataUrl || ''} : sa;
+                });
+                return {
+                  ...sh,
+                  scanImageUrl: sh.scanImageUrl || lh.scanImageUrl || '',
+                  attachments: restoredAtts,
+                };
+              });
+              // Preserve local-only history entries not yet pushed to Sheets
+              const localOnlyHist = (lp.history || []).filter(h => !sheetHistIds.has(h.id));
+              const finalHist = [...mergedHist, ...localOnlyHist];
+              // Restore patient photo if Sheets stripped it
+              return {
+                ...sp,
+                photoDataUrl: sp.photoDataUrl || lp.photoDataUrl || '',
+                attachments: finalAtts,
+                history: finalHist,
+              };
+            });
+            setPatients(mergedPatients);
+          }
           if (Array.isArray(data.appointments))  setAppointments(cleanedAppts);
           if (Array.isArray(data.payments))      setPayments(cleanedPays);
           if (Array.isArray(data.notifications)) setNotifications(data.notifications);
@@ -11944,9 +12920,9 @@ function App(){
     if (!user) return;  // never sync from login screen
 
     let syncUrl = '';
-    try { syncUrl = localStorage.getItem('cyrabell_sync_url') || ''; } catch (e) {}
+    try { syncUrl = localStorage.getItem(LS_KEYS.SYNC_URL) || ''; } catch (e) {}
     let autoEnabled = true;
-    try { autoEnabled = localStorage.getItem('cyrabell_auto_sync') !== 'false'; } catch (e) {}
+    try { autoEnabled = localStorage.getItem(LS_KEYS.AUTO_SYNC) !== 'false'; } catch (e) {}
     if (!autoEnabled) {
       asLog('app:auto-disabled');
       return;
@@ -12013,33 +12989,40 @@ function App(){
     if (!user) return;
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem('cyrabell_v2_patients',      JSON.stringify(patients));
-        localStorage.setItem('cyrabell_v2_appointments',  JSON.stringify(appointments));
-        localStorage.setItem('cyrabell_v2_payments',      JSON.stringify(payments));
-        localStorage.setItem('cyrabell_v2_notifications', JSON.stringify(notifications));
-        localStorage.setItem('cyrabell_v2_reminders',     JSON.stringify(reminders));
-        localStorage.setItem('cyrabell_v2_reminderLog',   JSON.stringify(reminderLog));
+        localStorage.setItem(LS_KEYS.PATIENTS,      JSON.stringify(patients));
+        localStorage.setItem(LS_KEYS.APPOINTMENTS,  JSON.stringify(appointments));
+        localStorage.setItem(LS_KEYS.PAYMENTS,      JSON.stringify(payments));
+        localStorage.setItem(LS_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
+        localStorage.setItem(LS_KEYS.REMINDERS,     JSON.stringify(reminders));
+        localStorage.setItem(LS_KEYS.REMINDER_LOG,   JSON.stringify(reminderLog));
       } catch(e) {
-        // Quota exceeded — strip very large dataUrls (> 100KB) and retry
+        // Quota exceeded — only strip patient profile photos (large, re-uploadable).
+        // NEVER strip attachment dataUrls — those are the user's clinical files and
+        // cannot be re-created if lost. If quota is still exceeded after photo strip,
+        // warn the user rather than silently deleting their files.
         try {
-          const slim = patients.map(p => {
-            const r = {...p};
-            const strip = url => (url && url.length > 102400) ? '' : url;
-            if (r.attachments) r.attachments = r.attachments.map(a => ({...a, dataUrl: strip(a.dataUrl)}));
-            if (r.history)     r.history     = r.history.map(h => ({...h,
-              scanImageUrl: strip(h.scanImageUrl),
-              attachments: h.attachments ? h.attachments.map(a=>({...a,dataUrl:strip(a.dataUrl)})) : h.attachments,
-            }));
-            return r;
-          });
-          localStorage.setItem('cyrabell_v2_patients',      JSON.stringify(slim));
-          localStorage.setItem('cyrabell_v2_appointments',  JSON.stringify(appointments));
-          localStorage.setItem('cyrabell_v2_payments',      JSON.stringify(payments));
-          localStorage.setItem('cyrabell_v2_notifications', JSON.stringify(notifications));
-          localStorage.setItem('cyrabell_v2_reminders',     JSON.stringify(reminders));
-          localStorage.setItem('cyrabell_v2_reminderLog',   JSON.stringify(reminderLog));
-          console.warn('[localsave] Stripped very large (>100KB) images to fit storage quota');
+          const slim = patients.map(p => ({
+            ...p,
+            // Strip large profile photo (re-uploadable)
+            photoDataUrl: (p.photoDataUrl && p.photoDataUrl.length > 51200) ? '' : (p.photoDataUrl || ''),
+            // Strip large scanImageUrls from history (base64 scans can be 500KB+)
+            // Drive attachment driveEmbedUrls are short URLs — never stripped
+            history: safe(p.history).map(h => ({
+              ...h,
+              scanImageUrl: (h.scanImageUrl && h.scanImageUrl.length > 51200) ? '' : (h.scanImageUrl || ''),
+            })),
+          }));
+          localStorage.setItem(LS_KEYS.PATIENTS,      JSON.stringify(slim));
+          localStorage.setItem(LS_KEYS.APPOINTMENTS,  JSON.stringify(appointments));
+          localStorage.setItem(LS_KEYS.PAYMENTS,      JSON.stringify(payments));
+          localStorage.setItem(LS_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
+          localStorage.setItem(LS_KEYS.REMINDERS,     JSON.stringify(reminders));
+          localStorage.setItem(LS_KEYS.REMINDER_LOG,   JSON.stringify(reminderLog));
+          console.warn('[localsave] Stripped large profile photos to fit storage quota; attachments preserved');
         } catch(e2) {
+          if (e2 && (e2.name === 'QuotaExceededError' || e2.code === 22)) {
+            addToast('⚠️ Storage almost full — export your data or remove unused attachments to free space', 'error');
+          }
           console.warn('[localsave] Storage full:', e2.message);
         }
       }
@@ -12048,46 +13031,7 @@ function App(){
   }, [patients, appointments, payments, notifications, reminders, reminderLog, user]);
 
 
-  // ── Persist full state to localStorage on every change ──────────────────
-  // This preserves attachments, history images, and all patient data across
-  // page refreshes — even when Google Sheets sync is not configured.
-  // NOTE: stores FULL dataUrls (unlike Sheets sync which strips them).
-  useEffect(() => {
-    if (!user) return; // don't save while not logged in
-    const timer = setTimeout(() => {
-      try {
-        // Save patients with full attachment dataUrls
-        localStorage.setItem('cyrabell_v2_patients', JSON.stringify(patients));
-        localStorage.setItem('cyrabell_v2_appointments', JSON.stringify(appointments));
-        localStorage.setItem('cyrabell_v2_payments', JSON.stringify(payments));
-        localStorage.setItem('cyrabell_v2_notifications', JSON.stringify(notifications));
-        localStorage.setItem('cyrabell_v2_reminders', JSON.stringify(reminders));
-        localStorage.setItem('cyrabell_v2_reminderLog', JSON.stringify(reminderLog));
-        window.logEvent && window.logEvent('localsave', 'State saved to localStorage', {
-          patients: patients.length, appointments: appointments.length
-        });
-      } catch(e) {
-        // localStorage may be full — try stripping large dataUrls before saving
-        try {
-          const slim = patients.map(p => {
-            const r = {...p};
-            if (r.attachments) r.attachments = r.attachments.map(a => ({...a, dataUrl: a.dataUrl && a.dataUrl.length > 100000 ? '' : a.dataUrl}));
-            if (r.history)     r.history     = r.history.map(h => ({...h,
-              scanImageUrl: h.scanImageUrl && h.scanImageUrl.length > 100000 ? '' : h.scanImageUrl,
-              attachments: h.attachments ? h.attachments.map(a => ({...a, dataUrl: a.dataUrl && a.dataUrl.length > 100000 ? '' : a.dataUrl})) : h.attachments,
-            }));
-            return r;
-          });
-          localStorage.setItem('cyrabell_v2_patients', JSON.stringify(slim));
-          localStorage.setItem('cyrabell_v2_appointments', JSON.stringify(appointments));
-          console.warn('[localsave] Stripped large images to fit localStorage quota');
-        } catch(e2) {
-          console.warn('[localsave] localStorage full, cannot save:', e2.message);
-        }
-      }
-    }, 500); // 500ms debounce
-    return () => clearTimeout(timer);
-  }, [patients, appointments, payments, notifications, reminders, reminderLog, user]);
+  // (duplicate localStorage save effect removed — the single effect above handles all saves)
 
 
 
@@ -12097,12 +13041,33 @@ function App(){
     setTimeout(()=>setToasts(p=>p.filter(t=>t.id!==id)),3500);
   };
 
-  const handleAuth=(authedUser)=>{
+  const handleAuth=(authedUser, plainPwd)=>{
     setUser(authedUser);
     setView('admin');
+    // Derive AES-256-GCM key from password for PHI encryption (Finding #3)
+    if (CONFIG.ENCRYPT_LOCALSTORAGE && plainPwd) {
+      initCryptoKey(plainPwd).catch(e => console.warn('[crypto] init failed', e));
+    }
+    // Run data migration to fill in any new required fields (Finding #22)
+    // We do this here so the migrated data gets persisted on the next save cycle
+    setPatients(prev => {
+      const result = runDataMigration(prev, [], [], []);
+      return result.patients;
+    });
+    setAppointments(prev => {
+      const result = runDataMigration([], prev, [], []);
+      return result.appointments;
+    });
+    // Start inactivity timeout — clears session after CONFIG.SESSION_TIMEOUT_MS
+    startSessionTimer(function(){
+      addToast('Session expired due to inactivity.','info');
+      if(logoutRef.current) logoutRef.current();
+    });
     addToast('Welcome back, '+(authedUser.name||authedUser.username)+'!','success');
   };
   const handleLogout=()=>{
+    clearCryptoKey(); // clear in-memory encryption key on logout (Finding #3)
+    stopSessionTimer();
     setUser(null);
     setView('login');
     addToast('Logged out successfully','info');
