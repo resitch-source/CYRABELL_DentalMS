@@ -6785,13 +6785,22 @@ function AttachmentViewer({file, onClose}) {
           h('div',{style:{color:'#fff',fontSize:14}},'Loading…')
         ),
         // Drive files: Google blocks iframe embedding from external origins (frame-ancestors CSP).
-        // Use direct img for images; show Open-in-Drive link for other types.
+        // thumbnail?sz=w1600 is reliable for publicly-shared images (no consent-page redirect).
         !loading && isDrive && isImage && h('div',{className:'att-viewer-img-wrap',style:{overflow:'auto'}},
           h('img',{
-            src:'https://drive.google.com/uc?export=view&id='+file.driveFileId,
+            src:'https://drive.google.com/thumbnail?id='+file.driveFileId+'&sz=w1600',
             alt:file.name,
             style:{transform:`scale(${zoom})`,transformOrigin:'top left',display:'block',maxWidth:zoom===1?'100%':'none'},
-            onError:e=>{e.target.style.display='none';e.target.parentNode.insertAdjacentHTML('beforeend','<div style="color:#aaa;padding:20px;text-align:center">Image failed to load — <a href="'+file.driveViewUrl+'" target="_blank" style="color:#4dd">Open in Drive</a></div>');}
+            onError:e=>{
+              // Fallback chain: thumbnail → lh3 CDN → Open-in-Drive link
+              const id = file.driveFileId;
+              if(e.target.src.includes('thumbnail')){
+                e.target.src='https://lh3.googleusercontent.com/d/'+id+'=w1600';
+              } else {
+                e.target.style.display='none';
+                e.target.insertAdjacentHTML('afterend','<div style="color:#aaa;padding:20px;text-align:center;font-size:13px">Preview unavailable — <a href="'+(file.driveViewUrl||'#')+'" target="_blank" style="color:#4dd">Open in Drive</a></div>');
+              }
+            }
           })
         ),
         !loading && isDrive && !isImage && h('div',{className:'att-viewer-nopreview'},
@@ -7130,16 +7139,16 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
   const ed = (k,v) => setEditData(p=>({...p,[k]:v}));
 
   const handleSave = () => {
-    // Create a history entry with the scan image + all extracted data
     const entry = {
       id:          'HIST-' + Date.now(),
       scanDate:    editData.scanDate || localToday(),
-      scanImageUrl: imageUrl,        // thumbnail of original card
+      scanImageUrl: imageUrl,
       type:        'examination_record',
       patientName: editData.name || S(patient&&patient.name),
-      // Clinical data
       ...editData,
     };
+    // Persist scan image to IDB so it survives localStorage quota eviction on refresh
+    if (imageUrl) idbPut(entry.id, imageUrl).catch(()=>{});
     onSaved(entry);
   };
 
@@ -7466,10 +7475,11 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
         entry.occupation && h('div',{className:'hist-entry-sub'}, entry.occupation)
       ),
       h('div',{className:'hist-entry-right'},
-        entry.scanImageUrl && h('img',{
-          src:entry.scanImageUrl,
+        scanUrl && h('img',{
+          src:scanUrl,
           alt:'Scan thumbnail',
           className:'hist-entry-thumb',
+          style:{cursor:'pointer'},
           onClick:e=>{e.stopPropagation();setViewingImg(true);}
         }),
         h('div',{className:'hist-entry-toggle'},expanded?'▲':'▼')
@@ -7528,7 +7538,7 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
 
       // Actions
       h('div',{className:'hist-entry-actions'},
-        entry.scanImageUrl && h('button',{
+        scanUrl && h('button',{
           type:'button',className:'btn bg2 bsm',
           onClick:()=>setViewingImg(true)
         },'🖼 View Original Scan'),
@@ -7539,8 +7549,8 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
       )
     ),
 
-    // Full-size image viewer
-    viewingImg && entry.scanImageUrl && h('div',{
+    // Full-size image viewer — uses scanUrl (IDB-backed, survives localStorage quota eviction)
+    viewingImg && h('div',{
       className:'att-viewer-ov',
       onClick:()=>setViewingImg(false)
     },
@@ -7548,13 +7558,21 @@ function ClinicalHistoryEntry({entry, onDelete, idx}) {
         h('div',{className:'att-viewer-header'},
           h('div',{style:{color:'#fff',fontWeight:700}},'📋 Examination Record — '+entry.scanDate),
           h('div',{style:{display:'flex',gap:8}},
-            h('a',{href:entry.scanImageUrl,download:'exam-record-'+entry.scanDate+'.jpg',
+            scanUrl && h('a',{href:scanUrl,download:'exam-record-'+entry.scanDate+'.jpg',
               className:'btn bg2 bsm'},'⬇ Download'),
             h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setViewingImg(false)},'✕ Close')
           )
         ),
         h('div',{className:'att-viewer-body'},
-          h('img',{src:entry.scanImageUrl,alt:'Exam record',style:{maxWidth:'100%',borderRadius:4}})
+          scanUrl
+            ? h('img',{src:scanUrl,alt:'Exam record',style:{maxWidth:'100%',borderRadius:4}})
+            : h('div',{className:'att-viewer-nopreview'},
+                h('div',{style:{fontSize:36,marginBottom:8}},'⚠️'),
+                h('div',{style:{color:'#fff',fontWeight:700}},'Image not available'),
+                h('div',{style:{color:'#aaa',fontSize:12,marginTop:6,textAlign:'center',maxWidth:280}},
+                  'Scan image was not saved (storage full). Delete and re-scan this record.'
+                )
+              )
         )
       )
     )
