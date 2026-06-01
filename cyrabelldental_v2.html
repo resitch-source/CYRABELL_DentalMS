@@ -7392,8 +7392,12 @@ function useHistoryScanImage(id, inlineUrl) {
  */
 function ClinicalHistoryEntry({entry, onDelete, onUpdate, idx, syncUrl, patientId, addToast}) {
   const [expanded,    setExpanded]    = useState(idx === 0);
-  const [viewingFile, setViewingFile] = useState(null); // att object for AttachmentViewer
+  const [viewingFile, setViewingFile] = useState(null);
   const { url: scanUrl, loading: scanLoading } = useHistoryScanImage(entry.id, entry.scanImageUrl || '');
+
+  // Always-current ref so async Drive upload callbacks read latest attachments
+  const entryRef = useRef(entry);
+  entryRef.current = entry;
 
   const handleDelete = () => {
     confirmDelete('Delete this history entry?', () => {
@@ -7402,10 +7406,32 @@ function ClinicalHistoryEntry({entry, onDelete, onUpdate, idx, syncUrl, patientI
     });
   };
 
+  // Build AttachmentPanel callbacks using entryRef so async Drive updates
+  // always read the latest attachments array (avoids stale-closure bug).
+  const makeAttCallbacks = () => ({
+    onAdd: att => {
+      const e = entryRef.current;
+      onUpdate && onUpdate({...e, scanImageUrl: '', attachments: [...safe(e.attachments), att]});
+    },
+    onUpdate: (attId, newAtt) => {
+      const e = entryRef.current;
+      onUpdate && onUpdate({...e, attachments: safe(e.attachments).map(a => a.id === attId ? newAtt : a)});
+    },
+    onUpdateNote: (attId, note) => {
+      const e = entryRef.current;
+      onUpdate && onUpdate({...e, attachments: safe(e.attachments).map(a => a.id === attId ? {...a, note} : a)});
+    },
+    onRemove: attId => {
+      idbDelete(attId).catch(() => {});
+      const e = entryRef.current;
+      onUpdate && onUpdate({...e, attachments: safe(e.attachments).filter(a => a.id !== attId)});
+    },
+  });
+
   // ── attached_record ───────────────────────────────────────────────────────
   if (entry.type === 'attached_record') {
-    // Backward-compat: old entries used scanImageUrl instead of attachments[].
-    // Migrate on the fly so they display correctly in AttachmentPanel.
+    // Backward-compat: old entries stored a single file in scanImageUrl.
+    // Migrate on-the-fly so they appear in AttachmentPanel without data loss.
     let atts = safe(entry.attachments);
     if (atts.length === 0 && scanUrl) {
       atts = [{
@@ -7419,24 +7445,6 @@ function ClinicalHistoryEntry({entry, onDelete, onUpdate, idx, syncUrl, patientI
         storage: 'local',
       }];
     }
-
-    const panelCallbacks = {
-      onAdd: att => onUpdate && onUpdate(entry.id, {
-        ...entry, scanImageUrl: '', attachments: [...safe(entry.attachments), att],
-      }),
-      onUpdate: (attId, newAtt) => onUpdate && onUpdate(entry.id, {
-        ...entry, attachments: safe(entry.attachments).map(a => a.id === attId ? newAtt : a),
-      }),
-      onUpdateNote: (attId, note) => onUpdate && onUpdate(entry.id, {
-        ...entry, attachments: safe(entry.attachments).map(a => a.id === attId ? {...a, note} : a),
-      }),
-      onRemove: attId => {
-        idbDelete(attId).catch(() => {});
-        onUpdate && onUpdate(entry.id, {
-          ...entry, attachments: safe(entry.attachments).filter(a => a.id !== attId),
-        });
-      },
-    };
 
     return h('div', {className:'hist-entry hist-entry-attached'},
       // Card header
@@ -7462,7 +7470,7 @@ function ClinicalHistoryEntry({entry, onDelete, onUpdate, idx, syncUrl, patientI
           attachments: atts,
           label: 'Files',
           syncUrl, patientId, addToast,
-          ...panelCallbacks,
+          ...makeAttCallbacks(),
         })
       ),
       viewingFile && h(AttachmentViewer, {file: viewingFile, onClose: () => setViewingFile(null)})
@@ -7513,21 +7521,6 @@ function ClinicalHistoryEntry({entry, onDelete, onUpdate, idx, syncUrl, patientI
   // ── examination_record (AI scan) ──────────────────────────────────────────
   const isImg = S(entry.fileType).startsWith('image/') || scanUrl.startsWith('data:image/');
   const isPdf = entry.fileType === 'application/pdf'  || scanUrl.startsWith('data:application/pdf');
-  const examAtts = safe(entry.attachments);
-
-  const examPanelCallbacks = {
-    onAdd: att => onUpdate && onUpdate(entry.id, {...entry, attachments: [...examAtts, att]}),
-    onUpdate: (attId, newAtt) => onUpdate && onUpdate(entry.id, {
-      ...entry, attachments: examAtts.map(a => a.id === attId ? newAtt : a),
-    }),
-    onUpdateNote: (attId, note) => onUpdate && onUpdate(entry.id, {
-      ...entry, attachments: examAtts.map(a => a.id === attId ? {...a, note} : a),
-    }),
-    onRemove: attId => {
-      idbDelete(attId).catch(() => {});
-      onUpdate && onUpdate(entry.id, {...entry, attachments: examAtts.filter(a => a.id !== attId)});
-    },
-  };
 
   const clinicalFields = [
     ['Occlusion',        entry.occlusion],
@@ -7592,10 +7585,10 @@ function ClinicalHistoryEntry({entry, onDelete, onUpdate, idx, syncUrl, patientI
       // AttachmentPanel for supporting files — same as Files tab
       h('div', {style:{marginTop:12}},
         h(AttachmentPanel, {
-          attachments: examAtts,
+          attachments: safe(entry.attachments),
           label: 'Supporting Files',
           syncUrl, patientId, addToast,
-          ...examPanelCallbacks,
+          ...makeAttCallbacks(),
         })
       ),
       h('div', {className:'hist-entry-actions'},
