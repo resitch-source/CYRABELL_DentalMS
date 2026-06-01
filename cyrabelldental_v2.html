@@ -12779,6 +12779,7 @@ function App(){
               const localOnlyAtts = (lp.attachments || []).filter(a => !sheetAttIds.has(a.id));
               const finalAtts = [...mergedAtts, ...localOnlyAtts];
               // Restore history scanImageUrls and nested attachment dataUrls
+              const sheetHistIds = new Set((sp.history || []).map(h => h.id));
               const mergedHist = (sp.history || []).map(sh => {
                 const lh = (lp.history || []).find(h => h.id === sh.id);
                 if (!lh) return sh;
@@ -12793,12 +12794,15 @@ function App(){
                   attachments: restoredAtts,
                 };
               });
+              // Preserve local-only history entries not yet pushed to Sheets
+              const localOnlyHist = (lp.history || []).filter(h => !sheetHistIds.has(h.id));
+              const finalHist = [...mergedHist, ...localOnlyHist];
               // Restore patient photo if Sheets stripped it
               return {
                 ...sp,
                 photoDataUrl: sp.photoDataUrl || lp.photoDataUrl || '',
                 attachments: finalAtts,
-                history: mergedHist,
+                history: finalHist,
               };
             });
             setPatients(mergedPatients);
