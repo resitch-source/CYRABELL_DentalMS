@@ -3593,13 +3593,15 @@ const _loginState = {
 let _sessionTimeoutHandle = null;
 let _onSessionExpire = null;
 
-// Gemini client-side rate limiter (free tier = 15 req/min = 1 every 4s)
+// Gemini client-side rate limiter
+// Free tier: 15 req/min = 1 every 4s. We enforce 6s to leave headroom
+// for any background calls (test button, retries, etc.)
 let _geminiLastCallAt = 0;
-const GEMINI_MIN_INTERVAL_MS = 4200; // slightly above 4s to be safe
+const GEMINI_MIN_INTERVAL_MS = 6000;
 async function geminiRateWait(onProgress) {
   const wait = GEMINI_MIN_INTERVAL_MS - (Date.now() - _geminiLastCallAt);
-  if (wait > 100) {
-    onProgress && onProgress('Rate limit — waiting ' + Math.ceil(wait/1000) + 's…', 20);
+  if (wait > 200) {
+    onProgress && onProgress('Pacing requests... (' + Math.ceil(wait/1000) + 's)', 20);
     await new Promise(r => setTimeout(r, wait));
   }
   _geminiLastCallAt = Date.now();
@@ -8406,14 +8408,15 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
 
   if (useDirect) {
     // ── FAST PATH: call Gemini API directly (~5-10s) ─────────────────────────
-    // Correct model IDs as of 2026 — 1.5 aliases were retired, use versioned IDs.
-    // gemini-2.0-flash-lite has 30 RPM (2x the quota of flash), good primary fallback.
+    // Current Gemini models as of 2026.
+    // 1.5 series fully removed from API — 2.0 and 2.5 only.
+    // Each model has its own quota pool — fallback helps when one is busy.
+    // gemini-2.0-flash-lite has 30 RPM (vs 15 RPM for flash) — best fallback.
     const GEMINI_MODELS = [
       'gemini-2.0-flash',
       'gemini-2.0-flash-lite',
-      'gemini-1.5-flash-002',
-      'gemini-1.5-flash-001',
-      'gemini-1.5-pro-002',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
     ];
     const geminiBody = JSON.stringify({
       contents: [{ parts: [
@@ -8477,14 +8480,14 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
     // First pass
     let result = await tryAllModels(45);
 
-    // If all rate-limited, wait 30s with countdown then retry once
+    // If all rate-limited, wait 62s (full 1-min quota window) then retry once
     if (!result) {
-      for (let s = 30; s > 0; s--) {
-        onProgress && onProgress('All models busy. Auto-retrying in ' + s + 's...', 50);
+      for (let s = 62; s > 0; s--) {
+        onProgress && onProgress('Quota full. Auto-retrying in ' + s + 's... (free tier: 15/min)', 50);
         await new Promise(r => setTimeout(r, 1000));
       }
-      _geminiLastCallAt = 0; // reset rate limiter — we already waited
-      onProgress && onProgress('Retrying Gemini...', 55);
+      _geminiLastCallAt = 0; // reset rate limiter — we already waited the full window
+      onProgress && onProgress('Retrying now...', 55);
       result = await tryAllModels(60);
     }
 
