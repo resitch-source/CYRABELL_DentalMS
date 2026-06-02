@@ -3593,6 +3593,18 @@ const _loginState = {
 let _sessionTimeoutHandle = null;
 let _onSessionExpire = null;
 
+// Gemini client-side rate limiter (free tier = 15 req/min = 1 every 4s)
+let _geminiLastCallAt = 0;
+const GEMINI_MIN_INTERVAL_MS = 4200; // slightly above 4s to be safe
+async function geminiRateWait(onProgress) {
+  const wait = GEMINI_MIN_INTERVAL_MS - (Date.now() - _geminiLastCallAt);
+  if (wait > 100) {
+    onProgress && onProgress('Rate limit — waiting ' + Math.ceil(wait/1000) + 's…', 20);
+    await new Promise(r => setTimeout(r, wait));
+  }
+  _geminiLastCallAt = Date.now();
+}
+
 /**
  * Starts (or resets) the session inactivity timer.
  * Call this after successful login and pass the logout callback.
@@ -8410,63 +8422,55 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
       generationConfig: { temperature: 0, maxOutputTokens: 1024, responseMimeType: 'application/json' },
     });
 
-    // Worker that tries each model in order, with auto-retry on 429
+    // Worker: tries each model in order, switches immediately on 429 (no waiting)
     const workerSrc = `
 self.onmessage = async function(e) {
   const { apiKey, models, body } = e.data;
   const BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
-  const WAITS = [5000, 15000, 30000]; // ms to wait between 429 retries on same model
+  const skipped = [];
 
   for (let mi = 0; mi < models.length; mi++) {
     const url = BASE + models[mi] + ':generateContent?key=' + apiKey;
-    let rateLimitRetries = 0;
+    try {
+      const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body });
+      const text = await res.text();
 
-    while (true) {
-      try {
-        const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body });
-        const text = await res.text();
+      if (res.status === 429 || res.status === 404 || res.status === 503) {
+        // Rate-limited or unavailable — skip immediately to next model
+        skipped.push(models[mi] + '(' + res.status + ')');
+        self.postMessage({ progress: 'Rate limited on ' + models[mi] + ', trying ' + (models[mi+1]||'fallback') + '…' });
+        continue;
+      }
 
-        if (res.status === 429) {
-          if (rateLimitRetries < WAITS.length) {
-            // Retry same model after back-off
-            await new Promise(r => setTimeout(r, WAITS[rateLimitRetries]));
-            rateLimitRetries++;
-            continue;
-          }
-          // Exhausted retries on this model — try next model
-          break;
-        }
-
-        if (res.status === 404) break; // model not found, try next
-
-        if (!res.ok) {
-          self.postMessage({ ok:false, error:'HTTP ' + res.status + ' (' + models[mi] + '): ' + text.substring(0,200) });
-          return;
-        }
-
-        let resp;
-        try { resp = JSON.parse(text); } catch(e) {
-          self.postMessage({ ok:false, error:'Bad JSON from Gemini (' + models[mi] + ')' }); return;
-        }
-        const content = (resp.candidates && resp.candidates[0] &&
-                         resp.candidates[0].content && resp.candidates[0].content.parts &&
-                         resp.candidates[0].content.parts[0] &&
-                         resp.candidates[0].content.parts[0].text) || '';
-        if (!content) {
-          self.postMessage({ ok:false, error:'Gemini returned empty content (' + models[mi] + ')' }); return;
-        }
-        self.postMessage({ ok:true, content, model: models[mi] });
-        return;
-
-      } catch(err) {
-        self.postMessage({ ok:false, error: err.message || String(err) });
+      if (!res.ok) {
+        self.postMessage({ ok:false, error:'HTTP ' + res.status + ' from ' + models[mi] + ': ' + text.substring(0,200) });
         return;
       }
+
+      let resp;
+      try { resp = JSON.parse(text); } catch(pe) {
+        self.postMessage({ ok:false, error:'Bad JSON from Gemini (' + models[mi] + ')' }); return;
+      }
+      const content = (resp.candidates&&resp.candidates[0]&&resp.candidates[0].content&&
+                       resp.candidates[0].content.parts&&resp.candidates[0].content.parts[0]&&
+                       resp.candidates[0].content.parts[0].text) || '';
+      if (!content) {
+        self.postMessage({ ok:false, error:'Gemini returned empty content (' + models[mi] + ')' }); return;
+      }
+      self.postMessage({ ok:true, content, model:models[mi] });
+      return;
+
+    } catch(err) {
+      self.postMessage({ ok:false, error:err.message || String(err) }); return;
     }
   }
-  // All models exhausted
-  self.postMessage({ ok:false, error:'429: All Gemini models rate-limited. Wait 1 minute and try again.\nFree tier: 15 scans/minute across all models.' });
+  // All models returned 429/404 — tell user to wait
+  self.postMessage({ ok:false, error:'429: All Gemini models are rate-limited (' + skipped.join(', ') + ').\n\nWait 60 seconds then try again.\nFree tier: 15 scans/minute.' });
 };`;
+
+    // Enforce minimum interval before calling Gemini (free tier: 15/min)
+    await geminiRateWait(onProgress);
+    onProgress && onProgress('Calling Gemini AI…', 35);
 
     const raw = await new Promise((resolve, reject) => {
       let worker, timeout;
@@ -8480,6 +8484,10 @@ self.onmessage = async function(e) {
           reject(new Error('Gemini timed out (90s). Check your internet connection and try again.'));
         }, 90000);
         worker.onmessage = (e) => {
+          if (e.data && e.data.progress) {
+            onProgress && onProgress(e.data.progress, 50);
+            return;
+          }
           clearTimeout(timeout);
           URL.revokeObjectURL(blobUrl);
           worker.terminate();
@@ -8490,19 +8498,20 @@ self.onmessage = async function(e) {
           URL.revokeObjectURL(blobUrl);
           reject(new Error('Worker error: ' + (e.message || 'unknown')));
         };
-            onProgress && onProgress('Calling Gemini AI…', 35);
         worker.postMessage({ apiKey: geminiKey, models: GEMINI_MODELS, body: geminiRequestBody });
       } catch (workerErr) {
         clearTimeout && clearTimeout(timeout);
         // Fallback: try models sequentially on main thread
         (async () => {
+          await geminiRateWait(onProgress);
           const BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
           for (const model of GEMINI_MODELS) {
             try {
+              onProgress && onProgress('Trying ' + model + '…', 40);
               const r = await fetch(BASE + model + ':generateContent?key=' + geminiKey, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, body: geminiRequestBody,
               });
-              if (r.status === 429 || r.status === 404) continue;
+              if (r.status === 429 || r.status === 404 || r.status === 503) continue;
               if (!r.ok) { resolve({ ok: false, error: 'HTTP ' + r.status }); return; }
               const t    = await r.text();
               const resp = JSON.parse(t);
@@ -11549,10 +11558,18 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
             onClick: async () => {
               addToast('Testing Gemini key…','info');
               try {
-                const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + geminiKey.trim();
-                const res = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply with: {"ok":true}'}]}],generationConfig:{temperature:0,maxOutputTokens:20,responseMimeType:'application/json'}})});
-                if (res.ok) { addToast('✅ Gemini key is valid!','success'); }
-                else { const t = await res.text(); addToast('❌ Invalid key: ' + t.substring(0,100),'error'); }
+                // Use models list endpoint — does NOT consume any quota
+                const url = 'https://generativelanguage.googleapis.com/v1beta/models?key=' + geminiKey.trim() + '&pageSize=5';
+                const res = await fetch(url);
+                if (res.ok) {
+                  const d = await res.json();
+                  const hasFlash = (d.models||[]).some(m => m.name && m.name.includes('flash'));
+                  addToast('✅ Gemini key valid!' + (hasFlash ? ' Gemini Flash ready.' : ''), 'success');
+                } else {
+                  const t = await res.text();
+                  const msg = res.status === 400 ? 'Invalid API key' : res.status === 403 ? 'API not enabled for this key' : 'Error ' + res.status;
+                  addToast('❌ ' + msg + ': ' + t.substring(0,80), 'error');
+                }
               } catch(e) { addToast('❌ Test failed: ' + e.message,'error'); }
             },
           }, '🔬 Test Gemini Key')
