@@ -8406,13 +8406,14 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
 
   if (useDirect) {
     // ── FAST PATH: call Gemini API directly (~5-10s) ─────────────────────────
-    // Gemini supports browser CORS so no Web Worker needed — direct fetch is simpler
-    // and avoids blob Worker encoding/syntax issues entirely.
+    // Correct model IDs as of 2026 — 1.5 aliases were retired, use versioned IDs.
+    // gemini-2.0-flash-lite has 30 RPM (2x the quota of flash), good primary fallback.
     const GEMINI_MODELS = [
       'gemini-2.0-flash',
       'gemini-2.0-flash-lite',
-      'gemini-1.5-flash-latest',
-      'gemini-1.5-flash',
+      'gemini-1.5-flash-002',
+      'gemini-1.5-flash-001',
+      'gemini-1.5-pro-002',
     ];
     const geminiBody = JSON.stringify({
       contents: [{ parts: [
@@ -8427,63 +8428,75 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
     await geminiRateWait(onProgress);
     onProgress && onProgress('Calling Gemini AI...', 35);
 
-    let usedModel = '';
-    const skippedModels = [];
-    let rawText = '';
-
-    for (const model of GEMINI_MODELS) {
-      if (skippedModels.length > 0) {
-        onProgress && onProgress('Trying ' + model + '...', 45 + skippedModels.length * 5);
-      }
-      let res, resText;
-      try {
-        res     = await fetch(BASE_URL + model + ':generateContent?key=' + geminiKey, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    geminiBody,
-        });
-        resText = await res.text();
-      } catch (fetchErr) {
-        throw new Error('Network error calling Gemini: ' + fetchErr.message);
-      }
-
-      if (res.status === 429 || res.status === 503) {
-        skippedModels.push(model + ' (' + res.status + ')');
-        console.warn('[OCR] ' + model + ' rate-limited, trying next...');
-        continue;
-      }
-      if (res.status === 404) {
-        skippedModels.push(model + ' (not found)');
-        continue;
-      }
-      if (!res.ok) {
-        let errMsg = 'HTTP ' + res.status;
-        try { const ej = JSON.parse(resText); if (ej.error && ej.error.message) errMsg = ej.error.message; } catch(x) {}
-        if (res.status === 400 && errMsg.toLowerCase().includes('api key')) {
-          throw new Error('Invalid Gemini API key. Go to Sync settings and update your key.\nGet a free key at aistudio.google.com');
+    // Helper: try all models once, return { usedModel, rawText } or null if all rate-limited/missing
+    async function tryAllModels(progressOffset) {
+      for (const model of GEMINI_MODELS) {
+        let res, resText;
+        try {
+          res     = await fetch(BASE_URL + model + ':generateContent?key=' + geminiKey, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    geminiBody,
+          });
+          resText = await res.text();
+        } catch (fetchErr) {
+          throw new Error('Network error calling Gemini: ' + fetchErr.message);
         }
-        throw new Error('Gemini error (' + model + '): ' + errMsg);
-      }
 
-      let parsed;
-      try { parsed = JSON.parse(resText); } catch(e) {
-        throw new Error('Gemini returned invalid JSON from ' + model);
+        if (res.status === 429 || res.status === 503) {
+          console.warn('[OCR] ' + model + ' rate-limited (429), trying next...');
+          onProgress && onProgress('Rate limited on ' + model + ', trying next...', progressOffset);
+          continue;
+        }
+        if (res.status === 404) {
+          console.warn('[OCR] ' + model + ' not found (404), trying next...');
+          continue;
+        }
+        if (!res.ok) {
+          let errMsg = 'HTTP ' + res.status;
+          try { const ej = JSON.parse(resText); if (ej.error && ej.error.message) errMsg = ej.error.message; } catch(x) {}
+          if (res.status === 400 && errMsg.toLowerCase().includes('api key')) {
+            throw new Error('Invalid Gemini API key.\nGo to Sync settings (sidebar) and update your Gemini key.\nGet a free key at aistudio.google.com');
+          }
+          throw new Error('Gemini error (' + model + '): ' + errMsg);
+        }
+
+        let parsed;
+        try { parsed = JSON.parse(resText); } catch(e) {
+          throw new Error('Gemini returned invalid JSON from ' + model + '. Try again.');
+        }
+        const text = (parsed.candidates && parsed.candidates[0] && parsed.candidates[0].content &&
+                      parsed.candidates[0].content.parts && parsed.candidates[0].content.parts[0] &&
+                      parsed.candidates[0].content.parts[0].text) || '';
+        if (!text) continue; // empty response — try next model
+        return { usedModel: model, rawText: text };
       }
-      rawText    = (parsed.candidates && parsed.candidates[0] && parsed.candidates[0].content &&
-                    parsed.candidates[0].content.parts && parsed.candidates[0].content.parts[0] &&
-                    parsed.candidates[0].content.parts[0].text) || '';
-      usedModel  = model;
-      break;
+      return null; // all rate-limited or missing
     }
 
-    if (!usedModel) {
+    // First pass
+    let result = await tryAllModels(45);
+
+    // If all rate-limited, wait 30s with countdown then retry once
+    if (!result) {
+      for (let s = 30; s > 0; s--) {
+        onProgress && onProgress('All models busy. Auto-retrying in ' + s + 's...', 50);
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      _geminiLastCallAt = 0; // reset rate limiter — we already waited
+      onProgress && onProgress('Retrying Gemini...', 55);
+      result = await tryAllModels(60);
+    }
+
+    if (!result) {
       throw new Error(
-        'All Gemini models are rate-limited (' + skippedModels.join(', ') + ').\n\n' +
-        'Free tier: 15 scans/minute. Wait 60 seconds then try again.\n' +
-        'Tip: space scans at least 5 seconds apart.'
+        'Gemini rate limit exceeded on all models.\n\n' +
+        'Free tier: 15 scans/minute. Wait 1 minute and try again.\n' +
+        'Tip: avoid scanning multiple cards in rapid succession.'
       );
     }
 
+    const { usedModel, rawText } = result;
     console.log('[OCR] Direct Gemini success — model:', usedModel);
     onProgress && onProgress('Parsing AI response...', 85);
 
