@@ -8394,8 +8394,15 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
 
   if (useDirect) {
     // ── FAST PATH: call Gemini API directly from Web Worker (~5-10s) ──────────
-    const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + geminiKey;
-    const geminiBody = JSON.stringify({
+    // Model fallback list — if one is rate-limited or unavailable, tries the next.
+    // gemini-2.0-flash-lite has a separate quota so it often succeeds when flash is 429.
+    const GEMINI_MODELS = [
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-flash',
+    ];
+    const geminiRequestBody = JSON.stringify({
       contents: [{ parts: [
         { text: buildPrompt(scanType || 'basic') },
         { inline_data: { mime_type: mimeType || 'image/jpeg', data: base64 } },
@@ -8403,27 +8410,62 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
       generationConfig: { temperature: 0, maxOutputTokens: 1024, responseMimeType: 'application/json' },
     });
 
+    // Worker that tries each model in order, with auto-retry on 429
     const workerSrc = `
 self.onmessage = async function(e) {
-  const { url, body } = e.data;
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: body,
-    });
-    const text = await res.text();
-    if (!res.ok) { self.postMessage({ ok: false, error: 'HTTP ' + res.status + ': ' + text.substring(0, 300) }); return; }
-    let resp;
-    try { resp = JSON.parse(text); } catch(e) { self.postMessage({ ok: false, error: 'Bad JSON from Gemini' }); return; }
-    const content = (resp.candidates && resp.candidates[0] && resp.candidates[0].content &&
-                     resp.candidates[0].content.parts && resp.candidates[0].content.parts[0] &&
-                     resp.candidates[0].content.parts[0].text) || '';
-    if (!content) { self.postMessage({ ok: false, error: 'Gemini returned empty content' }); return; }
-    self.postMessage({ ok: true, content });
-  } catch(err) {
-    self.postMessage({ ok: false, error: err.message || String(err) });
+  const { apiKey, models, body } = e.data;
+  const BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
+  const WAITS = [5000, 15000, 30000]; // ms to wait between 429 retries on same model
+
+  for (let mi = 0; mi < models.length; mi++) {
+    const url = BASE + models[mi] + ':generateContent?key=' + apiKey;
+    let rateLimitRetries = 0;
+
+    while (true) {
+      try {
+        const res  = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body });
+        const text = await res.text();
+
+        if (res.status === 429) {
+          if (rateLimitRetries < WAITS.length) {
+            // Retry same model after back-off
+            await new Promise(r => setTimeout(r, WAITS[rateLimitRetries]));
+            rateLimitRetries++;
+            continue;
+          }
+          // Exhausted retries on this model — try next model
+          break;
+        }
+
+        if (res.status === 404) break; // model not found, try next
+
+        if (!res.ok) {
+          self.postMessage({ ok:false, error:'HTTP ' + res.status + ' (' + models[mi] + '): ' + text.substring(0,200) });
+          return;
+        }
+
+        let resp;
+        try { resp = JSON.parse(text); } catch(e) {
+          self.postMessage({ ok:false, error:'Bad JSON from Gemini (' + models[mi] + ')' }); return;
+        }
+        const content = (resp.candidates && resp.candidates[0] &&
+                         resp.candidates[0].content && resp.candidates[0].content.parts &&
+                         resp.candidates[0].content.parts[0] &&
+                         resp.candidates[0].content.parts[0].text) || '';
+        if (!content) {
+          self.postMessage({ ok:false, error:'Gemini returned empty content (' + models[mi] + ')' }); return;
+        }
+        self.postMessage({ ok:true, content, model: models[mi] });
+        return;
+
+      } catch(err) {
+        self.postMessage({ ok:false, error: err.message || String(err) });
+        return;
+      }
+    }
   }
+  // All models exhausted
+  self.postMessage({ ok:false, error:'429: All Gemini models rate-limited. Wait 1 minute and try again.\nFree tier: 15 scans/minute across all models.' });
 };`;
 
     const raw = await new Promise((resolve, reject) => {
@@ -8432,10 +8474,11 @@ self.onmessage = async function(e) {
         const blob    = new Blob([workerSrc], { type: 'application/javascript' });
         const blobUrl = URL.createObjectURL(blob);
         worker  = new Worker(blobUrl);
+        // 90s timeout — accounts for up to 3 back-off retries across models
         timeout = setTimeout(() => {
           try { worker.terminate(); URL.revokeObjectURL(blobUrl); } catch(e) {}
-          reject(new Error('Gemini timed out (30s). Check your API key and internet connection.'));
-        }, 30000);
+          reject(new Error('Gemini timed out (90s). Check your internet connection and try again.'));
+        }, 90000);
         worker.onmessage = (e) => {
           clearTimeout(timeout);
           URL.revokeObjectURL(blobUrl);
@@ -8447,29 +8490,41 @@ self.onmessage = async function(e) {
           URL.revokeObjectURL(blobUrl);
           reject(new Error('Worker error: ' + (e.message || 'unknown')));
         };
-        worker.postMessage({ url: geminiUrl, body: geminiBody });
+            onProgress && onProgress('Calling Gemini AI…', 35);
+        worker.postMessage({ apiKey: geminiKey, models: GEMINI_MODELS, body: geminiRequestBody });
       } catch (workerErr) {
-        // Fallback to direct fetch if Worker fails
         clearTimeout && clearTimeout(timeout);
-        fetch(geminiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: geminiBody })
-          .then(r => r.text().then(t => {
-            if (!r.ok) { resolve({ ok: false, error: 'HTTP ' + r.status }); return; }
-            const resp = JSON.parse(t);
-            const content = resp.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            resolve({ ok: true, content });
-          }))
-          .catch(err => resolve({ ok: false, error: err.message }));
+        // Fallback: try models sequentially on main thread
+        (async () => {
+          const BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
+          for (const model of GEMINI_MODELS) {
+            try {
+              const r = await fetch(BASE + model + ':generateContent?key=' + geminiKey, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: geminiRequestBody,
+              });
+              if (r.status === 429 || r.status === 404) continue;
+              if (!r.ok) { resolve({ ok: false, error: 'HTTP ' + r.status }); return; }
+              const t    = await r.text();
+              const resp = JSON.parse(t);
+              const content = resp.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              resolve({ ok: true, content, model });
+              return;
+            } catch(e) { resolve({ ok: false, error: e.message }); return; }
+          }
+          resolve({ ok: false, error: '429: All models rate-limited. Wait 1 minute and retry.' });
+        })();
       }
     });
 
     onProgress && onProgress('Parsing AI response…', 85);
+    if (raw.model) console.log('[OCR] Model used:', raw.model);
 
     if (!raw.ok) {
       const e = raw.error || '';
       if (e.includes('401') || e.includes('API_KEY') || e.includes('invalid')) {
         throw new Error('Invalid Gemini API key. Go to ☁️ Sync → update your key.\nGet a free key at aistudio.google.com');
       }
-      if (e.includes('429')) throw new Error('Gemini rate limit hit. Wait 15 seconds and try again.\nFree tier: 15 scans/minute.');
+      if (e.includes('429')) throw new Error('⏳ Gemini rate limit — all models tried.\n\nFree tier allows 15 scans/minute. Wait 60 seconds then try again.\nTip: scanning rapidly in succession will trigger this — space scans 5-10 seconds apart.');
       throw new Error('Gemini error: ' + e);
     }
 
