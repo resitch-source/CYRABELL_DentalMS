@@ -5169,8 +5169,8 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
 
   const Logo = ()=>h('div',{className:'login-logo'},
     h('div',{className:'login-icon'},h(Svg,{d:IC.tooth,color:'white',size:30})),
-    h('div',{className:'login-name'},'Cyrabell Dental'),
-    h('div',{className:'login-sub'},'Management System')
+    h('div',{className:'login-name'},'Simplified Dental'),
+    h('div',{className:'login-sub'},'Clinic Management Systems')
   );
 
   if(mode==='choose'){
@@ -5317,7 +5317,7 @@ function KioskMode({appointments,onCheckIn,onExit,addToast}){
       h('div',{className:'kiosk-clock'},'🕐 '+formatTime(clock)),
       h('div',{className:'kiosk-logo-row'},
         h('div',{className:'kiosk-logo'},h(Svg,{d:IC.tooth,color:'white',size:28})),
-        h('div',null,h('div',{className:'kiosk-name'},'Cyrabell Dental'))
+        h('div',null,h('div',{className:'kiosk-name'},'Simplified Dental'),h('div',{style:{fontSize:11,color:'rgba(255,255,255,.75)',marginTop:1}},'Clinic Management Systems')))
       ),
       h('div',{className:'kiosk-tag'},'Welcome — Please Check In')
     ),
@@ -11827,6 +11827,8 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
       id:          'A'+uid(),
       patientId,
       patientName: info.name.trim(),
+      phone:       info.phone.trim(),
+      email:       info.email || '',
       status:      'pending',
       arrived:     false,
     };
@@ -11851,9 +11853,9 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
   const Logo = () => h('div',{className:'pwh'},
     h('div',{className:'pwli'},
       h('div',{className:'pwlic'}, h(Svg,{d:IC.tooth,color:'white',size:24})),
-      h('div',{className:'pwn'},'Cyrabell Dental')
+      h('div',{className:'pwn'},'Simplified Dental')
     ),
-    h('div',{className:'pwt'},'Your Smile, Our Passion')
+    h('div',{className:'pwt'},'Clinic Management Systems')
   );
   const BackBtn = () => h('div',{style:{position:'fixed',top:14,right:14,zIndex:10}},
     h('button',{className:'btn bp',onClick:onBack,style:{fontSize:12,padding:'7px 12px'}},'← Back')
@@ -11950,8 +11952,8 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
         )
       ),
 
-      // ── Personal fields ──────────────────────────────────────────────
-      h('div',{className:'fg2'},
+      // ── Personal fields (hidden for existing patients for privacy) ──────
+      !selectedPat && h('div',{className:'fg2'},
         h(Field,{label:'Phone *'},
           h('input',{type:'tel',value:info.phone,placeholder:'09XXXXXXXXX',
             onChange:e=>si('phone',e.target.value)})
@@ -11961,7 +11963,7 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
             onChange:e=>si('email',e.target.value)})
         )
       ),
-      h('div',{className:'fg2'},
+      !selectedPat && h('div',{className:'fg2'},
         h(Field,{label:'Date of Birth'},
           h('input',{type:'date',value:info.dob,onChange:e=>si('dob',e.target.value)})
         ),
@@ -11973,7 +11975,7 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
           )
         )
       ),
-      h('div',{className:'fg2'},
+      !selectedPat && h('div',{className:'fg2'},
         h(Field,{label:'Marital Status'},
           h('select',{value:info.maritalStatus,onChange:e=>si('maritalStatus',e.target.value)},
             h('option',{value:''},'— Select —'),
@@ -11986,23 +11988,23 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
           )
         )
       ),
-      h(Field,{label:'Occupation'},
+      !selectedPat && h(Field,{label:'Occupation'},
         h('input',{value:info.occupation,placeholder:'e.g. Teacher, Nurse, Engineer…',
           onChange:e=>si('occupation',e.target.value)})
       ),
-      h(Field,{label:'Allergies'},
+      !selectedPat && h(Field,{label:'Allergies'},
         h('input',{value:info.allergies,placeholder:'e.g. Penicillin, latex — or "None"',
           onChange:e=>si('allergies',e.target.value)})
       ),
-      h(Field,{label:'Address'},
+      !selectedPat && h(Field,{label:'Address'},
         h('input',{value:info.address,placeholder:'Street, City',
           onChange:e=>si('address',e.target.value)})
       ),
 
       err && h('div',{style:{color:'#dc2626',fontSize:12,marginTop:8,padding:'8px 10px',background:'#fef2f2',borderRadius:8}}, err),
       h('button',{className:'btn bp',style:{width:'100%',marginTop:16},
-        onClick:()=>{ if (!info.name.trim()||!info.phone.trim()){setErr('Name and phone are required.');return;} setErr(''); setStep(2); },
-        disabled:!info.name.trim()||!info.phone.trim()
+        onClick:()=>{ if (!info.name.trim()||((!selectedPat)&&!info.phone.trim())){setErr('Name and phone are required.');return;} setErr(''); setStep(2); },
+        disabled:!info.name.trim()||((!selectedPat)&&!info.phone.trim())
       },'Next: Select Service →')
     ),
 
@@ -12423,8 +12425,8 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
       h('div',{className:'sb '+(sideOpen?'open':'')},
         h('div',{className:'sb-logo'},
           h('div',{className:'sb-li'},h(Svg,{d:IC.tooth,color:'white',size:20})),
-          h('div',{className:'sb-nm'},'Cyrabell Dental'),
-          h('div',{className:'sb-sub'},'Admin Panel')
+          h('div',{className:'sb-nm'},'Simplified Dental'),
+          h('div',{className:'sb-sub'},'Clinic Management Systems')
         ),
         h('nav',{className:'sb-nav'},
           NAV.map(item=>{
