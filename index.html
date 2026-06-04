@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com;">
 <!-- Performance: preconnect to font origin so the browser opens the TCP/TLS connection early -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3152,6 +3152,7 @@ const LS_KEYS = Object.freeze({
   SERVICES:         'cyrabell_v2_services',
   DATA_VERSION:     'cyrabell_data_version',
   CRYPTO_SALT:      'cyrabell_crypto_salt',
+  GEMINI_KEY:       'cyrabell_gemini_key',
 });
 
 // ── IndexedDB attachment store ─────────────────────────────────────────────
@@ -3591,6 +3592,20 @@ const _loginState = {
 // ══════════════════════════════════════════════════════════════════════════════
 let _sessionTimeoutHandle = null;
 let _onSessionExpire = null;
+
+// Gemini client-side rate limiter
+// Free tier: 15 req/min = 1 every 4s. We enforce 6s to leave headroom
+// for any background calls (test button, retries, etc.)
+let _geminiLastCallAt = 0;
+const GEMINI_MIN_INTERVAL_MS = 6000;
+async function geminiRateWait(onProgress) {
+  const wait = GEMINI_MIN_INTERVAL_MS - (Date.now() - _geminiLastCallAt);
+  if (wait > 200) {
+    onProgress && onProgress('Pacing requests... (' + Math.ceil(wait/1000) + 's)', 20);
+    await new Promise(r => setTimeout(r, wait));
+  }
+  _geminiLastCallAt = Date.now();
+}
 
 /**
  * Starts (or resets) the session inactivity timer.
@@ -4201,6 +4216,67 @@ const IC={
   cloud:'M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z',
 };
 const Svg=({d,size,color})=>h('svg',{width:size||18,height:size||18,viewBox:'0 0 24 24',fill:'none',stroke:color||'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round',style:{flexShrink:0}},h('path',{d}));
+
+// ── Brand logo: teal tooth + silver checkmark + wordmark ──────────────────
+const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 80">
+  <defs>
+    <radialGradient id="tg" cx="40%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#4de8e0"/>
+      <stop offset="55%" stop-color="#00b8c4"/>
+      <stop offset="100%" stop-color="#007a85"/>
+    </radialGradient>
+    <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e8e8e8"/>
+      <stop offset="40%" stop-color="#c0c0c0"/>
+      <stop offset="100%" stop-color="#888"/>
+    </linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-color="#00808088"/>
+    </filter>
+  </defs>
+  <!-- Tooth body -->
+  <path d="M10 22 C10 14 14 8 22 7 C26 6 30 8 34 10 C36 11 38 12 40 12 C42 12 44 11 46 10 C50 8 54 6 58 7 C66 8 70 14 70 22 C70 30 67 38 64 46 C62 52 60 58 58 62 C56 66 54 68 52 68 C50 68 48 66 47 62 L44 54 C43 50 42 48 40 48 C38 48 37 50 36 54 L33 62 C32 66 30 68 28 68 C26 68 24 66 22 62 C20 58 18 52 16 46 C13 38 10 30 10 22 Z" fill="url(#tg)" filter="url(#sh)"/>
+  <!-- Tooth highlight -->
+  <ellipse cx="30" cy="18" rx="7" ry="9" fill="rgba(255,255,255,0.22)" transform="rotate(-15,30,18)"/>
+  <!-- Silver checkmark -->
+  <path d="M20 32 L33 46 L62 18" fill="none" stroke="url(#sg)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M20 32 L33 46 L62 18" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Wordmark -->
+  <text x="82" y="26" font-family="'Segoe UI',Arial,sans-serif" font-size="14" font-weight="800" letter-spacing="1.5" fill="#1a3a4a">SIMPLIFIED</text>
+  <text x="82" y="46" font-family="'Segoe UI',Arial,sans-serif" font-size="14" font-weight="800" letter-spacing="1" fill="#1a3a4a">DENTAL CLINIC</text>
+  <text x="82" y="62" font-family="'Segoe UI',Arial,sans-serif" font-size="10" font-weight="600" letter-spacing="2" fill="#4a7080">MANAGEMENT SYSTEMS</text>
+</svg>`;
+
+// Logo for dark backgrounds (sidebar, kiosk, booking header)
+const LOGO_SVG_LIGHT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 80">
+  <defs>
+    <radialGradient id="tg2" cx="40%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#7ff5ef"/>
+      <stop offset="55%" stop-color="#2dd6de"/>
+      <stop offset="100%" stop-color="#00b4c0"/>
+    </radialGradient>
+    <linearGradient id="sg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0f0f0"/>
+      <stop offset="50%" stop-color="#d0d0d0"/>
+      <stop offset="100%" stop-color="#aaa"/>
+    </linearGradient>
+    <filter id="sh2" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-color="#00000040"/>
+    </filter>
+  </defs>
+  <path d="M10 22 C10 14 14 8 22 7 C26 6 30 8 34 10 C36 11 38 12 40 12 C42 12 44 11 46 10 C50 8 54 6 58 7 C66 8 70 14 70 22 C70 30 67 38 64 46 C62 52 60 58 58 62 C56 66 54 68 52 68 C50 68 48 66 47 62 L44 54 C43 50 42 48 40 48 C38 48 37 50 36 54 L33 62 C32 66 30 68 28 68 C26 68 24 66 22 62 C20 58 18 52 16 46 C13 38 10 30 10 22 Z" fill="url(#tg2)" filter="url(#sh2)"/>
+  <ellipse cx="30" cy="18" rx="7" ry="9" fill="rgba(255,255,255,0.28)" transform="rotate(-15,30,18)"/>
+  <path d="M20 32 L33 46 L62 18" fill="none" stroke="url(#sg2)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M20 32 L33 46 L62 18" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="82" y="26" font-family="'Segoe UI',Arial,sans-serif" font-size="14" font-weight="800" letter-spacing="1.5" fill="#ffffff">SIMPLIFIED</text>
+  <text x="82" y="46" font-family="'Segoe UI',Arial,sans-serif" font-size="14" font-weight="800" letter-spacing="1" fill="#ffffff">DENTAL CLINIC</text>
+  <text x="82" y="62" font-family="'Segoe UI',Arial,sans-serif" font-size="10" font-weight="600" letter-spacing="2" fill="rgba(255,255,255,0.75)">MANAGEMENT SYSTEMS</text>
+</svg>`;
+
+const BrandLogo = ({dark=false, width=200})=>h('div',{
+  dangerouslySetInnerHTML:{__html: dark ? LOGO_SVG_LIGHT : LOGO_SVG},
+  style:{width, lineHeight:0, flexShrink:0}
+});
 
 const BMAP={pending:'bpend',confirmed:'bconf',cancelled:'bcanc',completed:'bcomp',paid:'bpaid',unpaid:'bcanc',sent:'bsent',failed:'bcanc'};
 // aria-label provides screen-reader text for colour-only status dots (Finding #14)
@@ -5153,9 +5229,7 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
   };
 
   const Logo = ()=>h('div',{className:'login-logo'},
-    h('div',{className:'login-icon'},h(Svg,{d:IC.tooth,color:'white',size:30})),
-    h('div',{className:'login-name'},'Cyrabell Dental'),
-    h('div',{className:'login-sub'},'Management System')
+    h(BrandLogo,{dark:false,width:220})
   );
 
   if(mode==='choose'){
@@ -5301,8 +5375,7 @@ function KioskMode({appointments,onCheckIn,onExit,addToast}){
       },h(Svg,{d:IC.lock,size:14,color:'white'})),
       h('div',{className:'kiosk-clock'},'🕐 '+formatTime(clock)),
       h('div',{className:'kiosk-logo-row'},
-        h('div',{className:'kiosk-logo'},h(Svg,{d:IC.tooth,color:'white',size:28})),
-        h('div',null,h('div',{className:'kiosk-name'},'Cyrabell Dental'))
+        h(BrandLogo,{dark:true,width:220})
       ),
       h('div',{className:'kiosk-tag'},'Welcome — Please Check In')
     ),
@@ -7117,13 +7190,15 @@ function AttachmentPanel({attachments, onAdd, onRemove, onUpdateNote, onUpdate, 
  * @param {object}   patient  - current patient (for context)
  */
 function ClinicalHistoryScanner({onSaved, onClose, patient}) {
-  const [step,     setStep]     = useState('capture');
-  const [imageUrl, setImageUrl] = useState(null);
-  const [mimeType, setMimeType] = useState('image/jpeg');
-  const [extracted,setExtracted]= useState(null);
-  const [editData, setEditData] = useState({});
-  const [errorMsg, setErrorMsg] = useState('');
-  const [scanning, setScanning] = useState(false);
+  const [step,        setStep]       = useState('capture');
+  const [imageUrl,    setImageUrl]   = useState(null);
+  const [mimeType,    setMimeType]   = useState('image/jpeg');
+  const [extracted,   setExtracted]  = useState(null);
+  const [editData,    setEditData]   = useState({});
+  const [errorMsg,    setErrorMsg]   = useState('');
+  const [scanning,    setScanning]   = useState(false);
+  const [progressMsg, setProgressMsg]= useState('');
+  const [progressPct, setProgressPct]= useState(0);
   const fileRef  = useRef(null);
   const videoRef = useRef(null);
   const streamRef= useRef(null);
@@ -7166,11 +7241,13 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
   };
 
   const runExtraction = async (dataUrl, mime) => {
-    setStep('processing'); setErrorMsg('');
+    setStep('processing'); setErrorMsg(''); setProgressPct(0); setProgressMsg('Starting…');
     const syncUrl = (() => { try { return localStorage.getItem(LS_KEYS.SYNC_URL)||''; } catch(e){return '';} })();
     try {
-      // Use 'examination' scanType for full record chart extraction
-      const result = await extractPatientDataFromCard(dataUrl, mime, syncUrl, 'examination');
+      const result = await extractPatientDataFromCard(
+        dataUrl, mime, syncUrl, 'examination',
+        (msg, pct) => { setProgressMsg(msg); setProgressPct(pct); }
+      );
       setExtracted(result);
       setEditData({...result, scanDate: localToday()});
       setStep('review');
@@ -7240,8 +7317,8 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
 
   // ── PROCESSING step ─────────────────────────────────────────────────
   if (step==='processing') return h(Modal,{
-    title:'🔍 Analyzing Record Card…',
-    sub:'Claude AI is reading the examination record',
+    title:'⚡ Gemini AI Analyzing…',
+    sub:'Gemini 2.0 Flash is reading the examination record',
     onClose, footer:null,
   },
     h('div',{className:'ocr-processing'},
@@ -7249,10 +7326,20 @@ function ClinicalHistoryScanner({onSaved, onClose, patient}) {
       h('div',{className:'ocr-spinner-wrap'},
         h('div',{className:'ocr-spinner'}),
         h('div',{className:'ocr-processing-text'},
-          h('div',{style:{fontWeight:700,fontSize:15,marginBottom:6}},'Reading examination record…'),
+          h('div',{style:{fontWeight:700,fontSize:15,marginBottom:6}}, progressMsg || 'Starting…'),
           h('div',{style:{fontSize:12,color:'var(--md)',lineHeight:1.6}},
             'Extracting: patient info, occlusion, periodontal condition, ',
             'medical history, medications, and dental chart annotations.'
+          ),
+          h('div',{style:{marginTop:10,background:'var(--bg3)',borderRadius:6,overflow:'hidden',height:8}},
+            h('div',{style:{
+              width: (progressPct||0)+'%', height:'100%',
+              background:'linear-gradient(90deg,#4f8ef7,#7c3aed)',
+              transition:'width 0.4s ease', borderRadius:6,
+            }})
+          ),
+          h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,textAlign:'right'}},
+            (progressPct||0)+'%'
           )
         )
       )
@@ -8297,232 +8384,279 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
  * @param {string} mimeType     - e.g. 'image/jpeg'
  */
 /**
- * extractPatientDataFromCard — calls Claude Vision via Apps Script proxy.
- *
- * WHY A PROXY?
- * The Anthropic API blocks direct browser requests (CORS policy).
- * We route through our Google Apps Script backend which runs server-side
- * and can call any external API without CORS restrictions.
- *
- * Flow:
- *   Browser → POST to Apps Script (action:'claudeOcr') → Apps Script calls Anthropic → returns JSON
- *
- * @param {string} imageBase64  data URL or raw base64 string
- * @param {string} mimeType     e.g. 'image/jpeg'
- * @param {string} syncUrl      Apps Script web app URL (stored in localStorage)
- * @returns {Promise<object>}   extracted patient data object
- */
 /**
  * extractPatientDataFromCard
  *
- * Calls Claude Vision via the Apps Script proxy — but uses a Web Worker
- * to make the HTTP request. This bypasses gateway restrictions that block
- * cross-origin requests from the main thread (Origin header issue).
+ * Fast path: if GEMINI_KEY is saved in settings, calls Gemini 2.0 Flash API
+ * DIRECTLY from a Web Worker — no Apps Script cold-start, ~5-10s total.
  *
- * Why Web Worker?
- *   Main thread fetch:  sends Origin: https://resitch-source.github.io
- *                       → gateway sees GitHub→Google cross-origin → BLOCKS IT
- *   Web Worker fetch:   sends no Origin header (null origin)
- *                       → gateway allows it (same as sync worker)
+ * Slow fallback: if no direct key, routes through Apps Script proxy (~60-120s
+ * due to Apps Script cold start). Apps Script still needed for Drive uploads.
  *
  * @param {string} imageBase64  data URL or raw base64
  * @param {string} mimeType     image/jpeg | image/png | image/webp
- * @param {string} syncUrl      Apps Script web app URL
+ * @param {string} syncUrl      Apps Script web app URL (fallback only)
+ * @param {string} scanType     'basic' | 'examination'
+ * @param {Function} onProgress (msg, pct) callback
  * @returns {Promise<object>}   extracted patient data
  */
-async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanType) {
-  if (!syncUrl) {
+async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanType, onProgress) {
+  const geminiKey = (function(){ try { return localStorage.getItem(LS_KEYS.GEMINI_KEY) || ''; } catch(e) { return ''; } })();
+  const useDirect = !!geminiKey;
+
+  if (!useDirect && !syncUrl) {
     throw new Error(
-      'Google Sheets Sync URL not configured.\n\n' +
-      'The Record Card Scanner routes through your Apps Script to call Claude AI.\n' +
-      'Go to ☁️ Sync in the sidebar → paste your Apps Script URL → Save.'
+      'No Gemini API key configured.\n\n' +
+      'Go to ☁️ Sync → enter your Gemini API key (free at aistudio.google.com) → Save.'
     );
   }
 
-  // Compress image aggressively before sending
-  // Target: < 25KB base64 — Claude can read card text at 350px resolution
+  onProgress && onProgress('Optimising image…', 10);
+
+  // Compress to 900px / 0.78 quality — good OCR accuracy, small payload
   let base64 = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
   try {
     const dataUrl = imageBase64.startsWith('data:')
       ? imageBase64
       : ('data:' + (mimeType || 'image/jpeg') + ';base64,' + base64);
-    const compressed = await compressImage(dataUrl, 350, 0.45);
+    const compressed = await compressImage(dataUrl, 900, 0.78);
     base64 = compressed.includes(',') ? compressed.split(',')[1] : compressed;
-    console.log('[OCR] Compressed image:', Math.round(base64.length / 1024), 'KB');
+    console.log('[OCR] Image ready:', Math.round(base64.length / 1024), 'KB', useDirect ? '(direct)' : '(proxy)');
   } catch (e) {
-    console.warn('[OCR] Compression failed:', e.message);
+    console.warn('[OCR] Compression failed, using original:', e.message);
   }
 
-  const payload = JSON.stringify({
-    action:   'claudeOcr',
-    imageB64: base64,
-    mimeType: mimeType || 'image/jpeg',
-    scanType: scanType || 'basic',   // 'basic' | 'examination'
-  });
+  onProgress && onProgress(useDirect ? 'Calling Gemini directly…' : 'Sending via Apps Script…', 30);
 
-  // ── Run fetch inside a Web Worker (no Origin header = no gateway block) ──
-  // This is the same technique used by the sync worker that successfully
-  // calls Apps Script without being blocked by the network gateway.
-  const result = await new Promise((resolve, reject) => {
-    // Inline worker source — self-contained, no imports needed
-    const workerSrc = `
+  // ── Build the extraction prompt (same as Apps Script version) ─────────────
+  function buildPrompt(type) {
+    if (type === 'examination') {
+      return [
+        'You are a dental clinical records OCR assistant. Extract ALL data from this patient examination record card.',
+        'Return a single JSON object with these exact keys (use "" for missing/unclear fields):',
+        '{',
+        '  "name":"patient full name","dob":"YYYY-MM-DD","age":"numeric age","sex":"Male or Female",',
+        '  "phone":"phone","address":"address","occupation":"occupation","scanDate":"YYYY-MM-DD",',
+        '  "bloodPressure":"e.g. 120/80","physician":"physician name","allergies":"allergy list",',
+        '  "chronicAilments":"chronic conditions","previousHistoryOfBleeding":"yes/no/details",',
+        '  "drugsBeingTaken":"medications","natureOfTreatment":"treatment","occlusion":"occlusion findings",',
+        '  "periodontalCondition":"periodontal status","oralHygiene":"oral hygiene rating",',
+        '  "dentureUpper":"upper denture","dentureLower":"lower denture","abnormalities":"abnormalities",',
+        '  "generalCondition":"general condition","clinicalNotes":"clinical notes",',
+        '  "dentalChartNotes":"dental chart annotations","teethConditions":"tooth-by-tooth conditions"',
+        '}',
+        'RULES: Read ALL text including handwritten. Dates → YYYY-MM-DD. Return ONLY the JSON object.',
+      ].join('\n');
+    }
+    return [
+      'You are a dental records OCR assistant. Extract ALL visible text from this patient registration card.',
+      'Return a single JSON object with these exact keys (use "" for missing/unclear fields):',
+      '{',
+      '  "name":"full patient name","dob":"YYYY-MM-DD","age":"numeric age","sex":"Male or Female",',
+      '  "phone":"primary phone","email":"email","address":"complete address","occupation":"occupation",',
+      '  "maritalStatus":"Single/Married/Widowed/Separated","bloodType":"A+/A-/B+/B-/O+/O-/AB+/AB-",',
+      '  "allergies":"known allergies","lastVisit":"YYYY-MM-DD","balance":"0",',
+      '  "physician":"physician name","emergencyContact":"contact name and number"',
+      '}',
+      'RULES: Read every character carefully. Dates → YYYY-MM-DD. Return ONLY the JSON object.',
+    ].join('\n');
+  }
+
+  let data;
+
+  if (useDirect) {
+    // ── FAST PATH: call Gemini API directly (~5-10s) ─────────────────────────
+    // Current Gemini models as of 2026.
+    // 1.5 series fully removed from API — 2.0 and 2.5 only.
+    // Each model has its own quota pool — fallback helps when one is busy.
+    // gemini-2.0-flash-lite has 30 RPM (vs 15 RPM for flash) — best fallback.
+    const GEMINI_MODELS = [
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+    ];
+    const geminiBody = JSON.stringify({
+      contents: [{ parts: [
+        { text: buildPrompt(scanType || 'basic') },
+        { inline_data: { mime_type: mimeType || 'image/jpeg', data: base64 } },
+      ]}],
+      generationConfig: { temperature: 0, maxOutputTokens: 1024, responseMimeType: 'application/json' },
+    });
+    const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
+
+    // Enforce minimum gap between calls (free tier: 15/min = 1 every 4s)
+    await geminiRateWait(onProgress);
+    onProgress && onProgress('Calling Gemini AI...', 35);
+
+    // Helper: try all models once, return { usedModel, rawText } or null if all rate-limited/missing
+    async function tryAllModels(progressOffset) {
+      for (const model of GEMINI_MODELS) {
+        let res, resText;
+        try {
+          res     = await fetch(BASE_URL + model + ':generateContent?key=' + geminiKey, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    geminiBody,
+          });
+          resText = await res.text();
+        } catch (fetchErr) {
+          throw new Error('Network error calling Gemini: ' + fetchErr.message);
+        }
+
+        if (res.status === 429 || res.status === 503) {
+          console.warn('[OCR] ' + model + ' rate-limited (429), trying next...');
+          onProgress && onProgress('Rate limited on ' + model + ', trying next...', progressOffset);
+          continue;
+        }
+        if (res.status === 404) {
+          console.warn('[OCR] ' + model + ' not found (404), trying next...');
+          continue;
+        }
+        if (!res.ok) {
+          let errMsg = 'HTTP ' + res.status;
+          try { const ej = JSON.parse(resText); if (ej.error && ej.error.message) errMsg = ej.error.message; } catch(x) {}
+          if (res.status === 400 && errMsg.toLowerCase().includes('api key')) {
+            throw new Error('Invalid Gemini API key.\nGo to Sync settings (sidebar) and update your Gemini key.\nGet a free key at aistudio.google.com');
+          }
+          throw new Error('Gemini error (' + model + '): ' + errMsg);
+        }
+
+        let parsed;
+        try { parsed = JSON.parse(resText); } catch(e) {
+          throw new Error('Gemini returned invalid JSON from ' + model + '. Try again.');
+        }
+        const text = (parsed.candidates && parsed.candidates[0] && parsed.candidates[0].content &&
+                      parsed.candidates[0].content.parts && parsed.candidates[0].content.parts[0] &&
+                      parsed.candidates[0].content.parts[0].text) || '';
+        if (!text) continue; // empty response — try next model
+        return { usedModel: model, rawText: text };
+      }
+      return null; // all rate-limited or missing
+    }
+
+    // First pass
+    let result = await tryAllModels(45);
+
+    // If all rate-limited, wait 62s (full 1-min quota window) then retry once
+    if (!result) {
+      for (let s = 62; s > 0; s--) {
+        onProgress && onProgress('Quota full. Auto-retrying in ' + s + 's... (free tier: 15/min)', 50);
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      _geminiLastCallAt = 0; // reset rate limiter — we already waited the full window
+      onProgress && onProgress('Retrying now...', 55);
+      result = await tryAllModels(60);
+    }
+
+    if (!result) {
+      throw new Error(
+        'Gemini rate limit exceeded on all models.\n\n' +
+        'Free tier: 15 scans/minute. Wait 1 minute and try again.\n' +
+        'Tip: avoid scanning multiple cards in rapid succession.'
+      );
+    }
+
+    const { usedModel, rawText } = result;
+    console.log('[OCR] Direct Gemini success — model:', usedModel);
+    onProgress && onProgress('Parsing AI response...', 85);
+
+    if (!rawText) throw new Error('Gemini (' + usedModel + ') returned empty content.');
+
+    let content = rawText.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim();
+    try {
+      data = JSON.parse(content);
+    } catch(e) {
+      const m = content.match(/\{[\s\S]*\}/);
+      if (m) { try { data = JSON.parse(m[0]); } catch(e2) { throw new Error('Could not parse Gemini response: ' + content.substring(0, 200)); } }
+      else throw new Error('No JSON in Gemini response: ' + content.substring(0, 200));
+    }
+
+  } else {
+    // ── FALLBACK: route through Apps Script proxy ────────────────────────────
+    const payload = JSON.stringify({
+      action:   'geminiOcr',
+      imageB64: base64,
+      mimeType: mimeType || 'image/jpeg',
+      scanType: scanType || 'basic',
+    });
+
+    const result = await new Promise((resolve, reject) => {
+      const workerSrc = `
 self.onmessage = async function(e) {
   const { syncUrl, payload } = e.data;
   try {
-    const res = await fetch(syncUrl, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body:    payload,
-      redirect:'follow'
-    });
+    const res = await fetch(syncUrl, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:payload, redirect:'follow' });
     const text = await res.text();
-    if (!res.ok) {
-      self.postMessage({ ok: false, error: 'HTTP ' + res.status + ': ' + text.substring(0, 200) });
-      return;
-    }
+    if (!res.ok) { self.postMessage({ ok: false, error: 'HTTP ' + res.status + ': ' + text.substring(0, 300) }); return; }
     let parsed;
-    try { parsed = JSON.parse(text); }
-    catch(e) { self.postMessage({ ok: false, error: 'Bad JSON: ' + text.substring(0, 100) }); return; }
+    try { parsed = JSON.parse(text); } catch(e) { self.postMessage({ ok: false, error: 'Bad JSON: ' + text.substring(0, 100) }); return; }
     self.postMessage({ ok: true, result: parsed });
-  } catch(err) {
-    self.postMessage({ ok: false, error: err.message || String(err) });
-  }
-};
-`;
+  } catch(err) { self.postMessage({ ok: false, error: err.message || String(err) }); }
+};`;
+      let worker, timeout;
+      try {
+        const blob = new Blob([workerSrc], { type: 'application/javascript' });
+        const blobUrl = URL.createObjectURL(blob);
+        worker  = new Worker(blobUrl);
+        timeout = setTimeout(() => {
+          try { worker.terminate(); URL.revokeObjectURL(blobUrl); } catch(e) {}
+          reject(new Error('Request timed out (90s). Check your Apps Script URL and try again.'));
+        }, 90000);
+        worker.onmessage = (e) => {
+          clearTimeout(timeout);
+          URL.revokeObjectURL(blobUrl);
+          worker.terminate();
+          resolve(e.data);
+        };
+        worker.onerror = (e) => {
+          clearTimeout(timeout);
+          URL.revokeObjectURL(blobUrl);
+          reject(new Error('Worker error: ' + (e.message || 'unknown')));
+        };
+        worker.postMessage({ syncUrl, payload });
+      } catch (workerErr) {
+        clearTimeout && clearTimeout(timeout);
+        fetch(syncUrl, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:payload, redirect:'follow' })
+          .then(r => r.text().then(t => {
+            if (!r.ok) resolve({ ok: false, error: 'HTTP ' + r.status + ': ' + t.substring(0, 200) });
+            else { try { resolve({ ok: true, result: JSON.parse(t) }); } catch(e) { resolve({ ok: false, error: 'Bad JSON' }); } }
+          }))
+          .catch(err => resolve({ ok: false, error: err.message }));
+      }
+    });
 
-    let worker;
-    let timeout;
-    try {
-      const blob   = new Blob([workerSrc], { type: 'application/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-      worker = new Worker(blobUrl);
+    onProgress && onProgress('Processing AI response…', 85);
 
-      // 180-second timeout — Gemini auto-retries on rate limit can take up to 2 minutes
-      timeout = setTimeout(() => {
-        reject(new Error(
-          'Request timed out (3 min). The AI is taking longer than usual.\n\n' +
-          'This can happen when Gemini rate-limits and retries.\n' +
-          'Please try scanning again — it should work now.'
-        ));
-        try { worker.terminate(); URL.revokeObjectURL(blobUrl); } catch(e) {}
-      }, 180000);
-
-      worker.onmessage = (e) => {
-        clearTimeout(timeout);
-        URL.revokeObjectURL(blobUrl);
-        worker.terminate();
-        resolve(e.data);
-      };
-      worker.onerror = (e) => {
-        clearTimeout(timeout);
-        URL.revokeObjectURL(blobUrl);
-        reject(new Error('Worker error: ' + (e.message || 'unknown')));
-      };
-      worker.postMessage({ syncUrl, payload });
-
-    } catch (workerErr) {
-      // Web Workers not supported — fall back to direct fetch
-      console.warn('[OCR] Worker failed, falling back to direct fetch:', workerErr.message);
-      clearTimeout(timeout);
-      fetch(syncUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: payload,
-        redirect: 'follow'
-      })
-        .then(r => r.text().then(t => ({ status: r.status, text: t })))
-        .then(({ status, text }) => {
-          if (status < 200 || status > 299) {
-            resolve({ ok: false, error: 'HTTP ' + status + ': ' + text.substring(0, 200) });
-          } else {
-            try { resolve({ ok: true, result: JSON.parse(text) }); }
-            catch(e) { resolve({ ok: false, error: 'Bad JSON: ' + text.substring(0, 100) }); }
-          }
-        })
-        .catch(err => resolve({ ok: false, error: err.message }));
+    if (!result.ok) {
+      const err = result.error || 'Unknown error';
+      if (err.includes('429')) throw new Error('Gemini rate limit. Wait 15 seconds and try again.');
+      if (err.includes('GEMINI_API_KEY') || err.includes('not configured')) {
+        throw new Error('Gemini API key missing in Apps Script.\nOr go to ☁️ Sync → add your Gemini key for direct (fast) mode.');
+      }
+      throw new Error('OCR failed: ' + err);
     }
+
+    const parsed = result.result;
+    if (!parsed || parsed.ok === false) {
+      const gsErr = (parsed && parsed.error) || 'Unknown Apps Script error';
+      if (gsErr.includes('429')) throw new Error('Gemini rate limit. Wait 15 seconds and try again.');
+      throw new Error('Apps Script error: ' + gsErr);
+    }
+    if (!parsed.data) throw new Error('Apps Script returned ok:true but no data field.');
+    data = parsed.data;
+  }
+
+  // ── Sanitize ──────────────────────────────────────────────────────────────
+  const clean = {};
+  Object.keys(data).forEach(k => {
+    const v = data[k];
+    clean[k] = (v === null || v === undefined || v === 'null' || v === 'N/A' || v === 'n/a') ? '' : String(v).trim();
   });
 
-  // ── Handle errors ─────────────────────────────────────────────────────────
-  if (!result.ok) {
-    const err = result.error || 'Unknown error';
-
-    if (err.includes('Gateway') || err.includes('Unauthorized') || err.includes('Access Restricted')) {
-      throw new Error(
-        'Network gateway blocked the request.\n\n' +
-        'Try: open the app in an Incognito/Private window,\n' +
-        'or try from a different network (mobile data instead of Wi-Fi).\n' +
-        'Error details: ' + err
-      );
-    }
-    if (err.includes('No AI API key') || err.includes('ANTHROPIC_API_KEY') || err.includes('not configured')) {
-      throw new Error(
-        '🔑 No AI API key configured.\n\n' +
-        '✅ FREE OPTION — Google Gemini:\n' +
-        '1. Go to aistudio.google.com/app/apikey\n' +
-        '2. Click "Create API Key" (free, no credit card)\n' +
-        '3. In Apps Script → Project Settings → Script properties\n' +
-        '4. Add: GEMINI_API_KEY = AIza...\n' +
-        '5. Run setupGeminiKey() to save it\n' +
-        '6. Redeploy as new version\n\n' +
-        'Free tier: 15 scans/min, 1500/day — enough for a clinic.'
-      );
-    }
-    if (err.includes('401') || err.includes('invalid x-api-key') || err.includes('authentication')) {
-      throw new Error(
-        'Invalid API key. Run verifyApiKey() in Apps Script to test it.\n' +
-        'Get a valid key from: console.anthropic.com/settings/keys'
-      );
-    }
-    if (err.includes('credit balance') || err.includes('402') || err.includes('too low')) {
-      throw new Error(
-        'Anthropic credit balance too low.\n\n' +
-        'Switch to Gemini (FREE):\n' +
-        '1. Get free key: aistudio.google.com/app/apikey\n' +
-        '2. In Apps Script Script properties:\n' +
-        '   Add GEMINI_API_KEY = AIza...\n' +
-        '3. Run setupGeminiKey() then redeploy'
-      );
-    }
-    if (err.includes('429') || err.includes('rate limit') || err.includes('overloaded')) {
-      throw new Error('AI service is busy. Wait 1 minute and try again. (Gemini free: 15/min limit)');
-    }
-    throw new Error('OCR failed: ' + err);
-  }
-
-  const parsed = result.result;
-  if (!parsed) throw new Error('No result returned from Apps Script.');
-
-  // GS returned ok:false inside the parsed JSON
-  if (parsed.ok === false) {
-    const gsErr = parsed.error || 'Unknown error from Apps Script';
-    if (gsErr.includes('ANTHROPIC_API_KEY') || gsErr.includes('not configured')) {
-      throw new Error(
-        'Anthropic API key not set in Apps Script.\n\n' +
-        'Steps:\n' +
-        '1. Open your Apps Script editor\n' +
-        '2. Find setupApiKey() function\n' +
-        '3. Replace YOUR-KEY-HERE with your sk-ant-... key\n' +
-        '4. Click ▶ Run\n' +
-        '5. Redeploy as a new version\n\n' +
-        'Get key: console.anthropic.com/settings/keys'
-      );
-    }
-    if (gsErr.includes('401') || gsErr.includes('invalid x-api-key')) {
-      throw new Error('Invalid Anthropic API key. Get a valid key from console.anthropic.com');
-    }
-    if (gsErr.includes('429') || gsErr.includes('rate limit')) {
-      throw new Error('Claude rate limit hit. Wait 30 seconds and try again.');
-    }
-    throw new Error('Apps Script error: ' + gsErr);
-  }
-
-  if (!parsed.data) throw new Error('Apps Script returned ok:true but no data.');
-
-  console.log('[OCR] Success! Fields extracted:',
-    Object.entries(parsed.data).filter(([,v]) => v).map(([k]) => k).join(', '));
-
-  return parsed.data;
+  console.log('[OCR] Done via', useDirect ? 'direct Gemini' : 'Apps Script proxy', '— fields:', Object.keys(clean).filter(k => clean[k]).join(', '));
+  onProgress && onProgress('Done!', 100);
+  return clean;
 }
 
 /**
@@ -8537,6 +8671,8 @@ function RecordCardScanner({onExtracted, onClose}) {
   const [extracted, setExtracted] = useState(null);
   const [errorMsg, setErrorMsg]   = useState('');
   const [editData, setEditData]   = useState({});
+  const [progressMsg, setProgressMsg] = useState('');
+  const [progressPct, setProgressPct] = useState(0);
   const fileRef                   = useRef(null);
   const videoRef                  = useRef(null);
   const streamRef                 = useRef(null);
@@ -8591,13 +8727,17 @@ function RecordCardScanner({onExtracted, onClose}) {
   const runExtraction = async (dataUrl, mime) => {
     setStep('processing');
     setErrorMsg('');
+    setProgressPct(0);
+    setProgressMsg('Starting…');
     try {
       const syncUrl = (() => {
         try { return localStorage.getItem(LS_KEYS.SYNC_URL) || ''; } catch(e) { return ''; }
       })();
-      // Pass mimeType correctly — some browsers give image/heic etc.
       const safeMime = (mime && mime.startsWith('image/')) ? mime : 'image/jpeg';
-      const result = await extractPatientDataFromCard(dataUrl, safeMime, syncUrl);
+      const result = await extractPatientDataFromCard(
+        dataUrl, safeMime, syncUrl, 'basic',
+        (msg, pct) => { setProgressMsg(msg); setProgressPct(pct); }
+      );
       // Normalize dates
       ['dob', 'lastVisit'].forEach(k => {
         if (result[k]) result[k] = sanitizeDate(result[k]) || result[k];
@@ -8669,20 +8809,29 @@ function RecordCardScanner({onExtracted, onClose}) {
 
   // ── STEP: PROCESSING ───────────────────────────────────────────────
   if (step === 'processing') return h(Modal, {
-    title: '🔍 Reading Record Card…',
-    sub: 'Claude AI is extracting patient information',
+    title: '⚡ Gemini AI Reading Card…',
+    sub: 'Gemini 2.0 Flash is extracting patient information',
     onClose, footer: null
   },
     h('div', {className: 'ocr-processing'},
-      // Show the captured image
       imageDataUrl && h('img', {src: imageDataUrl, alt: 'Scanned card', className: 'ocr-preview-img'}),
       h('div', {className: 'ocr-spinner-wrap'},
         h('div', {className: 'ocr-spinner'}),
         h('div', {className: 'ocr-processing-text'},
-          h('div', {style: {fontWeight: 700, fontSize: 15, marginBottom: 6}}, 'Analyzing record card…'),
+          h('div', {style: {fontWeight: 700, fontSize: 15, marginBottom: 6}}, progressMsg || 'Starting…'),
           h('div', {style: {fontSize: 12.5, color: 'var(--md)', lineHeight: 1.5}},
             'Reading patient name, date of birth, contact details, ',
             'blood type, allergies, and medical notes.'
+          ),
+          h('div', {style: {marginTop:10, background:'var(--bg3)', borderRadius:6, overflow:'hidden', height:8}},
+            h('div', {style: {
+              width: (progressPct||0)+'%', height:'100%',
+              background:'linear-gradient(90deg,#4f8ef7,#7c3aed)',
+              transition:'width 0.4s ease', borderRadius:6,
+            }})
+          ),
+          h('div', {style: {fontSize:11, color:'var(--md)', marginTop:4, textAlign:'right'}},
+            (progressPct||0)+'%'
           )
         )
       )
@@ -8933,7 +9082,38 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl,u
   );
 }
 
-// ─── PAYMENTS (unchanged) ─────────────────────────────────────────────────────
+// ─── PAYMENTS ─────────────────────────────────────────────────────────────────
+// PayForm variant that accepts an optional prefill (used when paying from an appointment)
+function PayFormPrefilled({patients,prefill,onClose,onSave}){
+  const [f,setF]=useState(prefill||{patientId:'',patientName:'',service:'',amount:'',method:'Cash',date:localToday()});
+  const s=(k,v)=>setF(x=>({...x,[k]:v}));
+  const ok=f.patientId&&f.service&&f.amount;
+  return h(Modal,{title:'Record Payment',sub:'Enter payment details',onClose,
+    footer:h(Fragment,null,h('button',{className:'btn bgh',onClick:onClose},'Cancel'),h('button',{className:'btn bg2',onClick:()=>ok&&onSave(f),disabled:!ok},'Record'))},
+    h(Field,{label:'Patient *'},
+      h(PatientSearchInput, {
+        patients: patients,
+        value: f.patientName,
+        placeholder: 'Type patient name or phone number…',
+        required: true,
+        onSelect: (p) => {
+          if (p) { s('patientId',p.id); s('patientName',p.name); }
+          else { s('patientId',''); s('patientName',''); }
+        }
+      })
+    ),
+    h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>{s('service',e.target.value);const sv=getActiveSvcs().find(x=>x.name===e.target.value);if(sv)s('amount',sv.fee);}},h('option',{value:''},'Select service…'),Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
+        h('optgroup', {key:cat, label:cat},
+          svcs.map(sv => h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
+        )
+      ))),
+    h('div',{className:'fg2'},
+      h(Field,{label:'Amount (₱)'},h('input',{type:'number',value:f.amount,onChange:e=>s('amount',+e.target.value),placeholder:'0'})),
+      h(Field,{label:'Method'},h('select',{value:f.method,onChange:e=>s('method',e.target.value)},METHODS.map(m=>h('option',{key:m},m))))
+    ),
+    h(Field,{label:'Date'},h('input',{type:'date',value:f.date,onChange:e=>s('date',e.target.value)}))
+  );
+}
 function PayForm({patients,onClose,onSave}){
   const [f,setF]=useState({patientId:'',patientName:'',service:'',amount:'',method:'Cash',date:localToday()});
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
@@ -8979,27 +9159,53 @@ function ReceiptView({pay,onClose}){
     )
   );
 }
-function Payments({payments,setPayments,patients,addToast}){
+function Payments({payments,setPayments,patients,appointments,addToast}){
   const [filter,setFilter]=useState('all');
   const [modal,setModal]=useState(false);
   const [receipt,setReceipt]=useState(null);
+  const [prefill,setPrefill]=useState(null);
   const filtered=payments.filter(p=>filter==='all'||p.status===filter);
   const { pageItems: pagedPayments, PagerUI: PaymentsPager } = usePagination(filtered);
   const paid=payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
   const unpaid=payments.filter(p=>p.status==='unpaid').reduce((s,p)=>s+p.amount,0);
+  // Appointments with pending status that haven't been paid yet
+  const pendingAppts = safe(appointments).filter(a=>a.status==='pending');
   const save=d=>{
     const n={...d,id:'PAY'+uid(),ref:'REF-'+Math.random().toString(36).substr(2,6).toUpperCase(),status:'paid'};
-    setPayments(p=>[n,...p]);setModal(false);addToast('₱'+p$(d.amount)+' recorded!','success');setReceipt(n);
+    setPayments(p=>[n,...p]);setModal(false);setPrefill(null);addToast('₱'+p$(d.amount)+' recorded!','success');setReceipt(n);
+  };
+  const openPayForAppt = (a) => {
+    setPrefill({patientId:a.patientId,patientName:a.patientName,service:a.service,amount:a.fee||'',method:'Cash',date:localToday()});
+    setModal(true);
   };
   return h('div',null,
     h('div',{className:'ph'},
       h('div',null,h('div',{className:'ptl'},'Payments'),h('div',{className:'psl'},'Track all dental service payments')),
-      h('div',{className:'ph-act'},h('button',{className:'btn bg2',onClick:()=>setModal(true)},h(Svg,{d:IC.plus,size:14}),' Record'))
+      h('div',{className:'ph-act'},h('button',{className:'btn bg2',onClick:()=>{setPrefill(null);setModal(true);}},h(Svg,{d:IC.plus,size:14}),' Record'))
     ),
     h('div',{className:'sg sg3'},
       [['Collected','₱'+p$(paid),'#e6f7f3','#3aa876'],['Outstanding','₱'+p$(unpaid),'#fdeaea','#e05252'],['Total',payments.length,'#e8eeff','#3a7bd5']].map(([l,v,bg,c])=>
         h('div',{key:l,className:'sc'},h('div',{className:'si',style:{background:bg}},h(Svg,{d:IC.credit,color:c,size:20})),h('div',null,h('div',{className:'sv'},v),h('div',{className:'sl'},l)))
       )
+    ),
+    // ── Pending appointments awaiting payment ────────────────────────────
+    pendingAppts.length>0 && h('div',{className:'card',style:{marginBottom:16,padding:'14px 18px'}},
+      h('div',{style:{fontWeight:700,fontSize:13,color:'var(--dk)',marginBottom:10,display:'flex',alignItems:'center',gap:6}},
+        h('span',{style:{background:'#fef3c7',color:'#b45309',padding:'2px 8px',borderRadius:20,fontSize:11,fontWeight:700}},'⏳ PENDING'),
+        ' Appointments Awaiting Payment'
+      ),
+      h('div',{className:'tw'},h('table',null,
+        h('thead',null,h('tr',null,['Patient','Service','Fee','Date','Time','Dentist',''].map(c=>h('th',{key:c},c)))),
+        h('tbody',null,pendingAppts.map(a=>h('tr',{key:a.id},
+          h('td',null,h('strong',null,a.patientName)),
+          h('td',null,a.service),
+          h('td',{style:{fontWeight:700,color:'var(--t)'}},a.fee?'₱'+p$(a.fee):'—'),
+          h('td',null,a.date),
+          h('td',null,a.time),
+          h('td',null,a.dentist),
+          h('td',null,h('button',{className:'btn bg2 bsm',onClick:()=>openPayForAppt(a)},'💳 Pay'))
+        )))
+      ))
     ),
     h('div',{className:'filters'},['all','paid','unpaid'].map(f=>h('button',{key:f,className:'fb'+(filter===f?' act':''),onClick:()=>setFilter(f)},f.charAt(0).toUpperCase()+f.slice(1)))),
     h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
@@ -9030,7 +9236,7 @@ function Payments({payments,setPayments,patients,addToast}){
         h('div',{className:'mc-act'},h('button',{className:'btn bgh bsm',style:{width:'100%'},onClick:()=>setReceipt(p)},'View Receipt'))
       ))
     ),
-    modal&&h(PayForm,{patients,onClose:()=>setModal(false),onSave:save}),
+    modal&&h(PayFormPrefilled,{patients,prefill,onClose:()=>{setModal(false);setPrefill(null);},onSave:save}),
     receipt&&h(ReceiptView,{pay:receipt,onClose:()=>setReceipt(null)})
   );
 }
@@ -11003,9 +11209,10 @@ function lsSet(k, v) {
 }
 
 // Build the full data blob in the same shape Apps Script expects
-function buildDataBlob(patients, appointments, payments, notifications, reminders, reminderLog) {
+function buildDataBlob(patients, appointments, payments, notifications, reminders, reminderLog, services) {
   return {
     patients, appointments, payments, notifications, reminders, reminderLog,
+    services: services || [],
   };
 }
 
@@ -11017,6 +11224,10 @@ function applyDataBlob(blob, setters) {
   if (Array.isArray(blob.notifications)) setters.setNotifications(blob.notifications);
   if (Array.isArray(blob.reminders))     setters.setReminders(blob.reminders);
   if (Array.isArray(blob.reminderLog))   setters.setReminderLog(blob.reminderLog);
+  if (Array.isArray(blob.services) && blob.services.length) {
+    setters.setServices && setters.setServices(blob.services);
+    try { localStorage.setItem(LS_KEYS.SERVICES, JSON.stringify(blob.services)); } catch(e){}
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -11139,15 +11350,22 @@ function ServicesPage({addToast}){
   );
 }
 
-function SyncPage({patients, appointments, payments, notifications, reminders, reminderLog, setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, addToast}){
+function SyncPage({patients, appointments, payments, notifications, reminders, reminderLog, services, setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, setServices, addToast}){
   const [url, setUrl] = useState(()=>lsGet(LS_KEYS.SYNC_URL, ''));
   const [autoSync, setAutoSync] = useState(()=>lsGet(LS_KEYS.AUTO_SYNC,'true')!=='false');
   const [lastSync, setLastSync] = useState(()=>lsGet(LS_KEYS.LAST_SYNC,''));
   const [busy, setBusy] = useState(null);
   const [log, setLog] = useState([]);
+  const [geminiKey, setGeminiKey] = useState(()=>lsGet(LS_KEYS.GEMINI_KEY,''));
+  const [showKey, setShowKey]     = useState(false);
   const fileInputRef = useRef(null);
 
-  const totalRecords = patients.length + appointments.length + payments.length + notifications.length + reminders.length + reminderLog.length;
+  const saveGeminiKey = (v) => {
+    setGeminiKey(v);
+    lsSet(LS_KEYS.GEMINI_KEY, v.trim());
+  };
+
+  const totalRecords = patients.length + appointments.length + payments.length + notifications.length + reminders.length + reminderLog.length + (services||[]).length;
 
   const addLog = (msg, type)=>{
     const entry = {
@@ -11197,7 +11415,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
     setBusy('push');
     addLog('📤 Pushing ' + totalRecords + ' records to Google Sheets…');
     try {
-      const blob = buildDataBlob(patients, appointments, payments, notifications, reminders, reminderLog);
+      const blob = buildDataBlob(patients, appointments, payments, notifications, reminders, reminderLog, services);
       const res = await fetch(url, {
         method: 'POST',
         // Use text/plain to avoid CORS preflight (Apps Script accepts this)
@@ -11238,7 +11456,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
       let data;
       try { data = JSON.parse(text); } catch(e) { throw new Error('Invalid response'); }
       if (data.ok) {
-        applyDataBlob(data.data, {setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog});
+        applyDataBlob(data.data, {setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, setServices});
         const now = new Date().toLocaleString();
         setLastSync(now);
         lsSet(LS_KEYS.LAST_SYNC, now);
@@ -11270,6 +11488,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
         notifications: notifications,
         reminders: reminders.map(r=>({...r, channels: Array.isArray(r.channels)?r.channels.join(','):r.channels})),
         reminderLog: reminderLog,
+        services: services || [],
       };
       Object.entries(tables).forEach(([name, rows])=>{
         if (rows.length === 0) {
@@ -11331,7 +11550,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
           }
           blob[name] = rows;
         });
-        applyDataBlob(blob, {setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog});
+        applyDataBlob(blob, {setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, setServices});
         const total = Object.values(blob).reduce((s,arr)=>s+arr.length,0);
         addLog('✅ Imported ' + total + ' records', 'ok');
         addToast('Imported from Excel!', 'success');
@@ -11388,6 +11607,64 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
     ),
 
     h('div', {className:'sync-grid'},
+
+      // ───── Gemini API key card ─────
+      h('div', {className:'card', style:{borderTop:'3px solid #4f8ef7'}},
+        h('div', {className:'ch'}, h('div', {className:'ct'}, '⚡ Gemini OCR (Fast Mode)')),
+        h('div', {className:'cb'},
+          h('p',{style:{fontSize:13,color:'var(--md)',marginBottom:12,lineHeight:1.55}},
+            h('strong',null,'Direct Gemini API key '),
+            '= ',h('strong',{style:{color:'#4f8ef7'}},'5-10 second'),
+            ' scans. Without it, OCR routes via Apps Script (~60-120s cold start).'
+          ),
+          h(Field,{label:'Gemini API Key'},
+            h('div',{style:{display:'flex',gap:6}},
+              h('input',{
+                type: showKey ? 'text' : 'password',
+                value: geminiKey,
+                onChange: e => saveGeminiKey(e.target.value),
+                placeholder:'AIza… (get free key at aistudio.google.com)',
+                style:{fontSize:12,fontFamily:'monospace',flex:1},
+              }),
+              h('button',{className:'btn bgh bsm',onClick:()=>setShowKey(s=>!s),style:{whiteSpace:'nowrap'}},
+                showKey ? '🙈 Hide' : '👁 Show'
+              )
+            )
+          ),
+          geminiKey
+            ? h('div',{style:{fontSize:12,color:'#22c55e',fontWeight:600,marginTop:-4,marginBottom:10}},
+                '✓ Key saved — OCR will use direct Gemini (fast mode)'
+              )
+            : h('div',{style:{fontSize:11.5,color:'var(--md)',marginTop:-4,marginBottom:10,lineHeight:1.5}},
+                '💡 Get a free API key at ',
+                h('a',{href:'https://aistudio.google.com/app/apikey',target:'_blank',rel:'noopener',style:{color:'var(--pr)'}},
+                  'aistudio.google.com/app/apikey'),
+                ' — free tier: 15 scans/min, 1,500/day'
+              ),
+          geminiKey && h('button',{
+            className:'btn bgh bsm',
+            style:{width:'100%',justifyContent:'center'},
+            onClick: async () => {
+              addToast('Testing Gemini key…','info');
+              try {
+                // Use models list endpoint — does NOT consume any quota
+                const url = 'https://generativelanguage.googleapis.com/v1beta/models?key=' + geminiKey.trim() + '&pageSize=5';
+                const res = await fetch(url);
+                if (res.ok) {
+                  const d = await res.json();
+                  const hasFlash = (d.models||[]).some(m => m.name && m.name.includes('flash'));
+                  addToast('✅ Gemini key valid!' + (hasFlash ? ' Gemini Flash ready.' : ''), 'success');
+                } else {
+                  const t = await res.text();
+                  const msg = res.status === 400 ? 'Invalid API key' : res.status === 403 ? 'API not enabled for this key' : 'Error ' + res.status;
+                  addToast('❌ ' + msg + ': ' + t.substring(0,80), 'error');
+                }
+              } catch(e) { addToast('❌ Test failed: ' + e.message,'error'); }
+            },
+          }, '🔬 Test Gemini Key')
+        )
+      ),
+
       // ───── Google Sheets card ─────
       h('div', {className:'card'},
         h('div', {className:'ch'}, h('div', {className:'ct'}, '☁️ Google Sheets')),
@@ -11671,6 +11948,8 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
       id:          'A'+uid(),
       patientId,
       patientName: info.name.trim(),
+      phone:       info.phone.trim(),
+      email:       info.email || '',
       status:      'pending',
       arrived:     false,
     };
@@ -11692,12 +11971,8 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
   };
 
   // ── UI Helpers ────────────────────────────────────────────────────────
-  const Logo = () => h('div',{className:'pwh'},
-    h('div',{className:'pwli'},
-      h('div',{className:'pwlic'}, h(Svg,{d:IC.tooth,color:'white',size:24})),
-      h('div',{className:'pwn'},'Cyrabell Dental')
-    ),
-    h('div',{className:'pwt'},'Your Smile, Our Passion')
+  const Logo = () => h('div',{className:'pwh', style:{display:'flex',justifyContent:'center',marginBottom:8}},
+    h(BrandLogo,{dark:true,width:210})
   );
   const BackBtn = () => h('div',{style:{position:'fixed',top:14,right:14,zIndex:10}},
     h('button',{className:'btn bp',onClick:onBack,style:{fontSize:12,padding:'7px 12px'}},'← Back')
@@ -11794,8 +12069,8 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
         )
       ),
 
-      // ── Personal fields ──────────────────────────────────────────────
-      h('div',{className:'fg2'},
+      // ── Personal fields (hidden for existing patients for privacy) ──────
+      !selectedPat && h('div',{className:'fg2'},
         h(Field,{label:'Phone *'},
           h('input',{type:'tel',value:info.phone,placeholder:'09XXXXXXXXX',
             onChange:e=>si('phone',e.target.value)})
@@ -11805,7 +12080,7 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
             onChange:e=>si('email',e.target.value)})
         )
       ),
-      h('div',{className:'fg2'},
+      !selectedPat && h('div',{className:'fg2'},
         h(Field,{label:'Date of Birth'},
           h('input',{type:'date',value:info.dob,onChange:e=>si('dob',e.target.value)})
         ),
@@ -11817,7 +12092,7 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
           )
         )
       ),
-      h('div',{className:'fg2'},
+      !selectedPat && h('div',{className:'fg2'},
         h(Field,{label:'Marital Status'},
           h('select',{value:info.maritalStatus,onChange:e=>si('maritalStatus',e.target.value)},
             h('option',{value:''},'— Select —'),
@@ -11830,23 +12105,23 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
           )
         )
       ),
-      h(Field,{label:'Occupation'},
+      !selectedPat && h(Field,{label:'Occupation'},
         h('input',{value:info.occupation,placeholder:'e.g. Teacher, Nurse, Engineer…',
           onChange:e=>si('occupation',e.target.value)})
       ),
-      h(Field,{label:'Allergies'},
+      !selectedPat && h(Field,{label:'Allergies'},
         h('input',{value:info.allergies,placeholder:'e.g. Penicillin, latex — or "None"',
           onChange:e=>si('allergies',e.target.value)})
       ),
-      h(Field,{label:'Address'},
+      !selectedPat && h(Field,{label:'Address'},
         h('input',{value:info.address,placeholder:'Street, City',
           onChange:e=>si('address',e.target.value)})
       ),
 
       err && h('div',{style:{color:'#dc2626',fontSize:12,marginTop:8,padding:'8px 10px',background:'#fef2f2',borderRadius:8}}, err),
       h('button',{className:'btn bp',style:{width:'100%',marginTop:16},
-        onClick:()=>{ if (!info.name.trim()||!info.phone.trim()){setErr('Name and phone are required.');return;} setErr(''); setStep(2); },
-        disabled:!info.name.trim()||!info.phone.trim()
+        onClick:()=>{ if (!info.name.trim()||((!selectedPat)&&!info.phone.trim())){setErr('Name and phone are required.');return;} setErr(''); setStep(2); },
+        disabled:!info.name.trim()||((!selectedPat)&&!info.phone.trim())
       },'Next: Select Service →')
     ),
 
@@ -12240,10 +12515,10 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
       if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments),onGoKiosk});
       if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast,syncUrl});
       if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),payments:safe(payments),addToast,syncUrl,user});
-      if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),addToast});
+      if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),appointments:safe(appointments),addToast});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
       if(page==='services')return canDo(user,'edit_services')?h(ServicesPage,{addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
-      if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+      if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),services:getActiveSvcs(),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,setServices:(svcs)=>{try{localStorage.setItem(LS_KEYS.SERVICES,JSON.stringify(svcs));}catch(e){}},addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='notifications')return h(Notifications,{notifications:safe(notifications),setNotifications,appointments:safe(appointments),addToast});
       if(page==='export')return canDo(user,'export_data')?h(ExportPage,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='analytics')return canDo(user,'view_analytics')?h(Analytics,{appointments:safe(appointments),payments:safe(payments),patients:safe(patients)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
@@ -12266,9 +12541,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
     h('div',{className:'app'},
       h('div',{className:'sb '+(sideOpen?'open':'')},
         h('div',{className:'sb-logo'},
-          h('div',{className:'sb-li'},h(Svg,{d:IC.tooth,color:'white',size:20})),
-          h('div',{className:'sb-nm'},'Cyrabell Dental'),
-          h('div',{className:'sb-sub'},'Admin Panel')
+          h(BrandLogo,{dark:true,width:170})
         ),
         h('nav',{className:'sb-nav'},
           NAV.map(item=>{
