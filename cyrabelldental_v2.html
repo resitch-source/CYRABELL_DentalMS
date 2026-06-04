@@ -5317,7 +5317,10 @@ function KioskMode({appointments,onCheckIn,onExit,addToast}){
       h('div',{className:'kiosk-clock'},'🕐 '+formatTime(clock)),
       h('div',{className:'kiosk-logo-row'},
         h('div',{className:'kiosk-logo'},h(Svg,{d:IC.tooth,color:'white',size:28})),
-        h('div',null,h('div',{className:'kiosk-name'},'Simplified Dental'),h('div',{style:{fontSize:11,color:'rgba(255,255,255,.75)',marginTop:1}},'Clinic Management Systems')))
+        h('div',null,
+          h('div',{className:'kiosk-name'},'Simplified Dental'),
+          h('div',{style:{fontSize:11,color:'rgba(255,255,255,.75)',marginTop:1}},'Clinic Management Systems')
+        )
       ),
       h('div',{className:'kiosk-tag'},'Welcome — Please Check In')
     ),
