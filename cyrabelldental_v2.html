@@ -9082,7 +9082,38 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl,u
   );
 }
 
-// ─── PAYMENTS (unchanged) ─────────────────────────────────────────────────────
+// ─── PAYMENTS ─────────────────────────────────────────────────────────────────
+// PayForm variant that accepts an optional prefill (used when paying from an appointment)
+function PayFormPrefilled({patients,prefill,onClose,onSave}){
+  const [f,setF]=useState(prefill||{patientId:'',patientName:'',service:'',amount:'',method:'Cash',date:localToday()});
+  const s=(k,v)=>setF(x=>({...x,[k]:v}));
+  const ok=f.patientId&&f.service&&f.amount;
+  return h(Modal,{title:'Record Payment',sub:'Enter payment details',onClose,
+    footer:h(Fragment,null,h('button',{className:'btn bgh',onClick:onClose},'Cancel'),h('button',{className:'btn bg2',onClick:()=>ok&&onSave(f),disabled:!ok},'Record'))},
+    h(Field,{label:'Patient *'},
+      h(PatientSearchInput, {
+        patients: patients,
+        value: f.patientName,
+        placeholder: 'Type patient name or phone number…',
+        required: true,
+        onSelect: (p) => {
+          if (p) { s('patientId',p.id); s('patientName',p.name); }
+          else { s('patientId',''); s('patientName',''); }
+        }
+      })
+    ),
+    h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>{s('service',e.target.value);const sv=getActiveSvcs().find(x=>x.name===e.target.value);if(sv)s('amount',sv.fee);}},h('option',{value:''},'Select service…'),Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
+        h('optgroup', {key:cat, label:cat},
+          svcs.map(sv => h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
+        )
+      ))),
+    h('div',{className:'fg2'},
+      h(Field,{label:'Amount (₱)'},h('input',{type:'number',value:f.amount,onChange:e=>s('amount',+e.target.value),placeholder:'0'})),
+      h(Field,{label:'Method'},h('select',{value:f.method,onChange:e=>s('method',e.target.value)},METHODS.map(m=>h('option',{key:m},m))))
+    ),
+    h(Field,{label:'Date'},h('input',{type:'date',value:f.date,onChange:e=>s('date',e.target.value)}))
+  );
+}
 function PayForm({patients,onClose,onSave}){
   const [f,setF]=useState({patientId:'',patientName:'',service:'',amount:'',method:'Cash',date:localToday()});
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
@@ -9128,27 +9159,53 @@ function ReceiptView({pay,onClose}){
     )
   );
 }
-function Payments({payments,setPayments,patients,addToast}){
+function Payments({payments,setPayments,patients,appointments,addToast}){
   const [filter,setFilter]=useState('all');
   const [modal,setModal]=useState(false);
   const [receipt,setReceipt]=useState(null);
+  const [prefill,setPrefill]=useState(null);
   const filtered=payments.filter(p=>filter==='all'||p.status===filter);
   const { pageItems: pagedPayments, PagerUI: PaymentsPager } = usePagination(filtered);
   const paid=payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
   const unpaid=payments.filter(p=>p.status==='unpaid').reduce((s,p)=>s+p.amount,0);
+  // Appointments with pending status that haven't been paid yet
+  const pendingAppts = safe(appointments).filter(a=>a.status==='pending');
   const save=d=>{
     const n={...d,id:'PAY'+uid(),ref:'REF-'+Math.random().toString(36).substr(2,6).toUpperCase(),status:'paid'};
-    setPayments(p=>[n,...p]);setModal(false);addToast('₱'+p$(d.amount)+' recorded!','success');setReceipt(n);
+    setPayments(p=>[n,...p]);setModal(false);setPrefill(null);addToast('₱'+p$(d.amount)+' recorded!','success');setReceipt(n);
+  };
+  const openPayForAppt = (a) => {
+    setPrefill({patientId:a.patientId,patientName:a.patientName,service:a.service,amount:a.fee||'',method:'Cash',date:localToday()});
+    setModal(true);
   };
   return h('div',null,
     h('div',{className:'ph'},
       h('div',null,h('div',{className:'ptl'},'Payments'),h('div',{className:'psl'},'Track all dental service payments')),
-      h('div',{className:'ph-act'},h('button',{className:'btn bg2',onClick:()=>setModal(true)},h(Svg,{d:IC.plus,size:14}),' Record'))
+      h('div',{className:'ph-act'},h('button',{className:'btn bg2',onClick:()=>{setPrefill(null);setModal(true);}},h(Svg,{d:IC.plus,size:14}),' Record'))
     ),
     h('div',{className:'sg sg3'},
       [['Collected','₱'+p$(paid),'#e6f7f3','#3aa876'],['Outstanding','₱'+p$(unpaid),'#fdeaea','#e05252'],['Total',payments.length,'#e8eeff','#3a7bd5']].map(([l,v,bg,c])=>
         h('div',{key:l,className:'sc'},h('div',{className:'si',style:{background:bg}},h(Svg,{d:IC.credit,color:c,size:20})),h('div',null,h('div',{className:'sv'},v),h('div',{className:'sl'},l)))
       )
+    ),
+    // ── Pending appointments awaiting payment ────────────────────────────
+    pendingAppts.length>0 && h('div',{className:'card',style:{marginBottom:16,padding:'14px 18px'}},
+      h('div',{style:{fontWeight:700,fontSize:13,color:'var(--dk)',marginBottom:10,display:'flex',alignItems:'center',gap:6}},
+        h('span',{style:{background:'#fef3c7',color:'#b45309',padding:'2px 8px',borderRadius:20,fontSize:11,fontWeight:700}},'⏳ PENDING'),
+        ' Appointments Awaiting Payment'
+      ),
+      h('div',{className:'tw'},h('table',null,
+        h('thead',null,h('tr',null,['Patient','Service','Fee','Date','Time','Dentist',''].map(c=>h('th',{key:c},c)))),
+        h('tbody',null,pendingAppts.map(a=>h('tr',{key:a.id},
+          h('td',null,h('strong',null,a.patientName)),
+          h('td',null,a.service),
+          h('td',{style:{fontWeight:700,color:'var(--t)'}},a.fee?'₱'+p$(a.fee):'—'),
+          h('td',null,a.date),
+          h('td',null,a.time),
+          h('td',null,a.dentist),
+          h('td',null,h('button',{className:'btn bg2 bsm',onClick:()=>openPayForAppt(a)},'💳 Pay'))
+        )))
+      ))
     ),
     h('div',{className:'filters'},['all','paid','unpaid'].map(f=>h('button',{key:f,className:'fb'+(filter===f?' act':''),onClick:()=>setFilter(f)},f.charAt(0).toUpperCase()+f.slice(1)))),
     h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
@@ -9179,7 +9236,7 @@ function Payments({payments,setPayments,patients,addToast}){
         h('div',{className:'mc-act'},h('button',{className:'btn bgh bsm',style:{width:'100%'},onClick:()=>setReceipt(p)},'View Receipt'))
       ))
     ),
-    modal&&h(PayForm,{patients,onClose:()=>setModal(false),onSave:save}),
+    modal&&h(PayFormPrefilled,{patients,prefill,onClose:()=>{setModal(false);setPrefill(null);},onSave:save}),
     receipt&&h(ReceiptView,{pay:receipt,onClose:()=>setReceipt(null)})
   );
 }
@@ -12452,7 +12509,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
       if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments),onGoKiosk});
       if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast,syncUrl});
       if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),payments:safe(payments),addToast,syncUrl,user});
-      if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),addToast});
+      if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),appointments:safe(appointments),addToast});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
       if(page==='services')return canDo(user,'edit_services')?h(ServicesPage,{addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
