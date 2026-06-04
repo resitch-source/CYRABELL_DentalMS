@@ -68,6 +68,9 @@ var TABLES = {
     'id','reminderId','patientId','patientName','type','channel',
     'message','sentAt','status'
   ],
+  services: [
+    'name','fee','cat'
+  ],
   serverLogs: [
     'id','time','level','source','message','detail'
   ],

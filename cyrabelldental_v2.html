@@ -11209,9 +11209,10 @@ function lsSet(k, v) {
 }
 
 // Build the full data blob in the same shape Apps Script expects
-function buildDataBlob(patients, appointments, payments, notifications, reminders, reminderLog) {
+function buildDataBlob(patients, appointments, payments, notifications, reminders, reminderLog, services) {
   return {
     patients, appointments, payments, notifications, reminders, reminderLog,
+    services: services || [],
   };
 }
 
@@ -11223,6 +11224,10 @@ function applyDataBlob(blob, setters) {
   if (Array.isArray(blob.notifications)) setters.setNotifications(blob.notifications);
   if (Array.isArray(blob.reminders))     setters.setReminders(blob.reminders);
   if (Array.isArray(blob.reminderLog))   setters.setReminderLog(blob.reminderLog);
+  if (Array.isArray(blob.services) && blob.services.length) {
+    setters.setServices && setters.setServices(blob.services);
+    try { localStorage.setItem(LS_KEYS.SERVICES, JSON.stringify(blob.services)); } catch(e){}
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -11345,7 +11350,7 @@ function ServicesPage({addToast}){
   );
 }
 
-function SyncPage({patients, appointments, payments, notifications, reminders, reminderLog, setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, addToast}){
+function SyncPage({patients, appointments, payments, notifications, reminders, reminderLog, services, setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, setServices, addToast}){
   const [url, setUrl] = useState(()=>lsGet(LS_KEYS.SYNC_URL, ''));
   const [autoSync, setAutoSync] = useState(()=>lsGet(LS_KEYS.AUTO_SYNC,'true')!=='false');
   const [lastSync, setLastSync] = useState(()=>lsGet(LS_KEYS.LAST_SYNC,''));
@@ -11360,7 +11365,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
     lsSet(LS_KEYS.GEMINI_KEY, v.trim());
   };
 
-  const totalRecords = patients.length + appointments.length + payments.length + notifications.length + reminders.length + reminderLog.length;
+  const totalRecords = patients.length + appointments.length + payments.length + notifications.length + reminders.length + reminderLog.length + (services||[]).length;
 
   const addLog = (msg, type)=>{
     const entry = {
@@ -11410,7 +11415,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
     setBusy('push');
     addLog('📤 Pushing ' + totalRecords + ' records to Google Sheets…');
     try {
-      const blob = buildDataBlob(patients, appointments, payments, notifications, reminders, reminderLog);
+      const blob = buildDataBlob(patients, appointments, payments, notifications, reminders, reminderLog, services);
       const res = await fetch(url, {
         method: 'POST',
         // Use text/plain to avoid CORS preflight (Apps Script accepts this)
@@ -11451,7 +11456,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
       let data;
       try { data = JSON.parse(text); } catch(e) { throw new Error('Invalid response'); }
       if (data.ok) {
-        applyDataBlob(data.data, {setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog});
+        applyDataBlob(data.data, {setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, setServices});
         const now = new Date().toLocaleString();
         setLastSync(now);
         lsSet(LS_KEYS.LAST_SYNC, now);
@@ -11483,6 +11488,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
         notifications: notifications,
         reminders: reminders.map(r=>({...r, channels: Array.isArray(r.channels)?r.channels.join(','):r.channels})),
         reminderLog: reminderLog,
+        services: services || [],
       };
       Object.entries(tables).forEach(([name, rows])=>{
         if (rows.length === 0) {
@@ -11544,7 +11550,7 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
           }
           blob[name] = rows;
         });
-        applyDataBlob(blob, {setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog});
+        applyDataBlob(blob, {setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, setServices});
         const total = Object.values(blob).reduce((s,arr)=>s+arr.length,0);
         addLog('✅ Imported ' + total + ' records', 'ok');
         addToast('Imported from Excel!', 'success');
@@ -12512,7 +12518,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
       if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),appointments:safe(appointments),addToast});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
       if(page==='services')return canDo(user,'edit_services')?h(ServicesPage,{addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
-      if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+      if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),services:getActiveSvcs(),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,setServices:(svcs)=>{try{localStorage.setItem(LS_KEYS.SERVICES,JSON.stringify(svcs));}catch(e){}},addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='notifications')return h(Notifications,{notifications:safe(notifications),setNotifications,appointments:safe(appointments),addToast});
       if(page==='export')return canDo(user,'export_data')?h(ExportPage,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='analytics')return canDo(user,'view_analytics')?h(Analytics,{appointments:safe(appointments),payments:safe(payments),patients:safe(patients)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
