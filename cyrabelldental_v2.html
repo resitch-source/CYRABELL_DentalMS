@@ -9175,14 +9175,28 @@ function Payments({payments,setPayments,patients,appointments,setAppointments,ad
     a.status==='pending' && !paidKeys.has(a.patientId+'|'+a.service+a.date)
   );
   const save=d=>{
-    const n={...d,id:'PAY'+uid(),ref:'REF-'+Math.random().toString(36).substr(2,6).toUpperCase(),status:'paid'};
-    setPayments(p=>[n,...p]);
-    // Mark the originating appointment as completed so it leaves the pending list
-    if (payingApptId && setAppointments) {
-      setAppointments(prev=>prev.map(a=>a.id===payingApptId?{...a,status:'completed'}:a));
+    if (d._replaceId) {
+      // Update existing pending payment record to paid
+      const updated = {method:d.method,amount:d.amount,date:d.date,status:'paid'};
+      setPayments(prev=>prev.map(p=>p.id===d._replaceId?{...p,...updated}:p));
+      const paid = payments.find(p=>p.id===d._replaceId);
+      if (paid) setReceipt({...paid,...updated});
+      addToast('₱'+p$(d.amount)+' marked as paid!','success');
+    } else {
+      const n={...d,id:'PAY'+uid(),ref:'REF-'+Math.random().toString(36).substr(2,6).toUpperCase(),status:'paid'};
+      setPayments(p=>[n,...p]);
+      if (payingApptId && setAppointments) {
+        setAppointments(prev=>prev.map(a=>a.id===payingApptId?{...a,status:'completed'}:a));
+      }
+      addToast('₱'+p$(d.amount)+' recorded!','success');
+      setReceipt(n);
     }
     setModal(false);setPrefill(null);setPayingApptId(null);
-    addToast('₱'+p$(d.amount)+' recorded!','success');setReceipt(n);
+  };
+  // Mark an existing pending payment record as paid (method chooser via modal)
+  const payRecord = (p) => {
+    setPrefill({patientId:p.patientId,patientName:p.patientName,service:p.service,amount:p.amount,method:'Cash',date:localToday(),_replaceId:p.id});
+    setModal(true);
   };
   const openPayForAppt = (a) => {
     setPayingApptId(a.id);
@@ -9230,7 +9244,10 @@ function Payments({payments,setPayments,patients,appointments,setAppointments,ad
           h('td',null,h('span',{className:'tag',style:{background:'#f0f8ff',color:'#2563eb'}},p.method)),
           h('td',{style:{whiteSpace:'nowrap'}},p.date),
           h('td',null,h(SBadge,{status:p.status})),
-          h('td',null,h('button',{className:'btn bgh bsm',onClick:()=>setReceipt(p)},'Receipt'))
+          h('td',null,h('div',{className:'gap8'},
+            p.status==='pending' && h('button',{className:'btn bg2 bsm',onClick:()=>payRecord(p)},'💳 Pay'),
+            p.status==='paid' && h('button',{className:'btn bgh bsm',onClick:()=>setReceipt(p)},'Receipt')
+          ))
         ))
       )
     )),h(PaymentsPager)),
@@ -9244,7 +9261,10 @@ function Payments({payments,setPayments,patients,appointments,setAppointments,ad
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Method'),h('span',{className:'mc-val'},p.method)),
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Date'),h('span',{className:'mc-val'},p.date)),
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Ref'),h('span',{className:'mc-val',style:{fontSize:11}},p.ref)),
-        h('div',{className:'mc-act'},h('button',{className:'btn bgh bsm',style:{width:'100%'},onClick:()=>setReceipt(p)},'View Receipt'))
+        h('div',{className:'mc-act'},
+          p.status==='pending' && h('button',{className:'btn bg2 bsm',style:{flex:1},onClick:()=>payRecord(p)},'💳 Pay'),
+          p.status==='paid' && h('button',{className:'btn bgh bsm',style:{flex:1},onClick:()=>setReceipt(p)},'View Receipt')
+        )
       ))
     ),
     modal&&h(PayFormPrefilled,{patients,prefill,onClose:()=>{setModal(false);setPrefill(null);setPayingApptId(null);},onSave:save}),
@@ -10999,7 +11019,6 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
             h('td',null,h('div',{className:'gap8'},
               h('button',{className:'btn bgh bsm',onClick:()=>setDetail(a)},h(Svg,{d:IC.eye,size:13})),
               a.status==='pending'&&h('button',{className:'btn bs bsm',onClick:()=>action(a.id,'confirmed')},'Confirm'),
-              a.status==='pending'&&h('button',{className:'btn bg2 bsm',onClick:()=>payForAppt(a)},'💳 Pay'),
               (a.status==='confirmed'||a.arrived)&&h('button',{className:'btn bp bsm',onClick:()=>action(a.id,'completed')},'Complete'),
               (a.status==='pending'||a.status==='confirmed')&&h('button',{className:'btn bd2 bsm',onClick:()=>action(a.id,'cancelled')},'Cancel')
             ))
@@ -11028,7 +11047,6 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
           h('div',{className:'mc-act'},
             h('button',{className:'btn bgh bsm',style:{flex:1},onClick:()=>setDetail(a)},'View'),
             a.status==='pending'&&h('button',{className:'btn bs bsm',style:{flex:2},onClick:()=>action(a.id,'confirmed')},'✓ Confirm'),
-            a.status==='pending'&&h('button',{className:'btn bg2 bsm',style:{flex:2},onClick:()=>payForAppt(a)},'💳 Pay'),
             (a.status==='confirmed'||a.arrived)&&h('button',{className:'btn bp bsm',style:{flex:2},onClick:()=>action(a.id,'completed')},'Complete'),
             (a.status==='pending'||a.status==='confirmed')&&h('button',{className:'btn bd2 bsm',style:{flex:1},onClick:()=>action(a.id,'cancelled')},'Cancel')
           )
