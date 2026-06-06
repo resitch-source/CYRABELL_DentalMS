@@ -9218,7 +9218,7 @@ function Payments({payments,setPayments,patients,appointments,setAppointments,ad
         )))
       ))
     ),
-    h('div',{className:'filters'},['all','paid','unpaid'].map(f=>h('button',{key:f,className:'fb'+(filter===f?' act':''),onClick:()=>setFilter(f)},f.charAt(0).toUpperCase()+f.slice(1)))),
+    h('div',{className:'filters'},['all','paid','unpaid','pending'].map(f=>h('button',{key:f,className:'fb'+(filter===f?' act':''),onClick:()=>setFilter(f)},f.charAt(0).toUpperCase()+f.slice(1)))),
     h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
       h('thead',null,h('tr',null,['Ref','Patient','Service','Amount','Method','Date','Status',''].map(c=>h('th',{key:c},c)))),
       h('tbody',null,filtered.length===0?h('tr',null,h('td',{colSpan:8},h('div',{className:'empty'},'No records'))):
@@ -10898,6 +10898,21 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
     return h('span', {className: 'sort-icon sort-icon-active'}, sortDir === 'asc' ? '↑' : '↓');
   };
 
+  const payForAppt = (a) => {
+    if (!setPayments) return;
+    const ref = 'PAY-APT-' + a.id;
+    setPayments(prev => {
+      if (prev.some(p => p.ref === ref)) { addToast('Already recorded for this appointment','info'); return prev; }
+      return [{
+        id:'PAY'+uid(), patientId:a.patientId, patientName:a.patientName,
+        amount:a.fee||0, method:'Cash', service:a.service,
+        date:localToday(), status:'paid', ref,
+      }, ...prev];
+    });
+    setAppointments(prev=>prev.map(x=>x.id===a.id?{...x,status:'completed'}:x));
+    addToast('₱'+p$(a.fee||0)+' payment recorded for '+a.patientName,'success');
+  };
+
   const action=(id,status)=>{
     const a=appointments.find(x=>x.id===id);
     setAppointments(prev=>prev.map(x=>x.id===id?{...x,status}:x));
@@ -10984,6 +10999,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
             h('td',null,h('div',{className:'gap8'},
               h('button',{className:'btn bgh bsm',onClick:()=>setDetail(a)},h(Svg,{d:IC.eye,size:13})),
               a.status==='pending'&&h('button',{className:'btn bs bsm',onClick:()=>action(a.id,'confirmed')},'Confirm'),
+              a.status==='pending'&&h('button',{className:'btn bg2 bsm',onClick:()=>payForAppt(a)},'💳 Pay'),
               (a.status==='confirmed'||a.arrived)&&h('button',{className:'btn bp bsm',onClick:()=>action(a.id,'completed')},'Complete'),
               (a.status==='pending'||a.status==='confirmed')&&h('button',{className:'btn bd2 bsm',onClick:()=>action(a.id,'cancelled')},'Cancel')
             ))
@@ -11012,6 +11028,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
           h('div',{className:'mc-act'},
             h('button',{className:'btn bgh bsm',style:{flex:1},onClick:()=>setDetail(a)},'View'),
             a.status==='pending'&&h('button',{className:'btn bs bsm',style:{flex:2},onClick:()=>action(a.id,'confirmed')},'✓ Confirm'),
+            a.status==='pending'&&h('button',{className:'btn bg2 bsm',style:{flex:2},onClick:()=>payForAppt(a)},'💳 Pay'),
             (a.status==='confirmed'||a.arrived)&&h('button',{className:'btn bp bsm',style:{flex:2},onClick:()=>action(a.id,'completed')},'Complete'),
             (a.status==='pending'||a.status==='confirmed')&&h('button',{className:'btn bd2 bsm',style:{flex:1},onClick:()=>action(a.id,'cancelled')},'Cancel')
           )
