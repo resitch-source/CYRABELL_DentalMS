@@ -9159,22 +9159,47 @@ function ReceiptView({pay,onClose}){
     )
   );
 }
-function Payments({payments,setPayments,patients,appointments,addToast}){
+function Payments({payments,setPayments,patients,appointments,setAppointments,addToast}){
   const [filter,setFilter]=useState('all');
   const [modal,setModal]=useState(false);
   const [receipt,setReceipt]=useState(null);
   const [prefill,setPrefill]=useState(null);
+  const [payingApptId,setPayingApptId]=useState(null); // tracks which appt the pay form is for
   const filtered=payments.filter(p=>filter==='all'||p.status===filter);
   const { pageItems: pagedPayments, PagerUI: PaymentsPager } = usePagination(filtered);
   const paid=payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
   const unpaid=payments.filter(p=>p.status==='unpaid').reduce((s,p)=>s+p.amount,0);
-  // Appointments with pending status that haven't been paid yet
-  const pendingAppts = safe(appointments).filter(a=>a.status==='pending');
+  // Only show pending appointments that haven't been paid (no payment record for same patient+service+date)
+  const paidKeys = new Set(payments.map(p=>p.patientId+'|'+p.service+p.date));
+  const pendingAppts = safe(appointments).filter(a=>
+    a.status==='pending' && !paidKeys.has(a.patientId+'|'+a.service+a.date)
+  );
   const save=d=>{
-    const n={...d,id:'PAY'+uid(),ref:'REF-'+Math.random().toString(36).substr(2,6).toUpperCase(),status:'paid'};
-    setPayments(p=>[n,...p]);setModal(false);setPrefill(null);addToast('₱'+p$(d.amount)+' recorded!','success');setReceipt(n);
+    if (d._replaceId) {
+      // Update existing pending payment record to paid
+      const updated = {method:d.method,amount:d.amount,date:d.date,status:'paid'};
+      setPayments(prev=>prev.map(p=>p.id===d._replaceId?{...p,...updated}:p));
+      const paid = payments.find(p=>p.id===d._replaceId);
+      if (paid) setReceipt({...paid,...updated});
+      addToast('₱'+p$(d.amount)+' marked as paid!','success');
+    } else {
+      const n={...d,id:'PAY'+uid(),ref:'REF-'+Math.random().toString(36).substr(2,6).toUpperCase(),status:'paid'};
+      setPayments(p=>[n,...p]);
+      if (payingApptId && setAppointments) {
+        setAppointments(prev=>prev.map(a=>a.id===payingApptId?{...a,status:'completed'}:a));
+      }
+      addToast('₱'+p$(d.amount)+' recorded!','success');
+      setReceipt(n);
+    }
+    setModal(false);setPrefill(null);setPayingApptId(null);
+  };
+  // Mark an existing pending payment record as paid (method chooser via modal)
+  const payRecord = (p) => {
+    setPrefill({patientId:p.patientId,patientName:p.patientName,service:p.service,amount:p.amount,method:'Cash',date:localToday(),_replaceId:p.id});
+    setModal(true);
   };
   const openPayForAppt = (a) => {
+    setPayingApptId(a.id);
     setPrefill({patientId:a.patientId,patientName:a.patientName,service:a.service,amount:a.fee||'',method:'Cash',date:localToday()});
     setModal(true);
   };
@@ -9207,7 +9232,7 @@ function Payments({payments,setPayments,patients,appointments,addToast}){
         )))
       ))
     ),
-    h('div',{className:'filters'},['all','paid','unpaid'].map(f=>h('button',{key:f,className:'fb'+(filter===f?' act':''),onClick:()=>setFilter(f)},f.charAt(0).toUpperCase()+f.slice(1)))),
+    h('div',{className:'filters'},['all','paid','unpaid','pending'].map(f=>h('button',{key:f,className:'fb'+(filter===f?' act':''),onClick:()=>setFilter(f)},f.charAt(0).toUpperCase()+f.slice(1)))),
     h('div',{className:'card dt'},h('div',{className:'tw'},h('table',null,
       h('thead',null,h('tr',null,['Ref','Patient','Service','Amount','Method','Date','Status',''].map(c=>h('th',{key:c},c)))),
       h('tbody',null,filtered.length===0?h('tr',null,h('td',{colSpan:8},h('div',{className:'empty'},'No records'))):
@@ -9219,7 +9244,10 @@ function Payments({payments,setPayments,patients,appointments,addToast}){
           h('td',null,h('span',{className:'tag',style:{background:'#f0f8ff',color:'#2563eb'}},p.method)),
           h('td',{style:{whiteSpace:'nowrap'}},p.date),
           h('td',null,h(SBadge,{status:p.status})),
-          h('td',null,h('button',{className:'btn bgh bsm',onClick:()=>setReceipt(p)},'Receipt'))
+          h('td',null,h('div',{className:'gap8'},
+            p.status==='pending' && h('button',{className:'btn bg2 bsm',onClick:()=>payRecord(p)},'💳 Pay'),
+            p.status==='paid' && h('button',{className:'btn bgh bsm',onClick:()=>setReceipt(p)},'Receipt')
+          ))
         ))
       )
     )),h(PaymentsPager)),
@@ -9233,10 +9261,13 @@ function Payments({payments,setPayments,patients,appointments,addToast}){
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Method'),h('span',{className:'mc-val'},p.method)),
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Date'),h('span',{className:'mc-val'},p.date)),
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Ref'),h('span',{className:'mc-val',style:{fontSize:11}},p.ref)),
-        h('div',{className:'mc-act'},h('button',{className:'btn bgh bsm',style:{width:'100%'},onClick:()=>setReceipt(p)},'View Receipt'))
+        h('div',{className:'mc-act'},
+          p.status==='pending' && h('button',{className:'btn bg2 bsm',style:{flex:1},onClick:()=>payRecord(p)},'💳 Pay'),
+          p.status==='paid' && h('button',{className:'btn bgh bsm',style:{flex:1},onClick:()=>setReceipt(p)},'View Receipt')
+        )
       ))
     ),
-    modal&&h(PayFormPrefilled,{patients,prefill,onClose:()=>{setModal(false);setPrefill(null);},onSave:save}),
+    modal&&h(PayFormPrefilled,{patients,prefill,onClose:()=>{setModal(false);setPrefill(null);setPayingApptId(null);},onSave:save}),
     receipt&&h(ReceiptView,{pay:receipt,onClose:()=>setReceipt(null)})
   );
 }
@@ -10887,9 +10918,26 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
     return h('span', {className: 'sort-icon sort-icon-active'}, sortDir === 'asc' ? '↑' : '↓');
   };
 
+  const payForAppt = (a) => {
+    if (!setPayments) return;
+    const ref = 'PAY-APT-' + a.id;
+    setPayments(prev => {
+      if (prev.some(p => p.ref === ref)) { addToast('Already recorded for this appointment','info'); return prev; }
+      return [{
+        id:'PAY'+uid(), patientId:a.patientId, patientName:a.patientName,
+        amount:a.fee||0, method:'Cash', service:a.service,
+        date:localToday(), status:'paid', ref,
+      }, ...prev];
+    });
+    setAppointments(prev=>prev.map(x=>x.id===a.id?{...x,status:'completed'}:x));
+    addToast('₱'+p$(a.fee||0)+' payment recorded for '+a.patientName,'success');
+  };
+
   const action=(id,status)=>{
     const a=appointments.find(x=>x.id===id);
-    setAppointments(prev=>prev.map(x=>x.id===id?{...x,status}:x));
+    // When completing, also clear arrived so the badge updates from "In Clinic" → "completed"
+    const extra = status==='completed' ? {arrived:false} : {};
+    setAppointments(prev=>prev.map(x=>x.id===id?{...x,status,...extra}:x));
     const msgs={confirmed:'Confirmed! Auto-SMS sent.',completed:'Marked complete.',cancelled:'Appointment cancelled.'};
     addToast(msgs[status]||'Updated.',status==='cancelled'?'error':'success');
     if(status==='confirmed'&&a){
@@ -10972,9 +11020,9 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
             h('td',null,a.arrived?h('span',{className:'kiosk-arrived-badge'},'✓ In Clinic'):h(SBadge,{status:a.status})),
             h('td',null,h('div',{className:'gap8'},
               h('button',{className:'btn bgh bsm',onClick:()=>setDetail(a)},h(Svg,{d:IC.eye,size:13})),
-              a.status==='pending'&&h('button',{className:'btn bs bsm',onClick:()=>action(a.id,'confirmed')},'Confirm'),
-              (a.status==='confirmed'||a.arrived)&&h('button',{className:'btn bp bsm',onClick:()=>action(a.id,'completed')},'Complete'),
-              (a.status==='pending'||a.status==='confirmed')&&h('button',{className:'btn bd2 bsm',onClick:()=>action(a.id,'cancelled')},'Cancel')
+              a.status==='pending'&&!a.arrived&&h('button',{className:'btn bs bsm',onClick:()=>action(a.id,'confirmed')},'Confirm'),
+              (a.status==='confirmed'||a.arrived)&&a.status!=='completed'&&h('button',{className:'btn bp bsm',onClick:()=>action(a.id,'completed')},'✓ Complete'),
+              (a.status==='pending'||a.status==='confirmed')&&!a.arrived&&h('button',{className:'btn bd2 bsm',onClick:()=>action(a.id,'cancelled')},'Cancel')
             ))
           ))
         )
@@ -11000,9 +11048,9 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
           h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Fee'),h('span',{className:'mc-val',style:{color:'var(--t)',fontWeight:700}},'₱'+p$(a.fee))),
           h('div',{className:'mc-act'},
             h('button',{className:'btn bgh bsm',style:{flex:1},onClick:()=>setDetail(a)},'View'),
-            a.status==='pending'&&h('button',{className:'btn bs bsm',style:{flex:2},onClick:()=>action(a.id,'confirmed')},'✓ Confirm'),
-            (a.status==='confirmed'||a.arrived)&&h('button',{className:'btn bp bsm',style:{flex:2},onClick:()=>action(a.id,'completed')},'Complete'),
-            (a.status==='pending'||a.status==='confirmed')&&h('button',{className:'btn bd2 bsm',style:{flex:1},onClick:()=>action(a.id,'cancelled')},'Cancel')
+            a.status==='pending'&&!a.arrived&&h('button',{className:'btn bs bsm',style:{flex:2},onClick:()=>action(a.id,'confirmed')},'✓ Confirm'),
+            (a.status==='confirmed'||a.arrived)&&a.status!=='completed'&&h('button',{className:'btn bp bsm',style:{flex:2},onClick:()=>action(a.id,'completed')},'✓ Complete'),
+            (a.status==='pending'||a.status==='confirmed')&&!a.arrived&&h('button',{className:'btn bd2 bsm',style:{flex:1},onClick:()=>action(a.id,'cancelled')},'Cancel')
           )
         ))
       )
@@ -12515,7 +12563,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
       if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments),onGoKiosk});
       if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast,syncUrl});
       if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),payments:safe(payments),addToast,syncUrl,user});
-      if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),appointments:safe(appointments),addToast});
+      if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),appointments:safe(appointments),setAppointments,addToast});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
       if(page==='services')return canDo(user,'edit_services')?h(ServicesPage,{addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),services:getActiveSvcs(),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,setServices:(svcs)=>{try{localStorage.setItem(LS_KEYS.SERVICES,JSON.stringify(svcs));}catch(e){}},addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
