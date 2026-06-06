@@ -10935,7 +10935,9 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
 
   const action=(id,status)=>{
     const a=appointments.find(x=>x.id===id);
-    setAppointments(prev=>prev.map(x=>x.id===id?{...x,status}:x));
+    // When completing, also clear arrived so the badge updates from "In Clinic" → "completed"
+    const extra = status==='completed' ? {arrived:false} : {};
+    setAppointments(prev=>prev.map(x=>x.id===id?{...x,status,...extra}:x));
     const msgs={confirmed:'Confirmed! Auto-SMS sent.',completed:'Marked complete.',cancelled:'Appointment cancelled.'};
     addToast(msgs[status]||'Updated.',status==='cancelled'?'error':'success');
     if(status==='confirmed'&&a){
@@ -11018,9 +11020,9 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
             h('td',null,a.arrived?h('span',{className:'kiosk-arrived-badge'},'✓ In Clinic'):h(SBadge,{status:a.status})),
             h('td',null,h('div',{className:'gap8'},
               h('button',{className:'btn bgh bsm',onClick:()=>setDetail(a)},h(Svg,{d:IC.eye,size:13})),
-              a.status==='pending'&&h('button',{className:'btn bs bsm',onClick:()=>action(a.id,'confirmed')},'Confirm'),
-              (a.status==='confirmed'||a.arrived)&&h('button',{className:'btn bp bsm',onClick:()=>action(a.id,'completed')},'Complete'),
-              (a.status==='pending'||a.status==='confirmed')&&h('button',{className:'btn bd2 bsm',onClick:()=>action(a.id,'cancelled')},'Cancel')
+              a.status==='pending'&&!a.arrived&&h('button',{className:'btn bs bsm',onClick:()=>action(a.id,'confirmed')},'Confirm'),
+              (a.status==='confirmed'||a.arrived)&&a.status!=='completed'&&h('button',{className:'btn bp bsm',onClick:()=>action(a.id,'completed')},'✓ Complete'),
+              (a.status==='pending'||a.status==='confirmed')&&!a.arrived&&h('button',{className:'btn bd2 bsm',onClick:()=>action(a.id,'cancelled')},'Cancel')
             ))
           ))
         )
@@ -11046,9 +11048,9 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
           h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Fee'),h('span',{className:'mc-val',style:{color:'var(--t)',fontWeight:700}},'₱'+p$(a.fee))),
           h('div',{className:'mc-act'},
             h('button',{className:'btn bgh bsm',style:{flex:1},onClick:()=>setDetail(a)},'View'),
-            a.status==='pending'&&h('button',{className:'btn bs bsm',style:{flex:2},onClick:()=>action(a.id,'confirmed')},'✓ Confirm'),
-            (a.status==='confirmed'||a.arrived)&&h('button',{className:'btn bp bsm',style:{flex:2},onClick:()=>action(a.id,'completed')},'Complete'),
-            (a.status==='pending'||a.status==='confirmed')&&h('button',{className:'btn bd2 bsm',style:{flex:1},onClick:()=>action(a.id,'cancelled')},'Cancel')
+            a.status==='pending'&&!a.arrived&&h('button',{className:'btn bs bsm',style:{flex:2},onClick:()=>action(a.id,'confirmed')},'✓ Confirm'),
+            (a.status==='confirmed'||a.arrived)&&a.status!=='completed'&&h('button',{className:'btn bp bsm',style:{flex:2},onClick:()=>action(a.id,'completed')},'✓ Complete'),
+            (a.status==='pending'||a.status==='confirmed')&&!a.arrived&&h('button',{className:'btn bd2 bsm',style:{flex:1},onClick:()=>action(a.id,'cancelled')},'Cancel')
           )
         ))
       )
