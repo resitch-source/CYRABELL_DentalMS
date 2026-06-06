@@ -9159,22 +9159,33 @@ function ReceiptView({pay,onClose}){
     )
   );
 }
-function Payments({payments,setPayments,patients,appointments,addToast}){
+function Payments({payments,setPayments,patients,appointments,setAppointments,addToast}){
   const [filter,setFilter]=useState('all');
   const [modal,setModal]=useState(false);
   const [receipt,setReceipt]=useState(null);
   const [prefill,setPrefill]=useState(null);
+  const [payingApptId,setPayingApptId]=useState(null); // tracks which appt the pay form is for
   const filtered=payments.filter(p=>filter==='all'||p.status===filter);
   const { pageItems: pagedPayments, PagerUI: PaymentsPager } = usePagination(filtered);
   const paid=payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
   const unpaid=payments.filter(p=>p.status==='unpaid').reduce((s,p)=>s+p.amount,0);
-  // Appointments with pending status that haven't been paid yet
-  const pendingAppts = safe(appointments).filter(a=>a.status==='pending');
+  // Only show pending appointments that haven't been paid (no payment record for same patient+service+date)
+  const paidKeys = new Set(payments.map(p=>p.patientId+'|'+p.service+p.date));
+  const pendingAppts = safe(appointments).filter(a=>
+    a.status==='pending' && !paidKeys.has(a.patientId+'|'+a.service+a.date)
+  );
   const save=d=>{
     const n={...d,id:'PAY'+uid(),ref:'REF-'+Math.random().toString(36).substr(2,6).toUpperCase(),status:'paid'};
-    setPayments(p=>[n,...p]);setModal(false);setPrefill(null);addToast('₱'+p$(d.amount)+' recorded!','success');setReceipt(n);
+    setPayments(p=>[n,...p]);
+    // Mark the originating appointment as completed so it leaves the pending list
+    if (payingApptId && setAppointments) {
+      setAppointments(prev=>prev.map(a=>a.id===payingApptId?{...a,status:'completed'}:a));
+    }
+    setModal(false);setPrefill(null);setPayingApptId(null);
+    addToast('₱'+p$(d.amount)+' recorded!','success');setReceipt(n);
   };
   const openPayForAppt = (a) => {
+    setPayingApptId(a.id);
     setPrefill({patientId:a.patientId,patientName:a.patientName,service:a.service,amount:a.fee||'',method:'Cash',date:localToday()});
     setModal(true);
   };
@@ -9236,7 +9247,7 @@ function Payments({payments,setPayments,patients,appointments,addToast}){
         h('div',{className:'mc-act'},h('button',{className:'btn bgh bsm',style:{width:'100%'},onClick:()=>setReceipt(p)},'View Receipt'))
       ))
     ),
-    modal&&h(PayFormPrefilled,{patients,prefill,onClose:()=>{setModal(false);setPrefill(null);},onSave:save}),
+    modal&&h(PayFormPrefilled,{patients,prefill,onClose:()=>{setModal(false);setPrefill(null);setPayingApptId(null);},onSave:save}),
     receipt&&h(ReceiptView,{pay:receipt,onClose:()=>setReceipt(null)})
   );
 }
@@ -12515,7 +12526,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
       if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments),onGoKiosk});
       if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast,syncUrl});
       if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),payments:safe(payments),addToast,syncUrl,user});
-      if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),appointments:safe(appointments),addToast});
+      if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),appointments:safe(appointments),setAppointments,addToast});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
       if(page==='services')return canDo(user,'edit_services')?h(ServicesPage,{addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),services:getActiveSvcs(),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,setServices:(svcs)=>{try{localStorage.setItem(LS_KEYS.SERVICES,JSON.stringify(svcs));}catch(e){}},addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
