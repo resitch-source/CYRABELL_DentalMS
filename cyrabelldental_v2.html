@@ -2127,6 +2127,11 @@ th:hover .sort-icon{opacity:.9}
   box-sizing:border-box;width:100%;
 }
 .ocr-cell-input:focus{outline:none;border-color:var(--ac);}
+.svc-tags-wrap{display:flex;flex-wrap:wrap;gap:3px;align-items:center;}
+.svc-tag{display:inline-flex;align-items:center;gap:2px;background:rgba(0,200,255,.13);border:1px solid rgba(0,200,255,.35);color:var(--tl);border-radius:10px;padding:1px 7px 1px 8px;font-size:11px;white-space:nowrap;}
+.svc-tag button{background:none;border:none;cursor:pointer;color:var(--md);font-size:12px;padding:0 0 0 2px;line-height:1;}
+.svc-tag button:hover{color:var(--re);}
+.svc-add-select{font-size:11px;padding:2px 4px;border:1px dashed rgba(0,200,255,.4);border-radius:8px;background:var(--bg2);color:var(--md);cursor:pointer;max-width:140px;}
 .ocr-learn-icon{font-size:14px;}
 .ocr-fields{
   display:flex;flex-direction:column;gap:8px;
@@ -4018,6 +4023,8 @@ function getActiveSvcsByCat() {
     return acc;
   }, {});
 }
+const svcList = r => (r && Array.isArray(r.services) && r.services.length) ? r.services : (r && S(r.service) ? [S(r.service)] : []);
+const svcStr  = r => svcList(r).join(', ') || '—';
 const BLOOD=['A+','A-','B+','B-','AB+','AB-','O+','O-'];
 const METHODS=['Cash','GCash','Maya','Bank Transfer','Credit Card','Debit Card','PhilHealth'];
 const TIMES = CONFIG.APPOINTMENT_TIMES;
@@ -11706,7 +11713,7 @@ function highlightMatch(text, query) {
 
 
 function ApptForm({patients,appointments,onClose,onSave,onAddPatient,syncUrl,addToast}){
-  const [f,setF]=useState({patientId:'',patientName:'',service:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:'',fee:'',phone:'',email:'',attachments:[]});
+  const [f,setF]=useState({patientId:'',patientName:'',services:[],service:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:'',fee:'',phone:'',email:'',attachments:[]});
   const [selectedPatient, setSelectedPatient] = useState(null);
   // Always-current ref so async Drive-upload callbacks don't see stale f.attachments
   const fRef = useRef(f);
@@ -11739,13 +11746,26 @@ function ApptForm({patients,appointments,onClose,onSave,onAddPatient,syncUrl,add
     // Select them
     selectPatient(newPat);
   };
-  const hsv=n=>{const sv=getActiveSvcs().find(x=>x.name===n);s('service',n);if(sv)s('fee',sv.fee);};
+  const addSvc=n=>{
+  if(!n)return;
+  const cur=svcList(f);
+  if(cur.includes(n))return;
+  const next=[...cur,n];
+  const fee=next.reduce((sum,nm)=>{const x=getActiveSvcs().find(a=>a.name===nm);return sum+(x?+x.fee:0);},0);
+  setF(x=>({...x,services:next,service:next[0]||'',fee}));
+};
+const rmSvc=n=>{
+  const next=svcList(f).filter(x=>x!==n);
+  const fee=next.reduce((sum,nm)=>{const x=getActiveSvcs().find(a=>a.name===nm);return sum+(x?+x.fee:0);},0);
+  setF(x=>({...x,services:next,service:next[0]||'',fee}));
+};
 
-  const check = (f.date && f.time && f.service)
-    ? checkAvailability(appointments || [], f.date, f.time, f.service)
+  const _primarySvc = svcList(f)[0] || '';
+  const check = (f.date && f.time && _primarySvc)
+    ? checkAvailability(appointments || [], f.date, f.time, _primarySvc)
     : null;
   const isAvailable = !check || check.available;
-  const ok = f.patientId && f.patientName && f.service && f.date && f.time && isAvailable;
+  const ok = f.patientId && f.patientName && svcList(f).length > 0 && f.date && f.time && isAvailable;
 
   const showSuggestions = f.service && f.date && check && !check.available;
   const suggestions = showSuggestions
@@ -11794,11 +11814,21 @@ function ApptForm({patients,appointments,onClose,onSave,onAddPatient,syncUrl,add
       )
     ),
     h('div',{className:'fg2'},
-      h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>hsv(e.target.value)},h('option',{value:''},'Select…'),Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
-        h('optgroup', {key:cat, label:cat},
-          svcs.map(sv => h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
+      h(Field,{label:'Services *'},
+        h('div',{className:'svc-tags-wrap'},
+          svcList(f).map((sv,i)=>h('span',{key:i,className:'svc-tag'},sv,
+            h('button',{type:'button',onClick:()=>rmSvc(sv)},'×')
+          )),
+          h('select',{value:'',className:'svc-add-select',onChange:e=>addSvc(e.target.value)},
+            h('option',{value:''},'＋ Add service…'),
+            Object.entries(getActiveSvcsByCat()).map(([cat,svcs])=>
+              h('optgroup',{key:cat,label:cat},
+                svcs.map(sv=>h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
+              )
+            )
+          )
         )
-      ))),
+      ),
       h(Field,{label:'Fee (₱)'},h('input',{type:'number',value:f.fee,onChange:e=>s('fee',+e.target.value)}))
     ),
     h('div',{className:'fg2'},
