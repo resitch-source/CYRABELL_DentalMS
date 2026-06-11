@@ -1972,12 +1972,51 @@ th:hover .sort-icon{opacity:.9}
   font-size:11px;font-weight:700;
   color:var(--md);text-transform:uppercase;letter-spacing:.7px;
 }
-.ocr-review-img{
+.ocr-review-img{ /* kept for processing step preview */
+  width:100%;border-radius:10px;object-fit:contain;
+  border:1.5px solid var(--bd);box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+.ocr-img-viewer-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:11px;font-weight:700;color:var(--md);
+  text-transform:uppercase;letter-spacing:.7px;
+}
+.ocr-img-controls{
+  display:flex;align-items:center;gap:3px;
+}
+.ocr-ic-btn{
+  background:var(--bg3);border:1px solid var(--bd);color:var(--fg);
+  border-radius:5px;padding:2px 7px;font-size:13px;cursor:pointer;
+  line-height:1.4;transition:background .15s;
+}
+.ocr-ic-btn:hover{background:var(--ac);color:#fff;border-color:var(--ac);}
+.ocr-ic-reset{font-size:12px;}
+.ocr-ic-zoom-lbl{
+  font-size:10.5px;color:var(--md);min-width:34px;text-align:right;
+  font-weight:600;font-variant-numeric:tabular-nums;
+}
+.ocr-img-viewport{
+  position:relative;
   width:100%;
+  height:380px;
+  overflow:hidden;
   border-radius:10px;
-  object-fit:contain;
   border:1.5px solid var(--bd);
   box-shadow:0 2px 8px rgba(0,0,0,.08);
+  background:var(--bg3);
+  display:flex;align-items:center;justify-content:center;
+  user-select:none;
+}
+.ocr-img-inner{
+  max-width:none;
+  max-height:none;
+  width:auto;
+  height:auto;
+  pointer-events:none;
+  transition:transform 0.05s linear;
+}
+@media(max-width:640px){
+  .ocr-img-viewport{height:220px;}
 }
 .ocr-notes-box{
   background:var(--cr);border-radius:9px;
@@ -2096,7 +2135,6 @@ th:hover .sort-icon{opacity:.9}
 
 @media(max-width:640px){
   .ocr-review-grid{grid-template-columns:1fr;gap:12px}
-  .ocr-review-img{max-height:200px}
   .ocr-btn-grid{grid-template-columns:1fr}
 }
 
@@ -9278,6 +9316,54 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
 
   const ed = (k, v) => setEditData(prev => ({...prev, [k]: v}));
 
+  // Image viewer state (zoom + rotate for the scanned card preview)
+  const [imgZoom, setImgZoom]     = useState(1);
+  const [imgRotate, setImgRotate] = useState(0);
+  const [imgPan, setImgPan]       = useState({x:0, y:0});
+  const imgDragRef                = useRef(null);
+
+  const imgResetView = () => { setImgZoom(1); setImgRotate(0); setImgPan({x:0,y:0}); };
+
+  const imgOnWheel = (e) => {
+    e.preventDefault();
+    setImgZoom(z => Math.min(8, Math.max(0.3, z - e.deltaY * 0.001)));
+  };
+
+  const imgOnMouseDown = (e) => {
+    if (e.button !== 0) return;
+    const start = {x: e.clientX - imgPan.x, y: e.clientY - imgPan.y};
+    const onMove = (ev) => setImgPan({x: ev.clientX - start.x, y: ev.clientY - start.y});
+    const onUp   = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const imgOnTouchStart = (e) => {
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      const start = {x: t.clientX - imgPan.x, y: t.clientY - imgPan.y};
+      const onMove = (ev) => {
+        if (ev.touches.length !== 1) return;
+        setImgPan({x: ev.touches[0].clientX - start.x, y: ev.touches[0].clientY - start.y});
+      };
+      const onEnd = () => { window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd); };
+      window.addEventListener('touchmove', onMove, {passive:false});
+      window.addEventListener('touchend', onEnd);
+    } else if (e.touches.length === 2) {
+      // Pinch-to-zoom
+      const d0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      const z0 = imgZoom;
+      const onMove = (ev) => {
+        if (ev.touches.length !== 2) return;
+        const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY);
+        setImgZoom(Math.min(8, Math.max(0.3, z0 * (d / d0))));
+      };
+      const onEnd = () => { window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd); };
+      window.addEventListener('touchmove', onMove, {passive:false});
+      window.addEventListener('touchend', onEnd);
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => () => stopCam(), []);
 
@@ -9455,10 +9541,42 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
         ))
       ),
       h('div', {className: 'ocr-review-grid'},
-        // Left: scanned image
+        // Left: interactive image viewer
         h('div', {className: 'ocr-review-img-col'},
-          h('div', {className: 'ocr-review-img-label'}, '📷 Scanned Card'),
-          h('img', {src: imageDataUrl, alt: 'Scanned record card', className: 'ocr-review-img'}),
+          h('div', {className: 'ocr-img-viewer-hdr'},
+            h('span', null, '📷 Scanned Card'),
+            h('div', {className: 'ocr-img-controls'},
+              h('button', {className:'ocr-ic-btn', title:'Zoom in',
+                onClick:()=>setImgZoom(z=>Math.min(8,+(z+0.25).toFixed(2)))}, '＋'),
+              h('button', {className:'ocr-ic-btn', title:'Zoom out',
+                onClick:()=>setImgZoom(z=>Math.max(0.3,+(z-0.25).toFixed(2)))}, '－'),
+              h('button', {className:'ocr-ic-btn', title:'Rotate left',
+                onClick:()=>setImgRotate(r=>(r-90+360)%360)}, '↺'),
+              h('button', {className:'ocr-ic-btn', title:'Rotate right',
+                onClick:()=>setImgRotate(r=>(r+90)%360)}, '↻'),
+              h('button', {className:'ocr-ic-btn ocr-ic-reset', title:'Reset view', onClick:imgResetView}, '⊡'),
+              h('span', {className:'ocr-ic-zoom-lbl'}, Math.round(imgZoom*100)+'%')
+            )
+          ),
+          h('div', {
+            className: 'ocr-img-viewport',
+            onWheel: imgOnWheel,
+            onMouseDown: imgOnMouseDown,
+            onTouchStart: imgOnTouchStart,
+            ref: imgDragRef,
+            style: {cursor: imgZoom > 1 ? 'grab' : 'default'}
+          },
+            h('img', {
+              src: imageDataUrl,
+              alt: 'Scanned record card',
+              className: 'ocr-img-inner',
+              draggable: false,
+              style: {
+                transform: `translate(${imgPan.x}px,${imgPan.y}px) rotate(${imgRotate}deg) scale(${imgZoom})`,
+                transformOrigin: 'center center',
+              }
+            })
+          ),
           extracted.notes && h('div', {className: 'ocr-notes-box'},
             h('div', {className: 'ocr-notes-label'}, '📝 Notes from card'),
             h('div', {className: 'ocr-notes-text'}, extracted.notes)
