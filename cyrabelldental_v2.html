@@ -1941,6 +1941,23 @@ th:hover .sort-icon{opacity:.9}
 }
 
 /* Review layout */
+.ocr-queued-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+  padding:8px 12px;margin-bottom:10px;
+  background:rgba(79,142,247,.08);border:1px solid rgba(79,142,247,.2);
+  border-radius:8px;font-size:12px;
+}
+.ocr-queued-label{font-weight:700;color:var(--ac);margin-right:4px;}
+.ocr-queued-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  background:var(--ac);color:#fff;border-radius:20px;
+  padding:2px 8px;font-size:11.5px;font-weight:600;
+}
+.ocr-queued-remove{
+  background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);
+  font-size:14px;padding:0 0 0 2px;line-height:1;
+}
+.ocr-queued-remove:hover{color:#fff;}
 .ocr-review-grid{
   display:grid;
   grid-template-columns:260px 1fr;
@@ -8699,6 +8716,32 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
  * @param {Function} onProgress (msg, pct) callback
  * @returns {Promise<object>}   extracted patient data
  */
+/** Attempt to repair a truncated/partial JSON string by closing open strings and the object. */
+function repairPartialJson(partial) {
+  try {
+    // Remove trailing incomplete key (ends with a comma + optional whitespace + open quote + partial key)
+    let s = partial.replace(/,\s*"[^"]*$/, '');
+    // Close any open string value
+    s = s.replace(/:\s*"[^"]*$/, ': ""');
+    // Remove trailing comma before close
+    s = s.replace(/,\s*$/, '');
+    // Ensure it ends with }
+    if (!s.trimEnd().endsWith('}')) s = s + '}';
+    return JSON.parse(s);
+  } catch(e) { return null; }
+}
+
+/** Extract key:value pairs from a raw string as a last resort fallback. */
+function extractKVFallback(text) {
+  const result = {};
+  const re = /"([\w]+)"\s*:\s*"([^"]*)"/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    result[m[1]] = m[2];
+  }
+  return Object.keys(result).length ? result : null;
+}
+
 async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanType, onProgress) {
   const geminiKey = (function(){ try { return localStorage.getItem(LS_KEYS.GEMINI_KEY) || ''; } catch(e) { return ''; } })();
   const useDirect = !!geminiKey;
@@ -8866,9 +8909,29 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
     try {
       data = JSON.parse(content);
     } catch(e) {
+      // Try extracting a complete JSON object first
       const m = content.match(/\{[\s\S]*\}/);
-      if (m) { try { data = JSON.parse(m[0]); } catch(e2) { throw new Error('Could not parse Gemini response: ' + content.substring(0, 200)); } }
-      else throw new Error('No JSON in Gemini response: ' + content.substring(0, 200));
+      if (m) {
+        try { data = JSON.parse(m[0]); }
+        catch(e2) {
+          // Repair truncated JSON: close any open string, then close the object
+          data = repairPartialJson(m[0]);
+          if (!data) throw new Error('Could not parse Gemini response: ' + content.substring(0, 200));
+        }
+      } else {
+        // No closing brace — JSON is truncated; attempt repair on the whole content
+        const startIdx = content.indexOf('{');
+        if (startIdx !== -1) {
+          data = repairPartialJson(content.slice(startIdx));
+        }
+        if (!data) {
+          // Last resort: regex-extract any key:value pairs present
+          data = extractKVFallback(content);
+        }
+        if (!data || !Object.keys(data).length) {
+          throw new Error('No JSON in Gemini response: ' + content.substring(0, 200));
+        }
+      }
     }
 
   } else {
@@ -8963,7 +9026,7 @@ self.onmessage = async function(e) {
  * @param {function} onExtracted  - called with extracted patient data object
  * @param {function} onClose      - called to close the modal
  */
-function RecordCardScanner({onExtracted, onClose}) {
+function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
   const [step, setStep]           = useState('capture'); // 'capture' | 'processing' | 'review' | 'error'
   const [imageDataUrl, setImage]  = useState(null);
   const [mimeType, setMimeType]   = useState('image/jpeg');
@@ -8972,6 +9035,7 @@ function RecordCardScanner({onExtracted, onClose}) {
   const [editData, setEditData]   = useState({});
   const [progressMsg, setProgressMsg] = useState('');
   const [progressPct, setProgressPct] = useState(0);
+  const [scannedList, setScannedList] = useState([]); // accumulates confirmed scans for batch add
   const fileRef                   = useRef(null);
   const videoRef                  = useRef(null);
   const streamRef                 = useRef(null);
@@ -9170,20 +9234,60 @@ function RecordCardScanner({onExtracted, onClose}) {
       {k:'allergies', l:'Allergies',      t:'text',   ph:'None'},
     ];
 
+    const addToList = () => {
+      const entry = {...editData};
+      setScannedList(prev => [...prev, entry]);
+      setStep('capture');
+      setImage(null);
+      setExtracted(null);
+      setEditData({});
+    };
+
+    const addAllPatients = () => {
+      const finalList = [...scannedList, {...editData}];
+      if (onBatchExtracted) onBatchExtracted(finalList);
+      else finalList.forEach(d => onExtracted(d));
+    };
+
     return h(Modal, {
       title: '✅ Review Extracted Data',
-      sub: 'Verify the information before saving to the patient record',
+      sub: scannedList.length
+        ? `${scannedList.length} record(s) queued — verify then add all`
+        : 'Verify the information before saving to the patient record',
       onClose, xl: true,
       footer: h(Fragment, null,
         h('button', {className: 'btn bgh', onClick: onClose}, 'Cancel'),
         h('button', {className: 'btn bg2', onClick: () => { setStep('capture'); setImage(null); }}, '↻ Rescan'),
         h('button', {
-          className: 'btn bp',
-          disabled: !S(editData.name).trim() || !S(editData.phone).trim(),
-          onClick: () => onExtracted(editData)
-        }, '✓ Use This Data')
+          className: 'btn bg2',
+          disabled: !S(editData.name).trim(),
+          onClick: addToList,
+          title: 'Save this record and scan another card'
+        }, '+ Scan Another'),
+        scannedList.length > 0
+          ? h('button', {
+              className: 'btn bp',
+              disabled: !S(editData.name).trim(),
+              onClick: addAllPatients
+            }, '✓ Add All (' + (scannedList.length + 1) + ') as Patients')
+          : h('button', {
+              className: 'btn bp',
+              disabled: !S(editData.name).trim() || !S(editData.phone).trim(),
+              onClick: () => onExtracted(editData)
+            }, '✓ Use This Data')
       )
     },
+      scannedList.length > 0 && h('div', {className: 'ocr-queued-bar'},
+        h('span', {className: 'ocr-queued-label'}, '📋 Queued:'),
+        scannedList.map((s, i) => h('span', {key: i, className: 'ocr-queued-chip'},
+          S(s.name) || '(no name)',
+          h('button', {
+            className: 'ocr-queued-remove',
+            title: 'Remove from queue',
+            onClick: () => setScannedList(prev => prev.filter((_, j) => j !== i))
+          }, '×')
+        ))
+      ),
       h('div', {className: 'ocr-review-grid'},
         // Left: scanned image
         h('div', {className: 'ocr-review-img-col'},
@@ -9369,12 +9473,28 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl,u
     showScanner && h(RecordCardScanner, {
       onClose: () => setShowScanner(false),
       onExtracted: (data) => {
-        // Close scanner, pre-fill the patient form with extracted data
         setShowScanner(false);
         setScanPrefill(data);
         setEdit(null);
         setModal(true);
         addToast('✅ Data extracted! Review and save the patient record.', 'success');
+      },
+      onBatchExtracted: (dataList) => {
+        // Auto-add all scanned records as new patients
+        setShowScanner(false);
+        let added = 0;
+        setPatients(prev => {
+          let updated = [...prev];
+          dataList.forEach(d => {
+            const dup = findExistingPatient(updated, d);
+            if (dup) return; // skip duplicates silently in batch
+            const newId = 'P' + String(Date.now() + added).slice(-6);
+            updated = [{balance:0, lastVisit:'—', teeth:{}, ...d, id: newId}, ...updated];
+            added++;
+          });
+          return updated;
+        });
+        addToast('✅ ' + dataList.length + ' patient record(s) added from scan!', 'success');
       }
     }),
     view&&h(PatProfile,{patient:view,appts:appointments.filter(a=>a.patientId===view.id),pays:payments.filter(p=>p.patientId===view.id),onClose:()=>setView(null),onUpdateTeeth:updateTeeth,addToast,syncUrl})
