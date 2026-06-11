@@ -46,8 +46,8 @@ var DRIVE_ATTACHMENTS_FOLDER = 'Cyrabell Dental Attachments';
 
 var TABLES = {
   patients: [
-    'id','name','dob','phone','email','address','bloodType',
-    'allergies','lastVisit','balance','teeth','photoFileId',
+    'id','name','dob','age','phone','email','address','bloodType',
+    'allergies','chiefComplaint','lastVisit','balance','teeth','photoFileId',
     'occupation','sex','maritalStatus','attachments','history'
   ],
   appointments: [
@@ -55,7 +55,7 @@ var TABLES = {
     'fee','dentist','phone','email','arrived','attachments'
   ],
   payments: [
-    'id','patientId','patientName','amount','method','service','date','status','ref'
+    'id','patientId','patientName','amount','method','service','date','status','ref','balance','note'
   ],
   notifications: [
     'id','type','recipient','phone','email','message','sentAt','status'
@@ -128,6 +128,10 @@ function doPost(e) {
     // ── Notifications ─────────────────────────────────────────────────────
     if (action === 'sendEmail')   return jsonOut(handleSendEmail(payload));
     if (action === 'sendSms')     return jsonOut(handleSendSms(payload));
+
+    // ── Real-time single-record upsert ────────────────────────────────────
+    if (action === 'upsertRecord')    return jsonOut(handleUpsertRecord(payload));
+    if (action === 'checkDuplicate')  return jsonOut(handleCheckDuplicate(payload));
 
     // ── Default: push all data ────────────────────────────────────────────
     if (!payload.data) return jsonOut({ ok:false, error:'Missing "data" field' });
@@ -267,6 +271,110 @@ function pushAll(data) {
     stats[tableName] = out.length;
   }
   return stats;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UPSERT — write or update a single record in a sheet by id
+// payload: { action:'upsertRecord', table:'patients'|'appointments'|'payments', record:{...} }
+// ═══════════════════════════════════════════════════════════════════════════
+
+function handleUpsertRecord(payload) {
+  var tableName = payload.table;
+  var record    = payload.record;
+  if (!tableName || !record) return { ok:false, error:'Missing table or record' };
+  var headers = TABLES[tableName];
+  if (!headers) return { ok:false, error:'Unknown table: ' + tableName };
+
+  ensureSheets();
+  var ss       = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet    = ss.getSheetByName(tableName);
+  var jsonCols = JSON_COLS[tableName] || [];
+
+  // Build row values in header order
+  var rowValues = headers.map(function(key) {
+    var v = record[key];
+    if (v == null) return '';
+    if (jsonCols.indexOf(key) !== -1 && typeof v === 'object') return JSON.stringify(v);
+    return v;
+  });
+
+  // Find existing row by id (column 1)
+  var lastRow  = sheet.getLastRow();
+  var foundRow = -1;
+  if (record.id && lastRow >= 2) {
+    var idVals = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (var i = 0; i < idVals.length; i++) {
+      if (String(idVals[i][0]).trim() === String(record.id).trim()) {
+        foundRow = i + 2;
+        break;
+      }
+    }
+  }
+
+  if (foundRow > 0) {
+    sheet.getRange(foundRow, 1, 1, headers.length).setValues([rowValues]);
+    logServerEvent('upsertRecord', 'Updated ' + tableName + ' id=' + record.id);
+    return { ok:true, action:'updated', table:tableName, id:record.id };
+  } else {
+    sheet.appendRow(rowValues);
+    logServerEvent('upsertRecord', 'Inserted ' + tableName + ' id=' + record.id);
+    return { ok:true, action:'inserted', table:tableName, id:record.id };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CHECK DUPLICATE — find an existing row matching key fields
+// payload: { action:'checkDuplicate', table, keyFields:{field:value,...}, excludeId? }
+// Returns: { ok:true, found:bool, existing:obj|null }
+// ═══════════════════════════════════════════════════════════════════════════
+
+function handleCheckDuplicate(payload) {
+  var tableName = payload.table;
+  var keyFields = payload.keyFields || {};
+  var excludeId = String(payload.excludeId || '');
+  if (!tableName || !Object.keys(keyFields).length)
+    return { ok:false, error:'Missing table or keyFields' };
+
+  var headers = TABLES[tableName];
+  if (!headers) return { ok:false, error:'Unknown table: ' + tableName };
+
+  ensureSheets();
+  var ss      = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet   = ss.getSheetByName(tableName);
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { ok:true, found:false, existing:null };
+
+  var jsonCols = JSON_COLS[tableName] || [];
+  var values   = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
+  var keyList  = Object.keys(keyFields);
+  var idIdx    = headers.indexOf('id');
+
+  for (var i = 0; i < values.length; i++) {
+    var row = values[i];
+    var rid = idIdx >= 0 ? String(row[idIdx] || '').trim() : '';
+    if (!rid) continue;
+    if (excludeId && rid === excludeId) continue;
+
+    var allMatch = keyList.every(function(k) {
+      var ci = headers.indexOf(k);
+      if (ci < 0) return false;
+      return String(row[ci] || '').toLowerCase().trim() ===
+             String(keyFields[k] || '').toLowerCase().trim();
+    });
+
+    if (allMatch) {
+      var obj = {};
+      headers.forEach(function(key, ci) {
+        var v = row[ci];
+        if (jsonCols.indexOf(key) !== -1 && typeof v === 'string' && v) {
+          try { v = JSON.parse(v); } catch(e) {}
+        }
+        obj[key] = v == null ? '' : v;
+      });
+      return { ok:true, found:true, existing:obj };
+    }
+  }
+  return { ok:true, found:false, existing:null };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

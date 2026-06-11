@@ -1941,6 +1941,11 @@ th:hover .sort-icon{opacity:.9}
 }
 
 /* Review layout */
+.dup-detail-box{
+  background:rgba(239,68,68,.06);border:1.5px solid rgba(239,68,68,.3);
+  border-radius:8px;padding:10px 14px;font-size:13.5px;
+  color:var(--fg);line-height:1.6;font-weight:500;
+}
 .ocr-queued-bar{
   display:flex;flex-wrap:wrap;align-items:center;gap:6px;
   padding:8px 12px;margin-bottom:10px;
@@ -9751,35 +9756,77 @@ function Patients({patients,setPatients,appointments,setAppointments,payments,se
   const [scanPrefill,setScanPrefill]=useState(null);     // pre-filled data from scan
   const filtered=patients.filter(p=>!search||S(p.name).toLowerCase().includes(S(search).toLowerCase())||S(p.id).includes(S(search)));
   const { pageItems: pagedPatients, PagerUI: PatientsPager } = usePagination(filtered);
-  const save = d => {
-    // Determine if this is editing an EXISTING patient or adding a NEW one.
-    // PatForm now always provides d.id (generated inside handleSave for new patients),
-    // so we check if that ID already exists in the current patients list.
+  const [dupState, setDupState] = useState(null); // {existing, onUpdate, onCancel}
+
+  const doAddPatient = (d, overrideId) => {
+    const newId = overrideId || d.id || ('P' + String(Date.now()).slice(-6));
+    const rec   = {balance:0, lastVisit:'—', teeth:{}, ...d, id: newId};
+    setPatients(p => [rec, ...p.filter(x => x.id !== newId)]);
+    syncOneRecord('patients', rec, syncUrl);
+    addToast('Patient added!', 'success');
+    setModal(false); setEdit(null);
+  };
+
+  const doUpdatePatient = (d, targetId) => {
+    let updated;
+    setPatients(p => p.map(x => {
+      if (x.id !== targetId) return x;
+      updated = {...x, ...d, id: targetId};
+      return updated;
+    }));
+    if (updated) syncOneRecord('patients', updated, syncUrl);
+    addToast('Record updated!', 'success');
+    setModal(false); setEdit(null);
+  };
+
+  const save = async d => {
     const isExisting = d.id && patients.some(p => p.id === d.id);
 
     if (isExisting) {
-      // UPDATE existing patient — merge new data into existing record
-      setPatients(p => p.map(x => x.id === d.id ? {...x, ...d} : x));
-      addToast('Record updated!', 'success');
-      setModal(false); setEdit(null);
-    } else {
-      // ADD new patient — check for duplicates first
-      const duplicate = findExistingPatient(patients, d);
-      if (duplicate) {
-        if (confirm('A patient with the same name and phone already exists: ' + duplicate.name + ' (ID: ' + duplicate.id + '). Update their record instead of creating a new one?')) {
-          setPatients(p => p.map(x => x.id === duplicate.id ? {...x, ...d, id: duplicate.id} : x));
-          addToast('Updated existing patient: ' + duplicate.name, 'success');
-          setModal(false); setEdit(null);
+      doUpdatePatient(d, d.id);
+      return;
+    }
+
+    // 1 — Local duplicate check
+    const localDup = findExistingPatient(patients, d);
+    if (localDup) {
+      setDupState({
+        existing: localDup,
+        onUpdate: () => { setDupState(null); doUpdatePatient(d, localDup.id); },
+        onCancel: () => { setDupState(null); doAddPatient(d); }
+      });
+      return;
+    }
+
+    // 2 — Google Sheets duplicate check (only if connected)
+    if (syncUrl && S(d.name) && S(d.phone)) {
+      try {
+        const sheetDup = await checkSheetsDuplicate('patients',
+          { name: S(d.name).trim(), phone: S(d.phone).trim() }, d.id || '', syncUrl);
+        if (sheetDup && sheetDup.id) {
+          setDupState({
+            existing: sheetDup,
+            onUpdate: () => {
+              setDupState(null);
+              const merged = {balance:0, lastVisit:'—', teeth:{}, ...sheetDup, ...d, id: sheetDup.id};
+              setPatients(p => {
+                const found = p.some(x => x.id === sheetDup.id);
+                return found ? p.map(x => x.id === sheetDup.id ? merged : x) : [merged, ...p];
+              });
+              syncOneRecord('patients', merged, syncUrl);
+              addToast('Updated existing patient from Sheets: ' + merged.name, 'success');
+              setModal(false); setEdit(null);
+            },
+            onCancel: () => { setDupState(null); doAddPatient(d); }
+          });
           return;
         }
-      }
-      // Insert as a new patient (use provided id or generate fallback)
-      const newId = d.id || ('P' + String(Date.now()).slice(-6));
-      setPatients(p => [{balance:0, lastVisit:'—', teeth:{}, ...d, id: newId}, ...p]);
-      addToast('Patient added!', 'success');
-      setModal(false); setEdit(null);
+      } catch(e) { /* ignore — proceed to add */ }
     }
+
+    doAddPatient(d);
   };
+
   const updateTeeth = (patientId, newTeeth, newAttachments, newHistory) => {
     setPatients(prev => prev.map(p => {
       if (p.id !== patientId) return p;
@@ -9966,6 +10013,7 @@ function Patients({patients,setPatients,appointments,setAppointments,payments,se
         addToast('✅ ' + dataList.length + ' patient record(s) added from scan!', 'success');
       }
     }),
+    dupState && h(DuplicateModal, {table:'patients', existing:dupState.existing, onUpdate:dupState.onUpdate, onCancel:dupState.onCancel}),
     view&&h(PatProfile,{patient:view,appts:appointments.filter(a=>a.patientId===view.id),pays:payments.filter(p=>p.patientId===view.id),onClose:()=>setView(null),onUpdateTeeth:updateTeeth,addToast,syncUrl})
   );
 }
@@ -10047,39 +10095,103 @@ function ReceiptView({pay,onClose}){
     )
   );
 }
-function Payments({payments,setPayments,patients,appointments,setAppointments,addToast}){
+function Payments({payments,setPayments,patients,appointments,setAppointments,addToast,syncUrl}){
   const [filter,setFilter]=useState('all');
   const [modal,setModal]=useState(false);
   const [receipt,setReceipt]=useState(null);
   const [prefill,setPrefill]=useState(null);
-  const [payingApptId,setPayingApptId]=useState(null); // tracks which appt the pay form is for
+  const [payingApptId,setPayingApptId]=useState(null);
+  const [dupState,setDupState]=useState(null);
   const filtered=payments.filter(p=>filter==='all'||p.status===filter);
   const { pageItems: pagedPayments, PagerUI: PaymentsPager } = usePagination(filtered);
   const paid=payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
   const unpaid=payments.filter(p=>p.status==='unpaid').reduce((s,p)=>s+p.amount,0);
-  // Only show pending appointments that haven't been paid (no payment record for same patient+service+date)
   const paidKeys = new Set(payments.map(p=>p.patientId+'|'+p.service+p.date));
   const pendingAppts = safe(appointments).filter(a=>
     a.status==='pending' && !paidKeys.has(a.patientId+'|'+a.service+a.date)
   );
-  const save=d=>{
+
+  const commitNewPayment = async (n) => {
+    // Local duplicate check (same patient + service + date + amount)
+    const localDup = payments.find(p =>
+      p.patientId === n.patientId && p.service === n.service &&
+      p.date === n.date && String(p.amount) === String(n.amount) && p.id !== n.id
+    );
+    if (localDup) {
+      setDupState({
+        existing: localDup,
+        onUpdate: () => {
+          const merged = {...localDup, ...n, id: localDup.id};
+          setPayments(prev => prev.map(p => p.id === localDup.id ? merged : p));
+          syncOneRecord('payments', merged, syncUrl);
+          setReceipt(merged);
+          addToast('Updated existing payment record', 'success');
+          setModal(false); setPrefill(null); setPayingApptId(null); setDupState(null);
+        },
+        onCancel: () => {
+          setDupState(null);
+          setPayments(p => [n, ...p]);
+          syncOneRecord('payments', n, syncUrl);
+          setReceipt(n);
+          setModal(false); setPrefill(null); setPayingApptId(null);
+        }
+      });
+      return;
+    }
+    // Sheets duplicate check
+    if (syncUrl && n.patientId && n.date) {
+      try {
+        const sheetDup = await checkSheetsDuplicate('payments',
+          { patientId: S(n.patientId), date: S(n.date), service: S(n.service) }, n.id, syncUrl);
+        if (sheetDup && sheetDup.id) {
+          setDupState({
+            existing: sheetDup,
+            onUpdate: () => {
+              const merged = {...sheetDup, ...n, id: sheetDup.id};
+              setPayments(prev => {
+                const found = prev.some(p => p.id === sheetDup.id);
+                return found ? prev.map(p => p.id === sheetDup.id ? merged : p) : [merged, ...prev];
+              });
+              syncOneRecord('payments', merged, syncUrl);
+              setReceipt(merged);
+              addToast('Updated existing payment from Sheets', 'success');
+              setModal(false); setPrefill(null); setPayingApptId(null); setDupState(null);
+            },
+            onCancel: () => {
+              setDupState(null);
+              setPayments(p => [n, ...p]);
+              syncOneRecord('payments', n, syncUrl);
+              setReceipt(n);
+              setModal(false); setPrefill(null); setPayingApptId(null);
+            }
+          });
+          return;
+        }
+      } catch(e) { /* proceed */ }
+    }
+    setPayments(p => [n, ...p]);
+    syncOneRecord('payments', n, syncUrl);
+    setReceipt(n);
+    setModal(false); setPrefill(null); setPayingApptId(null);
+  };
+
+  const save = d => {
     if (d._replaceId) {
-      // Update existing pending payment record to paid
       const updated = {method:d.method,amount:d.amount,date:d.date,status:'paid'};
       setPayments(prev=>prev.map(p=>p.id===d._replaceId?{...p,...updated}:p));
-      const paid = payments.find(p=>p.id===d._replaceId);
-      if (paid) setReceipt({...paid,...updated});
+      const existing = payments.find(p=>p.id===d._replaceId);
+      const finalPay = existing ? {...existing,...updated} : updated;
+      if (existing) { setReceipt(finalPay); syncOneRecord('payments', finalPay, syncUrl); }
       addToast('₱'+p$(d.amount)+' marked as paid!','success');
+      setModal(false); setPrefill(null); setPayingApptId(null);
     } else {
       const n={...d,id:'PAY'+uid(),ref:'REF-'+Math.random().toString(36).substr(2,6).toUpperCase(),status:'paid'};
-      setPayments(p=>[n,...p]);
       if (payingApptId && setAppointments) {
         setAppointments(prev=>prev.map(a=>a.id===payingApptId?{...a,status:'completed'}:a));
       }
       addToast('₱'+p$(d.amount)+' recorded!','success');
-      setReceipt(n);
+      commitNewPayment(n);
     }
-    setModal(false);setPrefill(null);setPayingApptId(null);
   };
   // Mark an existing pending payment record as paid (method chooser via modal)
   const payRecord = (p) => {
@@ -10155,6 +10267,7 @@ function Payments({payments,setPayments,patients,appointments,setAppointments,ad
         )
       ))
     ),
+    dupState && h(DuplicateModal, {table:'payments', existing:dupState.existing, onUpdate:dupState.onUpdate, onCancel:dupState.onCancel}),
     modal&&h(PayFormPrefilled,{patients,prefill,onClose:()=>{setModal(false);setPrefill(null);setPayingApptId(null);},onSave:save}),
     receipt&&h(ReceiptView,{pay:receipt,onClose:()=>setReceipt(null)})
   );
@@ -11823,9 +11936,13 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
 
   const action=(id,status)=>{
     const a=appointments.find(x=>x.id===id);
-    // When completing, also clear arrived so the badge updates from "In Clinic" → "completed"
     const extra = status==='completed' ? {arrived:false} : {};
-    setAppointments(prev=>prev.map(x=>x.id===id?{...x,status,...extra}:x));
+    setAppointments(prev=>prev.map(x=>{
+      if(x.id!==id) return x;
+      const updated={...x,status,...extra};
+      syncOneRecord('appointments', updated, syncUrl);
+      return updated;
+    }));
     const msgs={confirmed:'Confirmed! Auto-SMS sent.',completed:'Marked complete.',cancelled:'Appointment cancelled.'};
     addToast(msgs[status]||'Updated.',status==='cancelled'?'error':'success');
     if(status==='confirmed'&&a){
@@ -11967,10 +12084,30 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
       )
     ),
 
-    modal&&h(ApptForm,{patients,appointments,syncUrl,addToast,onClose:()=>setModal(false),onAddPatient:(np)=>{if(setPatients)setPatients(prev=>[np,...prev.filter(x=>x.id!==np.id)]);},onSave:d=>{
+    modal&&h(ApptForm,{patients,appointments,syncUrl,addToast,onClose:()=>setModal(false),onAddPatient:(np)=>{if(setPatients)setPatients(prev=>[np,...prev.filter(x=>x.id!==np.id)]);},onSave:async d=>{
       const status = autoConfirmEnabled() ? 'confirmed' : 'pending';
       const newAppt = {...d,id:'A'+uid(),status,arrived:false};
+
+      // Local duplicate check (same patient + service + date + time)
+      const localDup = appointments.find(a =>
+        a.patientId === newAppt.patientId && a.service === newAppt.service &&
+        a.date === newAppt.date && a.time === newAppt.time && a.id !== newAppt.id
+      );
+      if (localDup) {
+        if (!confirm('⚠️ Duplicate Appointment: ' + localDup.patientName + ' already has "' + localDup.service + '" on ' + localDup.date + ' at ' + localDup.time + '.\n\nClick OK to update the existing appointment, or Cancel to book anyway.')) {
+          return; // user cancelled
+        }
+        // Update existing
+        const merged = {...localDup, ...d, id: localDup.id};
+        setAppointments(prev => prev.map(a => a.id === localDup.id ? merged : a));
+        syncOneRecord('appointments', merged, syncUrl);
+        setModal(false);
+        addToast('Updated existing appointment for ' + merged.patientName, 'success');
+        return;
+      }
+
       setAppointments(p=>[newAppt,...p]);
+      syncOneRecord('appointments', newAppt, syncUrl);
       setModal(false);
       addToast(status==='confirmed' ? '✓ Auto-confirmed!' : 'Appointment booked!', 'success');
 
@@ -12145,6 +12282,78 @@ function lsSet(k, v) {
 }
 
 // Build the full data blob in the same shape Apps Script expects
+// ── Real-time single-record upsert to Google Sheets ─────────────────────
+// Called silently after every save. No-op when syncUrl is not configured.
+async function syncOneRecord(table, record, syncUrl) {
+  if (!syncUrl) return;
+  try {
+    const rec = {...record};
+    // Serialize JSON fields before sending
+    ['teeth','attachments','history','channels'].forEach(k => {
+      if (rec[k] && typeof rec[k] === 'object') rec[k] = JSON.stringify(rec[k]);
+    });
+    const res  = await fetch(syncUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'upsertRecord', table, record: rec }),
+      redirect: 'follow',
+    });
+    const data = JSON.parse(await res.text());
+    if (!data.ok) console.warn('[Sync] upsert failed:', data.error);
+    else console.log('[Sync]', data.action, table, record.id || '');
+  } catch(e) { console.warn('[Sync] upsert error:', e.message); }
+}
+
+// ── Check Google Sheets for a duplicate record ───────────────────────────
+// Returns the existing record object if found, null otherwise.
+async function checkSheetsDuplicate(table, keyFields, excludeId, syncUrl) {
+  if (!syncUrl) return null;
+  try {
+    const res  = await fetch(syncUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'checkDuplicate', table, keyFields, excludeId: excludeId || '' }),
+      redirect: 'follow',
+    });
+    const data = JSON.parse(await res.text());
+    return (data.ok && data.found) ? data.existing : null;
+  } catch(e) { console.warn('[Sync] checkDuplicate error:', e.message); return null; }
+}
+
+// ── Duplicate confirmation modal ──────────────────────────────────────────
+function DuplicateModal({ table, existing, onUpdate, onCancel }) {
+  const label = table === 'patients' ? 'Patient'
+    : table === 'appointments' ? 'Appointment' : 'Payment';
+  const detail = table === 'patients'
+    ? [existing.name, existing.phone, existing.dob ? 'DOB: '+existing.dob : ''].filter(Boolean).join(' · ')
+    : table === 'appointments'
+    ? [existing.patientName, existing.service, existing.date, existing.time].filter(Boolean).join(' · ')
+    : [existing.patientName, existing.service, existing.amount ? '₱'+existing.amount : '', existing.date].filter(Boolean).join(' · ');
+
+  return h(Modal, {
+    title: '⚠️ Duplicate ' + label + ' Found',
+    sub: 'A matching record already exists',
+    onClose: onCancel,
+    footer: h(Fragment, null,
+      h('button', { className: 'btn bgh', onClick: onCancel }, '✕ Keep as New Record'),
+      h('button', { className: 'btn bp',  onClick: onUpdate }, '✓ Update Existing')
+    )
+  },
+    h('div', { style: { padding: '4px 0 8px' } },
+      h('div', { style: { fontSize: 13, marginBottom: 10 } },
+        'The following record already exists in ',
+        h('strong', null, table === 'patients' ? 'Patients' : table === 'appointments' ? 'Appointments' : 'Payments'),
+        ':'
+      ),
+      h('div', { className: 'dup-detail-box' }, detail),
+      h('div', { style: { marginTop: 12, fontSize: 12.5, color: 'var(--md)', lineHeight: 1.6 } },
+        h('strong', null, '✓ Update Existing'), ' — overwrites the existing record with the new data.', h('br', null),
+        h('strong', null, '✕ Keep as New Record'), ' — saves as a separate entry (both records kept).'
+      )
+    )
+  );
+}
+
 function buildDataBlob(patients, appointments, payments, notifications, reminders, reminderLog, services) {
   return {
     patients, appointments, payments, notifications, reminders, reminderLog,
@@ -13479,7 +13688,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
       if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments),onGoKiosk});
       if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast,syncUrl});
       if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),setAppointments,payments:safe(payments),setPayments,addToast,syncUrl,user});
-      if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),appointments:safe(appointments),setAppointments,addToast});
+      if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),appointments:safe(appointments),setAppointments,addToast,syncUrl});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
       if(page==='services')return canDo(user,'edit_services')?h(ServicesPage,{addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),services:getActiveSvcs(),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,setServices:(svcs)=>{try{localStorage.setItem(LS_KEYS.SERVICES,JSON.stringify(svcs));}catch(e){}},addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
