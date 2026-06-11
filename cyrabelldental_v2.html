@@ -3867,7 +3867,7 @@ const REMINDER_TYPES = {
     color: '#0a7c6e',
     interval: 180,  // every 6 months (industry standard for prophylaxis)
     desc: 'Routine dental prophylaxis',
-    template: (p)=>'Hi '+p.name+'! 😊 It\'s been 6 months since your last cleaning. Time for your next dental prophylaxis to keep your smile healthy! 🦷\n\nBook your appointment at Cyrabell Dental.',
+    template: (p)=>'Hi '+p.name+'! 😊 It\'s been 6 months since your last cleaning. Time for your next dental prophylaxis to keep your smile healthy! 🦷\n\nBook your appointment at Simplified Dental Clinic.',
   },
   checkup: {
     label: 'Regular Checkup',
@@ -3875,7 +3875,7 @@ const REMINDER_TYPES = {
     color: '#3a7bd5',
     interval: 180,
     desc: 'Comprehensive oral examination',
-    template: (p)=>'Hi '+p.name+'! Time for your routine dental checkup. Early detection saves teeth! 📅\n\nSchedule your visit at Cyrabell Dental.',
+    template: (p)=>'Hi '+p.name+'! Time for your routine dental checkup. Early detection saves teeth! 📅\n\nSchedule your visit at Simplified Dental Clinic.',
   },
   xray: {
     label: 'X-Ray Scan',
@@ -3883,7 +3883,7 @@ const REMINDER_TYPES = {
     color: '#9333ea',
     interval: 365,  // annual
     desc: 'Annual diagnostic X-ray',
-    template: (p)=>'Hi '+p.name+'! Your annual dental X-ray is due. This helps us detect hidden problems early. 📸\n\nBook your appointment at Cyrabell Dental.',
+    template: (p)=>'Hi '+p.name+'! Your annual dental X-ray is due. This helps us detect hidden problems early. 📸\n\nBook your appointment at Simplified Dental Clinic.',
   },
   fluoride: {
     label: 'Fluoride Treatment',
@@ -3891,7 +3891,7 @@ const REMINDER_TYPES = {
     color: '#06b6d4',
     interval: 180,
     desc: 'Preventive fluoride application',
-    template: (p)=>'Hi '+p.name+'! Time for your fluoride treatment — it strengthens enamel and prevents cavities! ✨\n\nBook at Cyrabell Dental.',
+    template: (p)=>'Hi '+p.name+'! Time for your fluoride treatment — it strengthens enamel and prevents cavities! ✨\n\nBook at Simplified Dental Clinic.',
   },
   ortho: {
     label: 'Braces Check',
@@ -3899,7 +3899,7 @@ const REMINDER_TYPES = {
     color: '#ec4899',
     interval: 30,  // monthly
     desc: 'Orthodontic adjustment',
-    template: (p)=>'Hi '+p.name+'! Your monthly braces adjustment is due. Please schedule your visit. 🪥\n\nCyrabell Dental',
+    template: (p)=>'Hi '+p.name+'! Your monthly braces adjustment is due. Please schedule your visit. 🪥\n\nSimplified Dental Clinic',
   },
   perio: {
     label: 'Periodontal Care',
@@ -3907,7 +3907,7 @@ const REMINDER_TYPES = {
     color: '#10b981',
     interval: 90,  // every 3 months
     desc: 'Gum disease maintenance',
-    template: (p)=>'Hi '+p.name+'! Time for your periodontal maintenance. Healthy gums = healthy teeth! 🌿\n\nCyrabell Dental',
+    template: (p)=>'Hi '+p.name+'! Time for your periodontal maintenance. Healthy gums = healthy teeth! 🌿\n\nSimplified Dental Clinic',
   },
   whitening: {
     label: 'Whitening Touch-Up',
@@ -3915,7 +3915,7 @@ const REMINDER_TYPES = {
     color: '#f59e0b',
     interval: 365,
     desc: 'Teeth whitening refresh',
-    template: (p)=>'Hi '+p.name+'! Keep your smile bright — time for a whitening touch-up! ⭐\n\nCyrabell Dental',
+    template: (p)=>'Hi '+p.name+'! Keep your smile bright — time for a whitening touch-up! ⭐\n\nSimplified Dental Clinic',
   },
   retainer: {
     label: 'Retainer Check',
@@ -3923,7 +3923,7 @@ const REMINDER_TYPES = {
     color: '#7c3aed',
     interval: 180,
     desc: 'Retainer fit & condition check',
-    template: (p)=>'Hi '+p.name+'! Don\'t forget to have your retainer checked to maintain that perfect smile! 😁\n\nCyrabell Dental',
+    template: (p)=>'Hi '+p.name+'! Don\'t forget to have your retainer checked to maintain that perfect smile! 😁\n\nSimplified Dental Clinic',
   },
   custom: {
     label: 'Custom Reminder',
@@ -3931,7 +3931,7 @@ const REMINDER_TYPES = {
     color: '#6366f1',
     interval: 90,
     desc: 'Custom maintenance reminder',
-    template: (p)=>'Hi '+p.name+'! Friendly reminder from Cyrabell Dental.',
+    template: (p)=>'Hi '+p.name+'! Friendly reminder from Simplified Dental Clinic.',
   },
 };
 
@@ -3949,7 +3949,7 @@ const INIT_REMINDERS = [
 
 // ─── REMINDER LOG (sent reminder history) ──────────────────────────────────
 const INIT_REMINDER_LOG = [
-  {id:'RL001',reminderId:'R001',patientId:'P001',patientName:'Maria Santos',type:'cleaning',channel:'sms',message:'Hi Maria! Time for your 6-month cleaning at Cyrabell Dental.',sentAt:daysAgo(175)+' 09:00',status:'sent'},
+  {id:'RL001',reminderId:'R001',patientId:'P001',patientName:'Maria Santos',type:'cleaning',channel:'sms',message:'Hi Maria! Time for your 6-month cleaning at Simplified Dental Clinic.',sentAt:daysAgo(175)+' 09:00',status:'sent'},
   {id:'RL002',reminderId:'R002',patientId:'P002',patientName:'Juan dela Cruz',type:'checkup',channel:'whatsapp',message:'Hi Juan! Time for your routine checkup.',sentAt:daysAgo(160)+' 10:00',status:'sent'},
 ];
 
@@ -4443,7 +4443,7 @@ function expJSON(data,fn){
 }
 function printDoc(content,title){
   const w=window.open('','_blank');if(!w)return;
-  w.document.write('<!DOCTYPE html><html><head><title>'+title+'</title><style>body{font-family:Segoe UI,sans-serif;padding:28px;color:#1a2332;max-width:880px;margin:0 auto}h1{color:#0a7c6e;font-size:22px;margin-bottom:4px}h2{font-size:15px;margin:20px 0 9px;color:#243447}.meta{font-size:12px;color:#8fa8b8;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#e8f5f3;padding:8px 10px;text-align:left;font-size:11px;color:#4a6275;text-transform:uppercase;letter-spacing:1px}td{padding:8px 10px;border-bottom:1px solid #dde8ec;font-size:12px}</style></head><body><h1>🦷 Cyrabell Dental</h1><div class="meta">Generated: '+new Date().toLocaleString()+'</div>'+content+'<script>window.onload=function(){window.print();}<\/script></body></html>');
+  w.document.write('<!DOCTYPE html><html><head><title>'+title+'</title><style>body{font-family:Segoe UI,sans-serif;padding:28px;color:#1a2332;max-width:880px;margin:0 auto}h2{font-size:15px;margin:20px 0 9px;color:#243447}.meta{font-size:12px;color:#8fa8b8;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#e8f5f3;padding:8px 10px;text-align:left;font-size:11px;color:#4a6275;text-transform:uppercase;letter-spacing:1px}td{padding:8px 10px;border-bottom:1px solid #dde8ec;font-size:12px}.pby{font-size:11px;color:#4a7080;letter-spacing:1px;margin-top:4px}</style></head><body><img src="'+LOGO_DATA+'" alt="Simplified Dental Clinic" style="width:200px;height:auto;display:block;margin-bottom:2px"><div class="pby">POWERED BY: <strong>CYRABELL</strong></div><div class="meta">Generated: '+new Date().toLocaleString()+'</div>'+content+'<script>window.onload=function(){window.print();}<\/script></body></html>');
   w.document.close();
 }
 
@@ -4560,7 +4560,7 @@ async function sendEmailNotification(syncUrl, to, subject, message) {
       body: JSON.stringify({
         action: 'sendEmail',
         to: to,
-        subject: subject || 'Cyrabell Dental Notification',
+        subject: subject || 'Simplified Dental Clinic Notification',
         message: message
       }),
       redirect: 'follow'
@@ -4691,7 +4691,7 @@ function sendMessengerNotification(messengerId, message) {
 // ─── DISPATCHER: route to the right sender ────────────────────────────────
 async function sendNotification(channel, patient, message, syncUrl) {
   nlog('dispatch', { channel, patient: patient.name });
-  const subject = 'Cyrabell Dental — ' + (patient.name || 'Reminder');
+  const subject = 'Simplified Dental Clinic — ' + (patient.name || 'Reminder');
   if (channel === 'email')     return await sendEmailNotification(syncUrl, patient.email, subject, message);
   if (channel === 'sms')       return await sendSmsNotification(syncUrl, patient.phone, message, patient.smsCarrier);
   if (channel === 'whatsapp')  return sendWhatsAppNotification(patient.phone, message);
@@ -10286,10 +10286,13 @@ function PayForm({patients,onClose,onSave}){
 function ReceiptView({pay,onClose}){
   return h(Modal,{title:'Payment Receipt',onClose,footer:h(Fragment,null,h('button',{className:'btn bgh',onClick:onClose},'Close'),h('button',{className:'btn bp',onClick:()=>window.print()},'🖨️ Print'))},
     h('div',{className:'rc'},
-      h('div',{className:'rh'},h('div',{className:'rl'},'🦷 Cyrabell Dental'),h('div',{style:{fontSize:11,color:'var(--md)',marginTop:3}},'Official Payment Receipt')),
+      h('div',{className:'rh'},
+        h('div',{style:{marginBottom:4}},h(BrandLogo,{dark:false,width:180})),
+        h('div',{style:{fontSize:11,color:'var(--md)',marginTop:3}},'Official Payment Receipt')
+      ),
       [['Receipt No.',pay.ref],['Patient',pay.patientName],['Service',svcStr(pay)],['Method',pay.method],['Date',pay.date]].map(([l,v])=>h('div',{key:l,className:'rr'},h('span',{className:'rr-l'},l),h('span',{className:'rr-v'},v))),
       h('div',{className:'rr rtot'},h('span',null,'Total Paid'),h('span',null,'₱'+p$(pay.amount))),
-      h('div',{style:{textAlign:'center',marginTop:14,fontSize:12,color:'var(--lt)'}},'Thank you for choosing Cyrabell Dental! 🙏')
+      h('div',{style:{textAlign:'center',marginTop:14,fontSize:12,color:'var(--lt)'}},'Thank you for choosing Simplified Dental Clinic! 🙏')
     )
   );
 }
@@ -11562,7 +11565,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
     h('div',{className:'ph'},
       h('div',null,
         h('div',{className:'ptl'},(function(){var hr=new Date().getHours();var p=hr<12?'morning':hr<17?'afternoon':'evening';return 'Good '+p+' 👋';}())),
-        h('div',{className:'psl'},'Welcome to Cyrabell Dental Management System')
+        h('div',{className:'psl'},'Welcome to Simplified Dental Clinic Management System')
       ),
       h('div',{className:'ph-act'},
         h('button',{className:'btn bg2',onClick:()=>setShowAI(true),title:'AI assistant'},'🤖 AI Assistant'),
@@ -13965,7 +13968,7 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
         'Review & Confirm'
       ),
       h('div',{className:'rc',style:{marginBottom:16}},
-        h('div',{className:'rh'}, h('div',{className:'rl'},'🦷 Cyrabell Dental')),
+        h('div',{className:'rh'}, h(BrandLogo,{dark:false,width:180})),
         [
           ['Patient',      info.name],
           ['Phone',        info.phone],
