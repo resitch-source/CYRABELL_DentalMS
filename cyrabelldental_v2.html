@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://api.allorigins.win https://corsproxy.io https://api.codetabs.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://api.allorigins.win https://corsproxy.io https://api.codetabs.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com https://www.youtube.com https://www.youtube-nocookie.com;">
 <!-- Performance: preconnect to font origin so the browser opens the TCP/TLS connection early -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -376,6 +376,9 @@ textarea{resize:vertical;min-height:80px}
   padding:0;
   position:relative;overflow-x:hidden;
 }
+/* Body row: main content + YouTube side panel */
+.kiosk-body{display:flex;flex:1;overflow:hidden;min-height:0;}
+.kiosk-main{flex:1;display:flex;flex-direction:column;overflow-y:auto;min-width:0;}
 .kiosk-header{
   background:linear-gradient(135deg,var(--t) 0%,var(--tl) 100%);
   color:#fff;
@@ -425,6 +428,25 @@ textarea{resize:vertical;min-height:80px}
   flex:1;padding:28px 20px 60px;
   max-width:720px;margin:0 auto;width:100%;
 }
+/* YouTube side panel */
+.kiosk-yt-panel{width:380px;flex-shrink:0;background:#050e1a;display:flex;flex-direction:column;border-left:1px solid rgba(0,200,255,.15);position:relative;}
+.kiosk-yt-header{padding:10px 14px 8px;background:linear-gradient(135deg,#071a30,#0a2540);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,200,255,.12);}
+.kiosk-yt-title{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#00d4ff;display:flex;align-items:center;gap:6px;}
+.kiosk-yt-title svg{flex-shrink:0;}
+.kiosk-yt-frame{flex:1;position:relative;background:#000;}
+.kiosk-yt-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:none;}
+.kiosk-yt-placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;}
+.kiosk-yt-placeholder-icon{font-size:48px;opacity:.5;}
+.kiosk-yt-placeholder-text{font-size:12px;color:rgba(255,255,255,.4);line-height:1.6;}
+.kiosk-yt-placeholder-hint{font-size:10px;color:rgba(0,200,255,.5);background:rgba(0,200,255,.06);border:1px solid rgba(0,200,255,.12);border-radius:6px;padding:6px 10px;}
+.kiosk-yt-cfg-btn{font-size:10px;color:rgba(255,255,255,.35);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:4px 8px;cursor:pointer;font-family:inherit;transition:all .2s;}
+.kiosk-yt-cfg-btn:hover{background:rgba(0,200,255,.1);color:#00d4ff;border-color:rgba(0,200,255,.3);}
+.kiosk-yt-nowplaying{padding:8px 14px;background:rgba(0,0,0,.3);border-top:1px solid rgba(0,200,255,.08);display:flex;align-items:center;gap:6px;}
+.kiosk-yt-np-dot{width:6px;height:6px;border-radius:50%;background:#ff0000;animation:nspulse 1.5s ease infinite;flex-shrink:0;}
+.kiosk-yt-np-label{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.8px;font-weight:600;}
+/* Config input inside modal */
+.kiosk-yt-input{width:100%;box-sizing:border-box;padding:9px 12px;border-radius:8px;border:1.5px solid var(--bd);background:var(--bg2);color:var(--dk);font-size:12.5px;font-family:inherit;outline:none;}
+.kiosk-yt-input:focus{border-color:#00c8ff;box-shadow:0 0 0 3px rgba(0,200,255,.1);}
 .kiosk-step-title{
   font-family:'Playfair Display',serif;
   font-size:28px;font-weight:700;
@@ -5577,6 +5599,27 @@ function KioskPatientPhoto({patient, syncUrl, className, fallback}){
   return fallback||null;
 }
 
+// ── Kiosk YouTube helpers ─────────────────────────────────────────────────────
+const KIOSK_YT_KEY='cyrabell_kiosk_yt';
+function getKioskYT(){ try{ return localStorage.getItem(KIOSK_YT_KEY)||''; }catch(e){ return ''; } }
+function saveKioskYT(url){ try{ localStorage.setItem(KIOSK_YT_KEY,url); }catch(e){} }
+function ytEmbedUrl(raw){
+  if(!raw||!raw.trim()) return '';
+  const s=raw.trim();
+  // Already an embed URL
+  if(s.includes('youtube.com/embed')||s.includes('youtube-nocookie.com/embed')) return s;
+  // Playlist
+  const plM=s.match(/[?&]list=([A-Za-z0-9_-]+)/);
+  const vidM=s.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/))([A-Za-z0-9_-]{11})/);
+  if(plM&&!vidM) return 'https://www.youtube-nocookie.com/embed/videoseries?list='+plM[1]+'&autoplay=1&mute=1&loop=1';
+  if(vidM){
+    const extra=plM?'&list='+plM[1]:'&playlist='+vidM[1];
+    return 'https://www.youtube-nocookie.com/embed/'+vidM[1]+'?autoplay=1&mute=1&loop=1'+extra;
+  }
+  // Channel handle / bare ID fallback — show as-is hoping it's already valid
+  return s;
+}
+
 // ── KioskInfoBar — weather + live news ticker + ads ──────────────────────────
 const WX_CODES={0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌦️',82:'⛈️',95:'⛈️',99:'⛈️'};
 const WX_DESC={0:'Clear Sky',1:'Mostly Clear',2:'Partly Cloudy',3:'Overcast',45:'Foggy',48:'Icy Fog',51:'Light Drizzle',53:'Drizzle',55:'Heavy Drizzle',61:'Light Rain',63:'Rain',65:'Heavy Rain',71:'Light Snow',73:'Snow',75:'Heavy Snow',80:'Showers',81:'Showers',82:'Heavy Showers',95:'Thunderstorm',99:'Thunderstorm'};
@@ -5719,6 +5762,8 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
   const [ads,setAds]=useState(getKioskAds);
   const [showAdMgr,setShowAdMgr]=useState(false);
   const [newAdText,setNewAdText]=useState('');
+  const [ytRaw,setYtRaw]=useState(getKioskYT);
+  const [ytInput,setYtInput]=useState(getKioskYT);
   const [walkinMode,setWalkinMode]=useState('scheduled'); // 'scheduled'|'standby'
   const [walkinInfo,setWalkinInfo]=useState({name:'',phone:'',service:'',date:localToday(),time:''});
   const [walkinDone,setWalkinDone]=useState(null);
@@ -5847,6 +5892,9 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
     // ── Info Bar (Weather + News + Ads) ──────────────────────────────────────
     h(KioskInfoBar,{ads}),
 
+    // ── Body row (nav+content left | YouTube right) ───────────────────────────
+    h('div',{className:'kiosk-body'},
+    h('div',{className:'kiosk-main'},
     // ── Nav Tabs ──────────────────────────────────────────────────────────────
     h('div',{className:'kiosk-nav'},
       h('button',{className:'kiosk-nav-btn'+(step==='queue'?' active':''),onClick:()=>setStep('queue')},'📋 Queue'),
@@ -6025,7 +6073,43 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
         h('div',{className:'kiosk-success-msg'},'🪑 Please take a seat in the waiting area.',h('br'),'Our staff has been notified that you\'ve arrived.'),
         h('div',{className:'kiosk-countdown'},'This screen will reset in a few seconds…')
       )
-    ),
+    ) // end kiosk-content
+    ), // end kiosk-main
+
+    // ── YouTube Side Panel ───────────────────────────────────────────────────
+    h('div',{className:'kiosk-yt-panel'},
+      h('div',{className:'kiosk-yt-header'},
+        h('div',{className:'kiosk-yt-title'},
+          h('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'#ff0000'},
+            h('path',{d:'M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8z'}),
+            h('polygon',{points:'9.75 15.02 15.5 12 9.75 8.98 9.75 15.02',fill:'white'})
+          ),
+          'NOW PLAYING'
+        ),
+        h('button',{className:'kiosk-yt-cfg-btn',onClick:()=>setShowAdMgr(true)},'⚙ Configure')
+      ),
+      ytEmbedUrl(ytRaw)
+        ? h(Fragment,null,
+            h('div',{className:'kiosk-yt-frame'},
+              h('iframe',{
+                src:ytEmbedUrl(ytRaw),
+                allow:'autoplay; encrypted-media; picture-in-picture',
+                allowFullScreen:true,
+                title:'Kiosk YouTube'
+              })
+            ),
+            h('div',{className:'kiosk-yt-nowplaying'},
+              h('div',{className:'kiosk-yt-np-dot'}),
+              h('span',{className:'kiosk-yt-np-label'},'YouTube Live / Video')
+            )
+          )
+        : h('div',{className:'kiosk-yt-placeholder'},
+            h('div',{className:'kiosk-yt-placeholder-icon'},'▶'),
+            h('div',{className:'kiosk-yt-placeholder-text'},'No YouTube video configured.',h('br'),'Set a video, playlist, or live stream to display here.'),
+            h('div',{className:'kiosk-yt-placeholder-hint'},'🔒 Staff: tap ⚙ Configure above or enter PIN to set a URL')
+          )
+    ), // end kiosk-yt-panel
+    ), // end kiosk-body
 
     // ── Confirm modal ─────────────────────────────────────────────────────────
     step==='confirm' && picked && h('div',{className:'ov'},
@@ -6050,8 +6134,28 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
 
     // ── Ad Manager modal (staff only — opened via long-press on header) ───────
     showAdMgr && h('div',{className:'ov'},
-      h('div',{className:'kiosk-confirm-modal',style:{maxWidth:420}},
-        h('div',{className:'kiosk-confirm-title'},'📢 Manage Ads / Announcements'),
+      h('div',{className:'kiosk-confirm-modal',style:{maxWidth:440}},
+        h('div',{className:'kiosk-confirm-title'},'⚙ Kiosk Settings'),
+
+        // YouTube URL
+        h('div',{style:{marginBottom:16}},
+          h('div',{style:{fontSize:11,fontWeight:700,color:'var(--md)',textTransform:'uppercase',letterSpacing:'.8px',marginBottom:6,display:'flex',alignItems:'center',gap:5}},
+            h('svg',{width:13,height:13,viewBox:'0 0 24 24',fill:'#ff0000'},h('path',{d:'M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8z'}),h('polygon',{points:'9.75 15.02 15.5 12 9.75 8.98 9.75 15.02',fill:'white'})),
+            'YouTube Video / Playlist / Live Stream'
+          ),
+          h('div',{style:{display:'flex',gap:8}},
+            h('input',{className:'kiosk-yt-input',placeholder:'Paste YouTube URL (video, playlist, or live stream)…',value:ytInput,onChange:e=>setYtInput(e.target.value)}),
+            h('button',{className:'btn bp bsm',onClick:()=>{ setYtRaw(ytInput.trim()); saveKioskYT(ytInput.trim()); addToast('YouTube URL saved','success'); }},'Save')
+          ),
+          ytRaw && h('div',{style:{fontSize:10,color:'#27ae60',marginTop:4}},
+            '✓ Active: '+ytRaw.slice(0,60)+(ytRaw.length>60?'…':'')
+          )
+        ),
+
+        h('hr',{style:{border:'none',borderTop:'1px solid var(--bd)',margin:'4px 0 14px'}}),
+
+        // Ads
+        h('div',{style:{fontSize:11,fontWeight:700,color:'var(--md)',textTransform:'uppercase',letterSpacing:'.8px',marginBottom:8}},'📢 Ticker Ads / Announcements'),
         h('div',{style:{display:'flex',gap:8,marginBottom:12}},
           h('input',{style:{flex:1,padding:'8px 10px',borderRadius:8,border:'1px solid var(--bd)',fontSize:13,background:'var(--bg2)',color:'var(--fg)'},
             placeholder:'Enter ad text or announcement…',value:newAdText,onChange:e=>setNewAdText(e.target.value),
@@ -6061,7 +6165,7 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
         ),
         ads.length===0
           ? h('div',{style:{color:'var(--md)',fontSize:12,padding:'8px 0'}},'No ads yet. Add one above.')
-          : h('div',{style:{display:'flex',flexDirection:'column',gap:6,maxHeight:200,overflowY:'auto'}},
+          : h('div',{style:{display:'flex',flexDirection:'column',gap:6,maxHeight:160,overflowY:'auto'}},
               ads.map(ad=>h('div',{key:ad.id,style:{display:'flex',alignItems:'center',gap:8,background:'var(--bg2)',borderRadius:8,padding:'7px 10px'}},
                 h('span',{style:{flex:1,fontSize:12.5,color:'var(--dk)'}},ad.text),
                 h('button',{className:'btn bd2 bsm',onClick:()=>removeAd(ad.id)},'×')
@@ -6081,7 +6185,7 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
         h('p',{style:{fontSize:12.5,color:'var(--md)',marginBottom:10,marginTop:6}},'Enter the 4-digit PIN to exit kiosk mode'),
         h('button',{style:{fontSize:11,color:'#00c8ff',background:'none',border:'none',cursor:'pointer',marginBottom:12},
           onClick:()=>{setShowExit(false);setShowAdMgr(true);}
-        },'📢 Manage Ads / Announcements'),
+        },'⚙ Kiosk Settings (YouTube, Ads)'),
         h('input',{
           type:'password',inputMode:'numeric',maxLength:4,value:exitPin,autoFocus:true,
           onChange:e=>setExitPin(e.target.value.replace(/\D/g,'')),
