@@ -11391,11 +11391,14 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ApptDetail — shows appointment details
-function ApptDetail({a, onClose, syncUrl}){
+function ApptDetail({a, onClose, syncUrl, onEdit}){
   const [viewing, setViewing] = useState(null);
   const rows=[['Patient',a.patientName],['Service',svcStr(a)],['Dentist',a.dentist],['Date',fmtDateFull(a.date)],['Time',fmtTime(a.time)],['When',fmtDateRelative(a.date)],['Fee','₱'+p$(a.fee)],['Phone',a.phone||'—'],['Email',a.email||'—'],['Notes',a.notes||'—']];
   const atts = safe(a.attachments);
-  return h(Modal,{title:'Appointment Details',sub:'#'+a.id,onClose,footer:h('button',{className:'btn bgh',onClick:onClose},'Close')},
+  return h(Modal,{title:'Appointment Details',sub:'#'+a.id,onClose,footer:h(Fragment,null,
+    onEdit && h('button',{className:'btn bp',onClick:()=>onEdit(a)},'✏️ Edit'),
+    h('button',{className:'btn bgh',onClick:onClose},'Close')
+  )},
     h('div',{style:{display:'flex',flexDirection:'column',gap:10}},
       rows.map(([l,v])=>h('div',{key:l,style:{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--bd)'}},
         h('span',{style:{color:'var(--md)',fontSize:12.5,textTransform:'uppercase',letterSpacing:.5}},l),
@@ -11788,9 +11791,12 @@ function highlightMatch(text, query) {
 }
 
 
-function ApptForm({patients,appointments,onClose,onSave,onAddPatient,syncUrl,addToast}){
-  const [f,setF]=useState({patientId:'',patientName:'',services:[],service:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:'',fee:'',phone:'',email:'',attachments:[]});
-  const [selectedPatient, setSelectedPatient] = useState(null);
+function ApptForm({patients,appointments,onClose,onSave,onAddPatient,syncUrl,addToast,existing}){
+  const isEdit = !!existing;
+  const [f,setF]=useState(isEdit
+    ? {...existing, services:svcList(existing), fee:existing.fee||''}
+    : {patientId:'',patientName:'',services:[],service:'',date:'',time:'09:00',dentist:'Dr. Arnold Colao',notes:'',fee:'',phone:'',email:'',attachments:[]});
+  const [selectedPatient, setSelectedPatient] = useState(isEdit ? ((patients||[]).find(p=>p.id===existing.patientId)||null) : null);
   // Always-current ref so async Drive-upload callbacks don't see stale f.attachments
   const fRef = useRef(f);
   fRef.current = f;
@@ -11848,10 +11854,10 @@ const rmSvc=n=>{
     ? aiSuggestSlots(appointments || [], f.service, f.date, 7).slice(0, 4)
     : [];
 
-  return h(Modal,{title:'Book Appointment',sub:'Schedule a new dental visit',onClose,large:true,
+  return h(Modal,{title:isEdit?'Edit Appointment':'Book Appointment',sub:isEdit?'Update appointment details':'Schedule a new dental visit',onClose,large:true,
     footer:h(Fragment,null,
       h('button',{className:'btn bgh',onClick:onClose},'Cancel'),
-      h('button',{className:'btn bp',onClick:()=>ok&&onSave(f),disabled:!ok,title:!ok&&check?check.message:''},'Book')
+      h('button',{className:'btn bp',onClick:()=>ok&&onSave(f),disabled:!ok,title:!ok&&check?check.message:''},isEdit?'Save Changes':'Book')
     )},
     h(Field,{label:'Patient *'},
       h(PatientSearchInput, {
@@ -12054,6 +12060,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
   const [search,setSearch]=useState('');
   const [modal,setModal]=useState(false);
   const [detail,setDetail]=useState(null);
+  const [editAppt,setEditAppt]=useState(null);
   const [viewMode,setViewMode]=useState('table');
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [sortBy,setSortBy]=useState('datetime');
@@ -12098,7 +12105,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
       if (prev.some(p => p.ref === ref)) { addToast('Already recorded for this appointment','info'); return prev; }
       return [{
         id:'PAY'+uid(), patientId:a.patientId, patientName:a.patientName,
-        amount:a.fee||0, method:'Cash', service:a.service,
+        amount:a.fee||0, method:'Cash', services:svcList(a), service:a.service,
         date:localToday(), status:'paid', ref,
       }, ...prev];
     });
@@ -12126,7 +12133,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
           return [{
             id: 'PAY'+uid(),
             patientId: a.patientId, patientName: a.patientName,
-            amount: a.fee, method: 'pending', service: a.service,
+            amount: a.fee, method: 'pending', services: svcList(a), service: a.service,
             date: a.date, status: 'pending', ref: refTag
           }, ...prev];
         });
@@ -12317,12 +12324,34 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
         setPayments(prev=>[{
           id: 'PAY'+uid(),
           patientId: newAppt.patientId, patientName: newAppt.patientName,
-          amount: newAppt.fee, method: 'pending', service: newAppt.service,
+          amount: newAppt.fee, method: 'pending', services: svcList(newAppt), service: newAppt.service,
           date: newAppt.date, status: 'pending', ref: 'auto-' + newAppt.id
         }, ...prev]);
       }
     }}),
-    detail&&h(ApptDetail,{a:detail,syncUrl,onClose:()=>setDetail(null)}),
+    detail&&h(ApptDetail,{a:detail,syncUrl,onClose:()=>setDetail(null),onEdit:a=>{setEditAppt(a);setDetail(null);}}),
+    editAppt&&h(ApptForm,{patients,appointments,syncUrl,addToast,existing:editAppt,
+      onClose:()=>setEditAppt(null),
+      onAddPatient:(np)=>{if(setPatients)setPatients(prev=>[np,...prev.filter(x=>x.id!==np.id)]);},
+      onSave:d=>{
+        const updated={...editAppt,...d,id:editAppt.id,services:svcList(d),service:svcList(d)[0]||d.service||''};
+        setAppointments(prev=>prev.map(a=>a.id===editAppt.id?updated:a));
+        syncOneRecord('appointments',updated,syncUrl);
+        // Mirror service/fee changes to linked payment records
+        if(setPayments){
+          setPayments(prev=>prev.map(p=>{
+            const linked=p.ref==='PAY-APT-'+editAppt.id||p.ref==='auto-'+editAppt.id;
+            if(!linked)return p;
+            const up={...p,services:svcList(updated),service:updated.service,
+              amount:+p.amount===+(editAppt.fee||0)?+(updated.fee||0):+p.amount};
+            syncOneRecord('payments',up,syncUrl);
+            return up;
+          }));
+        }
+        setEditAppt(null);
+        addToast('Appointment updated for '+updated.patientName,'success');
+      }
+    }),
     showAnalysis && h(ConflictAnalysisModal, {appointments, onClose: ()=>setShowAnalysis(false)})
   );
 }
