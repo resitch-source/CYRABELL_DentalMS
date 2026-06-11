@@ -2094,22 +2094,31 @@ th:hover .sort-icon{opacity:.9}
 .ocr-ledger-head{
   display:flex;gap:4px;padding:5px 8px;
   background:var(--bg3);font-weight:700;font-size:11px;color:var(--md);
-  min-width:480px;
 }
-.ocr-ledger-head span{flex:1;min-width:60px;}
 .ocr-ledger-row{
   display:flex;gap:4px;padding:4px 8px;
   border-top:1px solid var(--bd);align-items:center;
-  min-width:480px;
 }
+/* Shared named column widths — header spans and cell inputs use same class */
+.ocr-col-date{flex:0 0 110px;}
+.ocr-col-time{flex:0 0 80px;}
+.ocr-col-svc{flex:2;min-width:120px;}
+.ocr-col-notes{flex:2;min-width:90px;}
+.ocr-col-fee{flex:0 0 70px;}
+.ocr-col-amt{flex:0 0 78px;}
+.ocr-col-meth{flex:0 0 90px;}
+.ocr-col-del{flex:0 0 24px;}
+/* Appointment row min-width = 110+80+120+90+70+24 + gaps ≈ 530px */
+.ocr-appt-head{min-width:530px;}
+/* Payment row min-width = 110+120+78*3+90+24 + gaps ≈ 620px */
+.ocr-pay-head{min-width:620px;}
 .ocr-cell-input{
-  flex:1;min-width:0;padding:3px 5px;
+  min-width:0;padding:3px 5px;
   border:1px solid var(--bd);border-radius:5px;
   background:var(--bg2);color:var(--fg);font-size:11.5px;
+  box-sizing:border-box;width:100%;
 }
 .ocr-cell-input:focus{outline:none;border-color:var(--ac);}
-.ocr-cell-wide{flex:2;}
-.ocr-cell-sm{flex:0 0 70px;max-width:70px;}
 .ocr-learn-icon{font-size:14px;}
 .ocr-fields{
   display:flex;flex-direction:column;gap:8px;
@@ -9669,23 +9678,34 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
           (editData._appointments || []).length === 0
             ? h('div', {className: 'ocr-empty-hint'}, 'No appointments extracted. Click "+ Add Row" to add manually.')
             : h('div', {className: 'ocr-ledger-table'},
-                h('div', {className: 'ocr-ledger-head'},
-                  h('span', null, 'Date'), h('span', null, 'Time'), h('span', null, 'Description / Service'),
-                  h('span', null, 'Notes'), h('span', null, 'Fee (₱)'), h('span', null, '')
+                h('div', {className: 'ocr-ledger-head ocr-appt-head'},
+                  h('span', {className:'ocr-col-date'}, 'Date'),
+                  h('span', {className:'ocr-col-time'}, 'Time'),
+                  h('span', {className:'ocr-col-svc'}, 'Service'),
+                  h('span', {className:'ocr-col-notes'}, 'Notes'),
+                  h('span', {className:'ocr-col-fee'}, 'Fee (₱)'),
+                  h('span', {className:'ocr-col-del'}, '')
                 ),
                 (editData._appointments || []).map((appt, i) =>
-                  h('div', {key: i, className: 'ocr-ledger-row'},
-                    h('input', {type:'date', value: appt.date||'', className:'ocr-cell-input',
+                  h('div', {key: i, className: 'ocr-ledger-row ocr-appt-head'},
+                    h('input', {type:'date', value: appt.date||'', className:'ocr-cell-input ocr-col-date',
                       onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],date:e.target.value}; ed('_appointments',a); }}),
-                    h('input', {type:'time', value: appt.time||'', className:'ocr-cell-input',
+                    h('input', {type:'time', value: appt.time||'', className:'ocr-cell-input ocr-col-time',
                       onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],time:e.target.value}; ed('_appointments',a); }}),
-                    h('input', {type:'text', value: appt.service||'', placeholder:'e.g. Teeth Cleaning', className:'ocr-cell-input ocr-cell-wide',
-                      onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],service:e.target.value}; ed('_appointments',a); }}),
-                    h('input', {type:'text', value: appt.notes||'', placeholder:'notes', className:'ocr-cell-input ocr-cell-wide',
+                    h('select', {value: appt.service||'', className:'ocr-cell-input ocr-col-svc',
+                      onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],service:e.target.value}; ed('_appointments',a); }},
+                      h('option', {value:''}, '— select service —'),
+                      Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
+                        h('optgroup', {key:cat, label:cat},
+                          svcs.map(sv => h('option',{key:sv.name,value:sv.name}, sv.name))
+                        )
+                      )
+                    ),
+                    h('input', {type:'text', value: appt.notes||'', placeholder:'notes', className:'ocr-cell-input ocr-col-notes',
                       onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],notes:e.target.value}; ed('_appointments',a); }}),
-                    h('input', {type:'number', value: appt.fee||'', placeholder:'0', className:'ocr-cell-input ocr-cell-sm',
+                    h('input', {type:'number', value: appt.fee||'', placeholder:'0', className:'ocr-cell-input ocr-col-fee',
                       onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],fee:e.target.value}; ed('_appointments',a); }}),
-                    h('button', {type:'button', className:'ocr-del-row-btn',
+                    h('button', {type:'button', className:'ocr-del-row-btn ocr-col-del',
                       onClick: () => { const a=[...(editData._appointments||[])]; a.splice(i,1); ed('_appointments',a); }}, '×')
                   )
                 )
@@ -9708,29 +9728,39 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
           (editData._payments || []).length === 0
             ? h('div', {className: 'ocr-empty-hint'}, 'No payment records extracted. Click "+ Add Row" to add manually.')
             : h('div', {className: 'ocr-ledger-table'},
-                h('div', {className: 'ocr-ledger-head'},
-                  h('span', null, 'Date'), h('span', null, 'Service'),
-                  h('span', {style:{color:'var(--re)'}}, 'Debit (₱)'),
-                  h('span', {style:{color:'#22c55e'}}, 'Credit (₱)'),
-                  h('span', null, 'Balance (₱)'), h('span', null, 'Method'), h('span', null, '')
+                h('div', {className: 'ocr-ledger-head ocr-pay-head'},
+                  h('span', {className:'ocr-col-date'}, 'Date'),
+                  h('span', {className:'ocr-col-svc'}, 'Service'),
+                  h('span', {className:'ocr-col-amt', style:{color:'var(--re)'}}, 'Debit (₱)'),
+                  h('span', {className:'ocr-col-amt', style:{color:'#22c55e'}}, 'Credit (₱)'),
+                  h('span', {className:'ocr-col-amt'}, 'Balance (₱)'),
+                  h('span', {className:'ocr-col-meth'}, 'Method'),
+                  h('span', {className:'ocr-col-del'}, '')
                 ),
                 (editData._payments || []).map((pay, i) =>
-                  h('div', {key: i, className: 'ocr-ledger-row'},
-                    h('input', {type:'date', value: pay.date||'', className:'ocr-cell-input',
+                  h('div', {key: i, className: 'ocr-ledger-row ocr-pay-head'},
+                    h('input', {type:'date', value: pay.date||'', className:'ocr-cell-input ocr-col-date',
                       onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],date:e.target.value}; ed('_payments',a); }}),
-                    h('input', {type:'text', value: pay.service||'', placeholder:'service', className:'ocr-cell-input ocr-cell-wide',
-                      onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],service:e.target.value}; ed('_payments',a); }}),
-                    h('input', {type:'number', value: pay.debit||'', placeholder:'0', className:'ocr-cell-input ocr-cell-sm',
+                    h('select', {value: pay.service||'', className:'ocr-cell-input ocr-col-svc',
+                      onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],service:e.target.value}; ed('_payments',a); }},
+                      h('option', {value:''}, '— select service —'),
+                      Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
+                        h('optgroup', {key:cat, label:cat},
+                          svcs.map(sv => h('option',{key:sv.name,value:sv.name}, sv.name))
+                        )
+                      )
+                    ),
+                    h('input', {type:'number', value: pay.debit||'', placeholder:'0', className:'ocr-cell-input ocr-col-amt',
                       onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],debit:e.target.value}; ed('_payments',a); }}),
-                    h('input', {type:'number', value: pay.credit||'', placeholder:'0', className:'ocr-cell-input ocr-cell-sm',
+                    h('input', {type:'number', value: pay.credit||'', placeholder:'0', className:'ocr-cell-input ocr-col-amt',
                       onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],credit:e.target.value}; ed('_payments',a); }}),
-                    h('input', {type:'number', value: pay.balance||'', placeholder:'0', className:'ocr-cell-input ocr-cell-sm',
+                    h('input', {type:'number', value: pay.balance||'', placeholder:'0', className:'ocr-cell-input ocr-col-amt',
                       onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],balance:e.target.value}; ed('_payments',a); }}),
-                    h('select', {value: pay.method||'Cash', className:'ocr-cell-input',
+                    h('select', {value: pay.method||'Cash', className:'ocr-cell-input ocr-col-meth',
                       onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],method:e.target.value}; ed('_payments',a); }},
                       ['Cash','GCash','Maya','Card','Bank Transfer','HMO','Other'].map(m => h('option',{key:m,value:m},m))
                     ),
-                    h('button', {type:'button', className:'ocr-del-row-btn',
+                    h('button', {type:'button', className:'ocr-del-row-btn ocr-col-del',
                       onClick: () => { const a=[...(editData._payments||[])]; a.splice(i,1); ed('_payments',a); }}, '×')
                   )
                 )
