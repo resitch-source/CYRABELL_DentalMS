@@ -11938,6 +11938,9 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
   const [done, setDone]  = useState(null);
   const [err,  setErr]   = useState('');
 
+  // syncUrl from localStorage (same pattern used elsewhere)
+  const syncUrl = (function(){ try { return localStorage.getItem(LS_KEYS.SYNC_URL) || ''; } catch(e) { return ''; } })();
+
   // ── Patient state ────────────────────────────────────────────────────
   // Either a selected existing patient OR null (new/anonymous)
   const [selectedPat, setSelectedPat] = useState(null);
@@ -11955,6 +11958,9 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
     dentist:'Dr. Arnold Colao', notes:'',
   });
   const ss = (k,v) => setSched(x=>({...x,[k]:v}));
+
+  // ── Attachments (X-rays, photos, referral letters) ───────────────────
+  const [bookingAtts, setBookingAtts] = useState([]);
   const setSvc = (name) => {
     const sv = SVCS.find(x=>x.name===name);
     setSched(x=>({...x, service:name, fee:sv?sv.fee:''}));
@@ -12000,6 +12006,7 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
       email:       info.email || '',
       status:      'pending',
       arrived:     false,
+      attachments: [...bookingAtts],
     };
     // If new patient, save to records
     if (!selectedPat && onAddPatient) {
@@ -12261,6 +12268,26 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
         })
       ),
 
+      h('div',{style:{marginTop:8,marginBottom:4}},
+        h('div',{style:{fontWeight:600,fontSize:12,color:'var(--md)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:6}},
+          '📎 Attach Files (Optional)'
+        ),
+        h('div',{style:{fontSize:12,color:'var(--md)',marginBottom:8}},
+          'Upload X-rays, referral letters, or photos. Files are saved with your appointment.'
+        ),
+        h(AttachmentPanel,{
+          attachments: bookingAtts,
+          label: 'Attachments',
+          compact: true,
+          syncUrl: syncUrl,
+          patientId: selectedPat ? selectedPat.id : 'booking-temp',
+          onAdd:        att => setBookingAtts(prev=>[...prev, att]),
+          onRemove:     id  => setBookingAtts(prev=>prev.filter(a=>a.id!==id)),
+          onUpdateNote: (id, note) => setBookingAtts(prev=>prev.map(a=>a.id===id?{...a,note}:a)),
+          onUpdate:     att => setBookingAtts(prev=>prev.map(a=>a.id===att.id?att:a)),
+        })
+      ),
+
       err && h('div',{style:{color:'#dc2626',fontSize:12,padding:'8px 10px',background:'#fef2f2',borderRadius:8,marginBottom:8}},err),
       h('div',{style:{display:'flex',gap:10,marginTop:16}},
         h('button',{className:'btn bgh',style:{flex:1},onClick:()=>setStep(1)},'← Back'),
@@ -12293,6 +12320,7 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
           ['Dentist',      sched.dentist],
           ['Est. Fee',     '₱'+p$(sched.fee||0)],
           ['Notes',        sched.notes||'—'],
+          ['Attachments',  bookingAtts.length > 0 ? bookingAtts.length+' file(s) attached' : '—'],
         ].filter(([,v])=>v&&v!=='—'||['Phone','Service','Date','Dentist','Est. Fee'].includes(String([0]))).map(([l,v]) =>
           h('div',{key:l,className:'rr'},
             h('span',{className:'rr-l'},l),
