@@ -2006,6 +2006,13 @@ th:hover .sort-icon{opacity:.9}
   border:1px solid rgba(10,124,110,.2);
   border-radius:9px;
 }
+.ocr-learn-badge{
+  display:flex;align-items:center;gap:6px;
+  margin-top:8px;padding:6px 10px;
+  background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.18);
+  border-radius:7px;font-size:11.5px;color:var(--md);
+}
+.ocr-learn-icon{font-size:14px;}
 .ocr-fields{
   display:flex;flex-direction:column;gap:8px;
 }
@@ -8742,6 +8749,96 @@ function extractKVFallback(text) {
   return Object.keys(result).length ? result : null;
 }
 
+// ── OCR Correction Learning System ──────────────────────────────────────────
+// Stores user corrections to OCR output so future scans improve over time.
+// Persisted in localStorage; injected into the Gemini prompt as known hints.
+
+const OCR_LEARN_KEY = 'cyrabell_ocr_learn';
+
+function loadOcrLearning() {
+  try { return JSON.parse(localStorage.getItem(OCR_LEARN_KEY) || '[]'); }
+  catch(e) { return []; }
+}
+
+function saveOcrLearning(entries) {
+  try { localStorage.setItem(OCR_LEARN_KEY, JSON.stringify(entries)); } catch(e) {}
+}
+
+/**
+ * Compare what Gemini extracted vs what the user corrected and persist diffs.
+ * @param {Object} original  - raw extracted data
+ * @param {Object} corrected - user-edited final data
+ */
+function saveOcrCorrections(original, corrected) {
+  if (!original || !corrected) return;
+  const entries = loadOcrLearning();
+  const nameFields = ['name','phone','email','address','occupation','allergies',
+                      'physician','emergencyContact','bloodType','maritalStatus',
+                      'sex','bloodPressure','chronicAilments','drugsBeingTaken'];
+  let changed = false;
+  nameFields.forEach(field => {
+    const orig = (original[field] || '').trim();
+    const corr = (corrected[field] || '').trim();
+    if (!orig || orig === corr) return; // nothing to learn
+    // Find existing entry
+    const idx = entries.findIndex(e => e.field === field && e.original === orig);
+    if (idx >= 0) {
+      // Update — only strengthen if correction matches previous correction
+      if (entries[idx].corrected === corr) {
+        entries[idx].count = (entries[idx].count || 1) + 1;
+        entries[idx].lastSeen = new Date().toISOString().slice(0, 10);
+      } else {
+        // Conflicting correction — replace with newer one
+        entries[idx].corrected = corr;
+        entries[idx].count = 1;
+        entries[idx].lastSeen = new Date().toISOString().slice(0, 10);
+      }
+    } else {
+      entries.push({ field, original: orig, corrected: corr, count: 1,
+                     lastSeen: new Date().toISOString().slice(0, 10) });
+    }
+    changed = true;
+  });
+  if (changed) {
+    // Keep only the 200 most recently seen entries (avoid unbounded growth)
+    entries.sort((a, b) => (b.lastSeen || '').localeCompare(a.lastSeen || ''));
+    saveOcrLearning(entries.slice(0, 200));
+    console.log('[OCR Learn] Saved corrections. Total entries:', entries.length);
+  }
+}
+
+/**
+ * Apply learned corrections to freshly extracted data (exact-match pass).
+ */
+function applyLearnedCorrections(data) {
+  const entries = loadOcrLearning();
+  if (!entries.length) return data;
+  const result = {...data};
+  entries.forEach(e => {
+    const val = (result[e.field] || '').trim();
+    if (val === e.original) {
+      result[e.field] = e.corrected;
+      console.log('[OCR Learn] Auto-corrected', e.field + ':', JSON.stringify(e.original), '→', JSON.stringify(e.corrected));
+    }
+  });
+  return result;
+}
+
+/**
+ * Build a "KNOWN CORRECTIONS" block to inject into the Gemini prompt.
+ * Gemini sees these as prior examples and applies them during extraction.
+ */
+function buildLearningHints() {
+  const entries = loadOcrLearning();
+  if (!entries.length) return '';
+  // Show top-20 by frequency to keep prompt short
+  const top = entries.slice().sort((a, b) => (b.count||1) - (a.count||1)).slice(0, 20);
+  const lines = top.map(e =>
+    '  - If you read "' + e.original + '" in the ' + e.field + ' field, write "' + e.corrected + '" instead.'
+  );
+  return '\nKNOWN CORRECTIONS FROM PREVIOUS SCANS (apply these if you see the same text):\n' + lines.join('\n');
+}
+
 async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanType, onProgress) {
   const geminiKey = (function(){ try { return localStorage.getItem(LS_KEYS.GEMINI_KEY) || ''; } catch(e) { return ''; } })();
   const useDirect = !!geminiKey;
@@ -8787,7 +8884,8 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
         '  "generalCondition":"general condition","clinicalNotes":"clinical notes",',
         '  "dentalChartNotes":"dental chart annotations","teethConditions":"tooth-by-tooth conditions"',
         '}',
-        'RULES: Read ALL text including handwritten. Dates → YYYY-MM-DD. Return ONLY the JSON object.',
+        'RULES: Read ALL text including handwritten. Dates → YYYY-MM-DD. Return ONLY the JSON object.' +
+        buildLearningHints(),
       ].join('\n');
     }
     return [
@@ -8800,7 +8898,8 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
       '  "allergies":"known allergies","lastVisit":"YYYY-MM-DD","balance":"0",',
       '  "physician":"physician name","emergencyContact":"contact name and number"',
       '}',
-      'RULES: Read every character carefully. Dates → YYYY-MM-DD. Return ONLY the JSON object.',
+      'RULES: Read every character carefully. Dates → YYYY-MM-DD. Return ONLY the JSON object.' +
+      buildLearningHints(),
     ].join('\n');
   }
 
@@ -9008,6 +9107,9 @@ self.onmessage = async function(e) {
     if (!parsed.data) throw new Error('Apps Script returned ok:true but no data field.');
     data = parsed.data;
   }
+
+  // ── Apply learned corrections (exact-match pass before sanitize) ─────────
+  data = applyLearnedCorrections(data);
 
   // ── Sanitize ──────────────────────────────────────────────────────────────
   const clean = {};
@@ -9234,7 +9336,10 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
       {k:'allergies', l:'Allergies',      t:'text',   ph:'None'},
     ];
 
+    const learnCount = loadOcrLearning().length;
+
     const addToList = () => {
+      saveOcrCorrections(extracted, editData); // learn from this correction
       const entry = {...editData};
       setScannedList(prev => [...prev, entry]);
       setStep('capture');
@@ -9244,6 +9349,7 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
     };
 
     const addAllPatients = () => {
+      saveOcrCorrections(extracted, editData); // learn from this correction
       const finalList = [...scannedList, {...editData}];
       if (onBatchExtracted) onBatchExtracted(finalList);
       else finalList.forEach(d => onExtracted(d));
@@ -9273,7 +9379,7 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
           : h('button', {
               className: 'btn bp',
               disabled: !S(editData.name).trim() || !S(editData.phone).trim(),
-              onClick: () => onExtracted(editData)
+              onClick: () => { saveOcrCorrections(extracted, editData); onExtracted(editData); }
             }, '✓ Use This Data')
       )
     },
@@ -9304,6 +9410,12 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
             h('div', {style: {fontWeight: 700, fontSize: 15}}, '✏️ Edit if needed'),
             h('div', {style: {fontSize: 12, color: 'var(--md)', marginTop: 3}},
               'Fields highlighted in green were successfully extracted. Edit any incorrect values.'
+            ),
+            h('div', {className: 'ocr-learn-badge'},
+              h('span', {className: 'ocr-learn-icon'}, '🧠'),
+              learnCount > 0
+                ? h('span', null, 'AI learned ', h('strong', null, learnCount), ' correction' + (learnCount === 1 ? '' : 's') + ' — edits here will improve future scans')
+                : h('span', null, 'Edit any wrong fields — AI will learn and improve next time')
             )
           ),
           h('div', {className: 'ocr-fields'},
