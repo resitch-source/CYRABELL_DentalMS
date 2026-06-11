@@ -250,8 +250,14 @@ function pushAll(data) {
   for (var tableName in TABLES) {
     var headers  = TABLES[tableName];
     var sheet    = ss.getSheetByName(tableName);
-    var rows     = Array.isArray(data[tableName]) ? data[tableName] : [];
     var jsonCols = JSON_COLS[tableName] || [];
+
+    // Skip tables not present in the payload — avoids wiping sheets on partial syncs
+    if (!Object.prototype.hasOwnProperty.call(data, tableName)) {
+      stats[tableName] = -1; // -1 = skipped
+      continue;
+    }
+    var rows = Array.isArray(data[tableName]) ? data[tableName] : [];
 
     if (sheet.getLastRow() > 1)
       sheet.getRange(2, 1, sheet.getLastRow()-1, sheet.getLastColumn()).clearContent();

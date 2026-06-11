@@ -14570,7 +14570,8 @@ function App(){
     scheduleAutoSync(syncUrl, {
       patients: patientsForSync,
       appointments: appointmentsForSync,
-      payments, notifications, reminders, reminderLog
+      payments, notifications, reminders, reminderLog,
+      services: getActiveSvcs(),
     }, 2000);
   }, [patients, appointments, payments, notifications, reminders, reminderLog, user]);
   // ── Auto-save full state to localStorage (preserves attachments/images) ──
