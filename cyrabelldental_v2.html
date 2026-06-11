@@ -5600,24 +5600,37 @@ function KioskPatientPhoto({patient, syncUrl, className, fallback}){
 }
 
 // ── Kiosk YouTube helpers ─────────────────────────────────────────────────────
-const KIOSK_YT_KEY='cyrabell_kiosk_yt';
-function getKioskYT(){ try{ return localStorage.getItem(KIOSK_YT_KEY)||''; }catch(e){ return ''; } }
-function saveKioskYT(url){ try{ localStorage.setItem(KIOSK_YT_KEY,url); }catch(e){} }
-function ytEmbedUrl(raw){
-  if(!raw||!raw.trim()) return '';
+const KIOSK_YT_QUEUE_KEY='cyrabell_kiosk_yt_queue';
+function getKioskYTQueue(){ try{ return JSON.parse(localStorage.getItem(KIOSK_YT_QUEUE_KEY)||'[]'); }catch(e){ return []; } }
+function saveKioskYTQueue(q){ try{ localStorage.setItem(KIOSK_YT_QUEUE_KEY,JSON.stringify(q)); }catch(e){} }
+function extractYTId(raw){
+  if(!raw||!raw.trim()) return null;
   const s=raw.trim();
-  // Already an embed URL
-  if(s.includes('youtube.com/embed')||s.includes('youtube-nocookie.com/embed')) return s;
-  // Playlist
-  const plM=s.match(/[?&]list=([A-Za-z0-9_-]+)/);
-  const vidM=s.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/))([A-Za-z0-9_-]{11})/);
-  if(plM&&!vidM) return 'https://www.youtube-nocookie.com/embed/videoseries?list='+plM[1]+'&autoplay=1&mute=1&loop=1';
-  if(vidM){
-    const extra=plM?'&list='+plM[1]:'&playlist='+vidM[1];
-    return 'https://www.youtube-nocookie.com/embed/'+vidM[1]+'?autoplay=1&mute=1&loop=1'+extra;
+  const vidM=s.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/(?!videoseries)))([A-Za-z0-9_-]{11})/);
+  if(vidM) return vidM[1];
+  // bare 11-char ID
+  if(/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+  return null;
+}
+function extractYTPlaylist(raw){
+  const m=(raw||'').match(/[?&]list=([A-Za-z0-9_-]+)/);
+  return m?m[1]:null;
+}
+// Build a single embed URL that auto-plays and loops all queued videos
+function buildQueueEmbedUrl(queue){
+  if(!queue||!queue.length) return '';
+  // Collect all video IDs in order
+  const ids=queue.map(q=>extractYTId(q.url)).filter(Boolean);
+  // Check if any entry is a playlist-only URL
+  const firstPlaylist=queue.map(q=>extractYTPlaylist(q.url)).find(Boolean);
+  if(ids.length===0&&firstPlaylist){
+    return 'https://www.youtube-nocookie.com/embed/videoseries?list='+firstPlaylist+'&autoplay=1&mute=1&loop=1&rel=0';
   }
-  // Channel handle / bare ID fallback — show as-is hoping it's already valid
-  return s;
+  if(ids.length===0) return '';
+  // First ID is the video, rest go in playlist= (YouTube auto-advances + loops)
+  const extra=ids.length>1?','+ids.slice(1).join(','):'';
+  const listParam=firstPlaylist?'&list='+firstPlaylist:'&playlist='+ids.join(',');
+  return 'https://www.youtube-nocookie.com/embed/'+ids[0]+'?autoplay=1&mute=1&loop=1'+listParam+'&rel=0&modestbranding=1';
 }
 
 // ── KioskInfoBar — weather + live news ticker + ads ──────────────────────────
@@ -5762,8 +5775,8 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
   const [ads,setAds]=useState(getKioskAds);
   const [showAdMgr,setShowAdMgr]=useState(false);
   const [newAdText,setNewAdText]=useState('');
-  const [ytRaw,setYtRaw]=useState(getKioskYT);
-  const [ytInput,setYtInput]=useState(getKioskYT);
+  const [ytQueue,setYtQueue]=useState(getKioskYTQueue);
+  const [ytQueueInput,setYtQueueInput]=useState('');
   const [walkinMode,setWalkinMode]=useState('scheduled'); // 'scheduled'|'standby'
   const [walkinInfo,setWalkinInfo]=useState({name:'',phone:'',service:'',date:localToday(),time:''});
   const [walkinDone,setWalkinDone]=useState(null);
@@ -6088,11 +6101,12 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
         ),
         h('button',{className:'kiosk-yt-cfg-btn',onClick:()=>setShowAdMgr(true)},'⚙ Configure')
       ),
-      ytEmbedUrl(ytRaw)
+      buildQueueEmbedUrl(ytQueue)
         ? h(Fragment,null,
             h('div',{className:'kiosk-yt-frame'},
               h('iframe',{
-                src:ytEmbedUrl(ytRaw),
+                key:buildQueueEmbedUrl(ytQueue),
+                src:buildQueueEmbedUrl(ytQueue),
                 allow:'autoplay; encrypted-media; picture-in-picture',
                 allowFullScreen:true,
                 title:'Kiosk YouTube'
@@ -6100,13 +6114,13 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
             ),
             h('div',{className:'kiosk-yt-nowplaying'},
               h('div',{className:'kiosk-yt-np-dot'}),
-              h('span',{className:'kiosk-yt-np-label'},'YouTube Live / Video')
+              h('span',{className:'kiosk-yt-np-label'},ytQueue.length+' video'+(ytQueue.length!==1?'s':'')+' in queue — looping')
             )
           )
         : h('div',{className:'kiosk-yt-placeholder'},
             h('div',{className:'kiosk-yt-placeholder-icon'},'▶'),
-            h('div',{className:'kiosk-yt-placeholder-text'},'No YouTube video configured.',h('br'),'Set a video, playlist, or live stream to display here.'),
-            h('div',{className:'kiosk-yt-placeholder-hint'},'🔒 Staff: tap ⚙ Configure above or enter PIN to set a URL')
+            h('div',{className:'kiosk-yt-placeholder-text'},'No videos in queue.',h('br'),'Add YouTube URLs via ⚙ Configure.'),
+            h('div',{className:'kiosk-yt-placeholder-hint'},'🔒 Staff: tap ⚙ Configure above or enter PIN to set URLs')
           )
     ), // end kiosk-yt-panel
     ), // end kiosk-body
@@ -6137,19 +6151,34 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
       h('div',{className:'kiosk-confirm-modal',style:{maxWidth:440}},
         h('div',{className:'kiosk-confirm-title'},'⚙ Kiosk Settings'),
 
-        // YouTube URL
+        // YouTube Queue
         h('div',{style:{marginBottom:16}},
           h('div',{style:{fontSize:11,fontWeight:700,color:'var(--md)',textTransform:'uppercase',letterSpacing:'.8px',marginBottom:6,display:'flex',alignItems:'center',gap:5}},
             h('svg',{width:13,height:13,viewBox:'0 0 24 24',fill:'#ff0000'},h('path',{d:'M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8z'}),h('polygon',{points:'9.75 15.02 15.5 12 9.75 8.98 9.75 15.02',fill:'white'})),
-            'YouTube Video / Playlist / Live Stream'
+            'YouTube Queue ('+ytQueue.length+' video'+(ytQueue.length!==1?'s':'')+' — loops non-stop)'
           ),
-          h('div',{style:{display:'flex',gap:8}},
-            h('input',{className:'kiosk-yt-input',placeholder:'Paste YouTube URL (video, playlist, or live stream)…',value:ytInput,onChange:e=>setYtInput(e.target.value)}),
-            h('button',{className:'btn bp bsm',onClick:()=>{ setYtRaw(ytInput.trim()); saveKioskYT(ytInput.trim()); addToast('YouTube URL saved','success'); }},'Save')
+          h('div',{style:{display:'flex',gap:8,marginBottom:8}},
+            h('input',{className:'kiosk-yt-input',placeholder:'Paste YouTube video URL or ID…',value:ytQueueInput,onChange:e=>setYtQueueInput(e.target.value),
+              onKeyDown:e=>{ if(e.key==='Enter'){ const id=extractYTId(ytQueueInput.trim()); if(id){ const q=[...ytQueue,{url:ytQueueInput.trim(),id}]; setYtQueue(q); saveKioskYTQueue(q); setYtQueueInput(''); addToast('Added to queue','success'); } else { addToast('Invalid YouTube URL','error'); } } }
+            }),
+            h('button',{className:'btn bp bsm',onClick:()=>{
+              const id=extractYTId(ytQueueInput.trim());
+              if(!id){ addToast('Invalid YouTube URL','error'); return; }
+              const q=[...ytQueue,{url:ytQueueInput.trim(),id}];
+              setYtQueue(q); saveKioskYTQueue(q); setYtQueueInput(''); addToast('Added to queue','success');
+            }},'+Add')
           ),
-          ytRaw && h('div',{style:{fontSize:10,color:'#27ae60',marginTop:4}},
-            '✓ Active: '+ytRaw.slice(0,60)+(ytRaw.length>60?'…':'')
-          )
+          ytQueue.length>0
+            ? h('div',{style:{maxHeight:140,overflowY:'auto',border:'1px solid var(--bd)',borderRadius:8,background:'var(--bg2)'}},
+                ytQueue.map((item,i)=>h('div',{key:i,style:{display:'flex',alignItems:'center',gap:8,padding:'5px 10px',borderBottom:i<ytQueue.length-1?'1px solid var(--bd)':'none'}},
+                  h('span',{style:{fontSize:11,color:'var(--md)',minWidth:18}},i+1+'.'),
+                  h('span',{style:{flex:1,fontSize:11,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'var(--fg)'}},item.id),
+                  h('button',{style:{background:'none',border:'none',color:'#e74c3c',cursor:'pointer',fontSize:14,padding:'0 2px'},onClick:()=>{
+                    const q=ytQueue.filter((_,j)=>j!==i); setYtQueue(q); saveKioskYTQueue(q); addToast('Removed from queue','info');
+                  }},'×')
+                ))
+              )
+            : h('div',{style:{fontSize:11,color:'var(--md)',fontStyle:'italic',padding:'6px 0'}},'No videos yet. Add a YouTube URL above.')
         ),
 
         h('hr',{style:{border:'none',borderTop:'1px solid var(--bd)',margin:'4px 0 14px'}}),
