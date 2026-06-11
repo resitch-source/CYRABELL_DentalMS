@@ -15098,6 +15098,7 @@ function App(){
   const [reminders,setReminders]=useState(()=>{try{const s=localStorage.getItem(LS_KEYS.REMINDERS);if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_REMINDERS;});
   const [reminderLog,setReminderLog]=useState(()=>{try{const s=localStorage.getItem(LS_KEYS.REMINDER_LOG);if(s){const d=JSON.parse(s);if(Array.isArray(d))return d;}}catch(e){}return INIT_REMINDER_LOG;});
   const [toasts,setToasts]=useState([]);
+  const syncUrl = (function(){try{return localStorage.getItem(LS_KEYS.SYNC_URL)||'';}catch(e){return '';}})();
 
   // ───── INITIAL PULL: Google Sheets is the source of truth ─────
   // bootState: 'pulling' | 'ready' | 'no-sync' | 'pull-failed'
