@@ -586,12 +586,51 @@ textarea{resize:vertical;min-height:80px}
 .kiosk-nav{display:flex;gap:0;background:rgba(255,255,255,.7);backdrop-filter:blur(10px);border-bottom:1px solid var(--bd);padding:0 16px;}
 .kiosk-nav-btn{flex:1;padding:13px 8px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--md);border-bottom:3px solid transparent;font-family:inherit;transition:all .2s;}
 .kiosk-nav-btn.active{color:var(--t);border-bottom-color:var(--t);}
-/* Kiosk Ad Banner */
-.kiosk-ad-bar{background:linear-gradient(90deg,#0a1628,#0a3050,#0a1628);padding:10px 20px;text-align:center;min-height:40px;display:flex;align-items:center;justify-content:center;gap:10px;flex-direction:column;}
-.kiosk-ad-text{color:#e0f0ff;font-size:14px;font-weight:500;letter-spacing:.3px;line-height:1.4;}
-.kiosk-ad-dots{display:flex;gap:5px;justify-content:center;}
-.kiosk-ad-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.3);display:inline-block;}
-.kiosk-ad-dot.on{background:#00c8ff;}
+/* Kiosk Info Bar (News + Weather + Ads) */
+.kiosk-info-bar{background:linear-gradient(135deg,#05101f 0%,#071a30 50%,#05101f 100%);border-top:1px solid rgba(0,200,255,.18);display:flex;align-items:stretch;min-height:72px;overflow:hidden;flex-shrink:0;}
+.kib-weather{display:flex;align-items:center;gap:10px;padding:0 18px;background:rgba(0,0,0,.25);border-right:1px solid rgba(0,200,255,.15);flex-shrink:0;min-width:220px;}
+.kib-wx-icon{font-size:28px;line-height:1;filter:drop-shadow(0 0 6px rgba(0,200,255,.5));}
+.kib-wx-info{display:flex;flex-direction:column;gap:2px;}
+.kib-wx-temp{font-size:22px;font-weight:800;color:#e0f8ff;letter-spacing:-0.5px;line-height:1;}
+.kib-wx-desc{font-size:10px;color:#7ecfee;text-transform:uppercase;letter-spacing:.8px;font-weight:600;}
+.kib-wx-loc{font-size:9px;color:rgba(255,255,255,.45);letter-spacing:.4px;margin-top:1px;}
+.kib-wx-forecast{display:flex;gap:10px;padding:0 14px 0 4px;flex-shrink:0;border-right:1px solid rgba(0,200,255,.15);align-items:center;}
+.kib-wx-day{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 8px;background:rgba(255,255,255,.04);border-radius:8px;border:1px solid rgba(255,255,255,.06);}
+.kib-wx-dname{font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.6px;font-weight:600;}
+.kib-wx-dico{font-size:16px;line-height:1;}
+.kib-wx-dtemp{font-size:11px;font-weight:700;color:#aad8f0;}
+/* Ticker */
+.kib-ticker{flex:1;overflow:hidden;display:flex;flex-direction:column;justify-content:center;position:relative;}
+.kib-ticker-label{position:absolute;left:0;top:0;bottom:0;width:130px;display:flex;align-items:center;justify-content:center;background:linear-gradient(90deg,#0a1f3c 80%,transparent);z-index:2;gap:5px;flex-direction:column;padding:0 8px;}
+.kib-ticker-cat{font-size:9px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;border-radius:4px;padding:2px 6px;}
+.kib-ticker-cat.ph{background:#0066cc33;color:#5ab0ff;border:1px solid #0066cc55;}
+.kib-ticker-cat.int{background:#cc660033;color:#ffaa55;border:1px solid #cc660055;}
+.kib-ticker-cat.ad{background:#00aa6633;color:#55ffbb;border:1px solid #00aa6655;}
+.kib-ticker-cat.wx{background:#0077cc33;color:#55ccff;border:1px solid #0077cc55;}
+.kib-ticker-label-text{font-size:8px;color:rgba(255,255,255,.35);letter-spacing:.5px;text-align:center;}
+.kib-ticker-scroll{padding-left:138px;overflow:hidden;height:100%;display:flex;flex-direction:column;justify-content:center;}
+.kib-ticker-track{display:flex;flex-direction:column;gap:0;transition:transform .7s cubic-bezier(.4,0,.2,1);}
+.kib-ticker-item{padding:4px 16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:#d0eaf8;letter-spacing:.2px;line-height:1.5;}
+.kib-ticker-item strong{color:#00d4ff;font-weight:700;margin-right:6px;}
+/* H-scroll marquee for news */
+.kib-marquee-wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;justify-content:center;position:relative;}
+.kib-marquee-label{position:absolute;left:0;top:0;bottom:0;width:120px;background:linear-gradient(90deg,#071a30 85%,transparent);z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;}
+.kib-marquee-row{width:100%;overflow:hidden;padding:4px 0;}
+.kib-marquee-inner{display:flex;gap:0;white-space:nowrap;animation:kib-scroll linear infinite;}
+@keyframes kib-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.kib-news-chip{display:inline-flex;align-items:center;gap:8px;padding:4px 18px 4px 10px;margin-right:6px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:20px;font-size:12px;color:#c8e8f8;white-space:nowrap;}
+.kib-news-chip .tag{font-size:9px;font-weight:800;letter-spacing:.8px;padding:1px 6px;border-radius:10px;flex-shrink:0;}
+.kib-news-chip .tag.ph{background:#0055bb44;color:#66aaff;}
+.kib-news-chip .tag.int{background:#994400aa;color:#ffbb66;}
+.kib-news-chip .tag.ad{background:#00884444;color:#55ffcc;}
+/* Ad panel */
+.kib-ad-panel{display:flex;align-items:center;gap:0;flex-shrink:0;max-width:260px;border-left:1px solid rgba(0,200,255,.15);overflow:hidden;position:relative;}
+.kib-ad-slide{padding:10px 16px;display:flex;flex-direction:column;justify-content:center;width:100%;}
+.kib-ad-slide-label{font-size:8px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:3px;}
+.kib-ad-slide-text{font-size:12px;color:#d0eaf8;line-height:1.4;font-weight:500;}
+.kib-ad-dots{display:flex;gap:4px;margin-top:5px;}
+.kib-ad-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.2);transition:background .3s;}
+.kib-ad-dot.on{background:#00d4ff;}
 /* Kiosk Queue Grid */
 .kiosk-queue-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
 .kiosk-queue-card{background:#fff;border:2px solid var(--bd);border-radius:16px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;transition:all .2s;box-shadow:0 2px 10px rgba(0,0,0,.04);}
@@ -605,6 +644,17 @@ textarea{resize:vertical;min-height:80px}
 .kiosk-queue-svc{font-size:11px;color:var(--md);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .kiosk-queue-status{margin-top:4px;}
 .kiosk-waiting-badge{display:inline-flex;align-items:center;gap:4px;background:#fff8e6;color:#92400e;border:1px solid #f59e0b44;padding:3px 8px;border-radius:20px;font-size:10.5px;font-weight:700;}
+.kiosk-ns-badge{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#00c8ff,#0077cc);color:#fff;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:.5px;animation:nspulse 1.5s ease infinite;box-shadow:0 0 0 0 rgba(0,200,255,.5);}
+@keyframes nspulse{0%,100%{box-shadow:0 0 0 0 rgba(0,200,255,.5)}50%{box-shadow:0 0 8px 4px rgba(0,200,255,.0)}}
+.kiosk-done-badge{display:inline-flex;align-items:center;gap:4px;background:#e8f8f0;color:#1a7a4a;border:1px solid #27ae6033;padding:3px 8px;border-radius:20px;font-size:10.5px;font-weight:700;}
+.kiosk-queue-card.kqc-serving{border-color:#00c8ff;background:linear-gradient(135deg,#e8f9ff,#f0fcff);box-shadow:0 0 0 3px rgba(0,200,255,.2);}
+.kiosk-queue-card.kqc-done{border-color:#27ae6055;background:linear-gradient(135deg,#f0faf5,#fff);opacity:.75;}
+.kiosk-queue-avatar.kqa-serving{background:linear-gradient(135deg,#00c8ff,#0077cc);}
+.kiosk-queue-btns{width:100%;display:flex;gap:5px;margin-top:6px;}
+.kiosk-ns-btn{flex:1;padding:6px 4px;font-size:11px;font-weight:700;background:linear-gradient(135deg,#00c8ff,#0077cc);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;}
+.kiosk-ns-btn:hover{opacity:.88;}
+.kiosk-done-btn{flex:1;padding:6px 4px;font-size:11px;font-weight:700;background:linear-gradient(135deg,#27ae60,#1a7a4a);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;}
+.kiosk-done-btn:hover{opacity:.88;}
 .kiosk-q-badge{background:#00c8ff22;color:#0090b8;border:1px solid #00c8ff44;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;}
 /* Kiosk photo avatar */
 .kiosk-avatar-photo{width:54px;height:54px;border-radius:14px;object-fit:cover;border:2px solid var(--t);flex-shrink:0;}
@@ -5527,6 +5577,130 @@ function KioskPatientPhoto({patient, syncUrl, className, fallback}){
   return fallback||null;
 }
 
+// ── KioskInfoBar — weather + live news ticker + ads ──────────────────────────
+const WX_CODES={0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',71:'🌨️',73:'🌨️',75:'❄️',80:'🌦️',81:'🌦️',82:'⛈️',95:'⛈️',99:'⛈️'};
+const WX_DESC={0:'Clear Sky',1:'Mostly Clear',2:'Partly Cloudy',3:'Overcast',45:'Foggy',48:'Icy Fog',51:'Light Drizzle',53:'Drizzle',55:'Heavy Drizzle',61:'Light Rain',63:'Rain',65:'Heavy Rain',71:'Light Snow',73:'Snow',75:'Heavy Snow',80:'Showers',81:'Showers',82:'Heavy Showers',95:'Thunderstorm',99:'Thunderstorm'};
+const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+const RSS_FEEDS=[
+  {url:'https://www.rappler.com/feed/',label:'PH',cat:'ph'},
+  {url:'https://www.philstar.com/rss/headlines',label:'PH',cat:'ph'},
+  {url:'https://feeds.bbci.co.uk/news/world/rss.xml',label:'WORLD',cat:'int'},
+  {url:'https://rss.cnn.com/rss/edition_world.rss',label:'WORLD',cat:'int'},
+];
+const RSS2JSON='https://api.rss2json.com/v1/api.json?rss_url=';
+
+function KioskInfoBar({ads}){
+  const [wx,setWx]=useState(null);
+  const [forecast,setForecast]=useState([]);
+  const [newsItems,setNewsItems]=useState([]);
+  const [adSlide,setAdSlide]=useState(0);
+  const [marqueeKey,setMarqueeKey]=useState(0);
+
+  // Fetch weather from Open-Meteo (no key required) for Iligan City
+  useEffect(()=>{
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=8.228&longitude=124.245&current=temperature_2m,weathercode,windspeed_10m,relativehumidity_2m&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FManila&forecast_days=4')
+      .then(r=>r.json())
+      .then(d=>{
+        if(!d||!d.current) return;
+        setWx({temp:Math.round(d.current.temperature_2m),code:d.current.weathercode,humidity:d.current.relativehumidity_2m,wind:Math.round(d.current.windspeed_10m)});
+        if(d.daily){
+          const days=d.daily.time.slice(1,4).map((t,i)=>({
+            name:DOW[new Date(t+'T00:00').getDay()],
+            code:d.daily.weathercode[i+1],
+            max:Math.round(d.daily.temperature_2m_max[i+1]),
+            min:Math.round(d.daily.temperature_2m_min[i+1]),
+          }));
+          setForecast(days);
+        }
+      }).catch(()=>{});
+  },[]);
+
+  // Fetch news from RSS feeds
+  useEffect(()=>{
+    const fetched=[];
+    let done=0;
+    RSS_FEEDS.forEach(feed=>{
+      fetch(RSS2JSON+encodeURIComponent(feed.url)+'&count=8')
+        .then(r=>r.json())
+        .then(d=>{
+          if(d.items) d.items.forEach(it=>{
+            if(it.title) fetched.push({title:it.title.replace(/<[^>]+>/g,'').trim(),cat:feed.cat,label:feed.label});
+          });
+        }).catch(()=>{})
+        .finally(()=>{ done++; if(done===RSS_FEEDS.length){ shuffleArr(fetched); setNewsItems(fetched); } });
+    });
+    const iv=setInterval(()=>{
+      let d2=0;const f2=[];
+      RSS_FEEDS.forEach(feed=>{
+        fetch(RSS2JSON+encodeURIComponent(feed.url)+'&count=8')
+          .then(r=>r.json()).then(d=>{if(d.items)d.items.forEach(it=>{if(it.title)f2.push({title:it.title.replace(/<[^>]+>/g,'').trim(),cat:feed.cat,label:feed.label});})}).catch(()=>{})
+          .finally(()=>{d2++;if(d2===RSS_FEEDS.length){shuffleArr(f2);setNewsItems(f2);setMarqueeKey(k=>k+1);}});
+      });
+    },600000); // refresh every 10 min
+    return ()=>clearInterval(iv);
+  },[]);
+
+  // Ad rotation
+  useEffect(()=>{
+    if(!ads||ads.length<2) return;
+    const t=setInterval(()=>setAdSlide(i=>(i+1)%ads.length),8000);
+    return ()=>clearInterval(t);
+  },[ads&&ads.length]);
+
+  const icon=wx?WX_CODES[wx.code]||'🌡️':'—';
+  const desc=wx?WX_DESC[wx.code]||'':'Loading…';
+
+  // Build marquee chips: news + ad messages interleaved
+  const chips=[...newsItems];
+  if(ads&&ads.length) ads.forEach((a,i)=>{ chips.splice(Math.floor((i+1)*chips.length/(ads.length+1)),0,{title:a.text,cat:'ad',label:'AD'}); });
+  // Duplicate for seamless loop
+  const allChips=[...chips,...chips];
+
+  const marqueeSpeed=Math.max(40,allChips.length*4); // seconds
+
+  return h('div',{className:'kiosk-info-bar'},
+    // Weather current
+    h('div',{className:'kib-weather'},
+      h('div',{className:'kib-wx-icon'},icon),
+      h('div',{className:'kib-wx-info'},
+        h('div',{className:'kib-wx-temp'},wx?wx.temp+'°C':'--°'),
+        h('div',{className:'kib-wx-desc'},desc),
+        h('div',{className:'kib-wx-loc'},'📍 Iligan City, PH'),
+        wx && h('div',{className:'kib-wx-loc'},`💧${wx.humidity}%  💨${wx.wind}km/h`)
+      )
+    ),
+    // 3-day forecast
+    forecast.length>0 && h('div',{className:'kib-wx-forecast'},
+      forecast.map((d,i)=>h('div',{key:i,className:'kib-wx-day'},
+        h('div',{className:'kib-wx-dname'},d.name),
+        h('div',{className:'kib-wx-dico'},WX_CODES[d.code]||'🌡️'),
+        h('div',{className:'kib-wx-dtemp'},d.max+'°/'+d.min+'°')
+      ))
+    ),
+    // Scrolling marquee
+    h('div',{className:'kib-marquee-wrap'},
+      h('div',{className:'kib-marquee-label'},
+        h('span',{className:'kib-ticker-cat ph'},'📰 NEWS'),
+        h('span',{className:'kib-ticker-label-text'},'PH & WORLD')
+      ),
+      h('div',{className:'kib-marquee-row'},
+        chips.length>0
+          ? h('div',{key:marqueeKey,className:'kib-marquee-inner',style:{animationDuration:marqueeSpeed+'s'}},
+              allChips.map((item,i)=>h('span',{key:i,className:'kib-news-chip'},
+                h('span',{className:'tag '+(item.cat||'ph')},item.label||'PH'),
+                item.title
+              ))
+            )
+          : h('span',{style:{paddingLeft:136,fontSize:12,color:'rgba(255,255,255,.35)'}},
+              'Fetching latest news…'
+            )
+      )
+    )
+  );
+}
+function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a;}
+
 function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patients,syncUrl}){
   const [step,setStep]=useState('queue'); // 'queue'|'checkin'|'walkin'|'confirm'|'success'
   const [search,setSearch]=useState('');
@@ -5534,7 +5708,6 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
   const [clock,setClock]=useState(new Date());
   const [exitPin,setExitPin]=useState('');
   const [showExit,setShowExit]=useState(false);
-  const [adSlide,setAdSlide]=useState(0);
   const [ads,setAds]=useState(getKioskAds);
   const [showAdMgr,setShowAdMgr]=useState(false);
   const [newAdText,setNewAdText]=useState('');
@@ -5545,15 +5718,57 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
   const wi=(k,v)=>setWalkinInfo(x=>({...x,[k]:v}));
 
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date()),30000); return ()=>clearInterval(t); },[]);
-  // Ad rotation
+
+  // Auto-update Now Serving / Completed based on time every minute
   useEffect(()=>{
-    if(ads.length<2)return;
-    const t=setInterval(()=>setAdSlide(i=>(i+1)%ads.length),6000);
+    if(!setAppointments) return;
+    const tick=()=>{
+      const now=new Date();
+      const today2=localToday();
+      setAppointments(prev=>{
+        let changed=false;
+        const next=prev.map(a=>{
+          if(a.date!==today2||a.appointmentType==='standby') return a;
+          if(!(a.arrived||a.checkedIn)) return a;
+          if(a.status==='cancelled'||a.status==='completed') return a;
+          const [hh,mm]=(a.time||'00:00').split(':').map(Number);
+          const slotMs=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm).getTime();
+          const durMin=SERVICE_DURATIONS[a.service]||DEFAULT_SLOT_MIN||30;
+          const endMs=slotMs+durMin*60000;
+          let upd={...a};
+          // Auto Now Serving: checked in + time has arrived
+          if(!a.nowServing && now.getTime()>=slotMs){ upd.nowServing=true; changed=true; }
+          // Auto Completed: now serving + duration elapsed
+          if(a.nowServing && now.getTime()>=endMs && a.status!=='completed'){
+            upd.status='completed'; upd.nowServing=false; changed=true;
+            syncOneRecord('appointments',upd,syncUrl);
+          }
+          return upd;
+        });
+        return changed?next:prev;
+      });
+    };
+    tick(); // run immediately on mount
+    const t=setInterval(tick,60000);
     return ()=>clearInterval(t);
-  },[ads.length]);
+  },[]);
+
+  // Manual status helpers
+  const setNowServing=(a)=>{
+    const upd={...a,nowServing:true,arrived:true,checkedIn:true,checkedInAt:a.checkedInAt||new Date().toISOString()};
+    setAppointments(prev=>prev.map(x=>x.id===a.id?upd:x));
+    syncOneRecord('appointments',upd,syncUrl);
+    addToast(a.patientName+' — Now Serving','success');
+  };
+  const setDone=(a)=>{
+    const upd={...a,nowServing:false,status:'completed'};
+    setAppointments(prev=>prev.map(x=>x.id===a.id?upd:x));
+    syncOneRecord('appointments',upd,syncUrl);
+    addToast(a.patientName+' — Completed','success');
+  };
 
   const today=localToday();
-  const todayAppts=appointments.filter(a=>a.date===today&&(a.status==='confirmed'||a.status==='pending')).sort((a,b)=>{
+  const todayAppts=appointments.filter(a=>a.date===today&&a.status!=='cancelled').sort((a,b)=>{
     if(a.appointmentType==='standby'&&b.appointmentType!=='standby')return 1;
     if(a.appointmentType!=='standby'&&b.appointmentType==='standby')return -1;
     return (a.time||'').localeCompare(b.time||'');
@@ -5621,13 +5836,8 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
       h('div',{className:'kiosk-tag'},'Welcome — Please Check In or Register Walk-in')
     ),
 
-    // ── Ad Banner ─────────────────────────────────────────────────────────────
-    ads.length>0 && h('div',{className:'kiosk-ad-bar'},
-      h('div',{className:'kiosk-ad-text'},ads[adSlide%ads.length]?.text||''),
-      ads.length>1 && h('div',{className:'kiosk-ad-dots'},
-        ads.map((_,i)=>h('span',{key:i,className:'kiosk-ad-dot'+(i===adSlide%ads.length?' on':'')},))
-      )
-    ),
+    // ── Info Bar (Weather + News + Ads) ──────────────────────────────────────
+    h(KioskInfoBar,{ads}),
 
     // ── Nav Tabs ──────────────────────────────────────────────────────────────
     h('div',{className:'kiosk-nav'},
@@ -5652,13 +5862,19 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
           : h('div',{className:'kiosk-queue-grid'},
               todayAppts.map((a,idx)=>{
                 const isIn=a.arrived||a.checkedIn;
+                const isNS=a.nowServing;
+                const isDone=a.status==='completed';
                 const pat=patients&&patients.find(p=>p.id===a.patientId);
-                return h('div',{key:a.id,className:'kiosk-queue-card'+(isIn?' kqc-in':'')},
+                let cardCls='kiosk-queue-card';
+                if(isNS) cardCls+=' kqc-serving';
+                else if(isDone) cardCls+=' kqc-done';
+                else if(isIn) cardCls+=' kqc-in';
+                return h('div',{key:a.id,className:cardCls},
                   h('div',{className:'kiosk-queue-seq'},
                     a.appointmentType==='standby'?h('span',{className:'kiosk-q-badge'},'Q'+a.queueNumber):(idx+1)
                   ),
                   h(KioskPatientPhoto,{patient:pat,syncUrl,className:'kiosk-queue-photo',
-                    fallback:h('div',{className:'kiosk-queue-avatar'},initials(a.patientName))
+                    fallback:h('div',{className:'kiosk-queue-avatar'+(isNS?' kqa-serving':'')},initials(a.patientName))
                   }),
                   h('div',{className:'kiosk-queue-info'},
                     h('div',{className:'kiosk-queue-name'},a.patientName),
@@ -5667,10 +5883,22 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
                     ),
                     h('div',{className:'kiosk-queue-svc'},svcStr(a))
                   ),
+                  // Status badge
                   h('div',{className:'kiosk-queue-status'},
-                    isIn
-                      ? h('span',{className:'kiosk-arrived-badge'},'✓ Checked In')
-                      : h('span',{className:'kiosk-waiting-badge'},'⏳ Waiting')
+                    isNS  ? h('span',{className:'kiosk-ns-badge'},'🔔 NOW SERVING') :
+                    isDone? h('span',{className:'kiosk-done-badge'},'✓ Done') :
+                    isIn  ? h('span',{className:'kiosk-arrived-badge'},'✓ Checked In') :
+                            h('span',{className:'kiosk-waiting-badge'},'⏳ Waiting')
+                  ),
+                  // Manual staff buttons
+                  isIn && !isDone && h('div',{className:'kiosk-queue-btns'},
+                    !isNS && h('button',{className:'kiosk-ns-btn',onClick:e=>{e.stopPropagation();setNowServing(a);}},'▶ Now Serving'),
+                    isNS  && h('button',{className:'kiosk-done-btn',onClick:e=>{e.stopPropagation();setDone(a);}},'✓ Mark Done')
+                  ),
+                  !isIn && !isDone && h('div',{className:'kiosk-queue-btns'},
+                    h('button',{className:'kiosk-ns-btn',style:{background:'#9b59b6'},onClick:e=>{e.stopPropagation();setNowServing(a);}},
+                      '▶ Call Now'
+                    )
                   )
                 );
               })
