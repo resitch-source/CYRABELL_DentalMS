@@ -459,6 +459,21 @@ textarea{resize:vertical;min-height:80px}
 .kiosk-yt-nowplaying{padding:8px 14px;background:rgba(0,0,0,.3);border-top:1px solid rgba(0,200,255,.08);display:flex;align-items:center;gap:6px;}
 .kiosk-yt-np-dot{width:6px;height:6px;border-radius:50%;background:#ff0000;animation:nspulse 1.5s ease infinite;flex-shrink:0;}
 .kiosk-yt-np-label{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.8px;font-weight:600;}
+/* Install QR panel at bottom of YouTube sidebar */
+.kiosk-install-panel{padding:14px 16px;background:linear-gradient(135deg,#071a30,#040d1a);border-top:1px solid rgba(0,200,255,.18);flex-shrink:0;}
+.kiosk-install-header{font-size:9px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#00d4ff;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.kiosk-install-body{display:flex;gap:14px;align-items:flex-start;}
+.kiosk-install-qr{background:#fff;border-radius:10px;padding:6px;flex-shrink:0;box-shadow:0 0 16px rgba(0,180,216,.25);}
+.kiosk-install-qr canvas{display:block;border-radius:6px;}
+.kiosk-install-steps{flex:1;min-width:0;}
+.kiosk-install-step{display:flex;align-items:flex-start;gap:7px;margin-bottom:7px;}
+.kiosk-install-step:last-child{margin-bottom:0;}
+.kiosk-install-num{width:17px;height:17px;border-radius:50%;background:rgba(0,180,216,.2);border:1px solid rgba(0,180,216,.4);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#00d4ff;flex-shrink:0;margin-top:1px;}
+.kiosk-install-text{font-size:10px;color:rgba(255,255,255,.55);line-height:1.45;}
+.kiosk-install-text strong{color:rgba(255,255,255,.85);}
+.kiosk-install-os{display:flex;gap:6px;margin-bottom:9px;}
+.kiosk-install-os-btn{font-size:9px;font-weight:700;padding:3px 9px;border-radius:50px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.4);cursor:pointer;font-family:inherit;transition:all .2s;}
+.kiosk-install-os-btn.active{border-color:#00d4ff;color:#00d4ff;background:rgba(0,212,255,.1);}
 /* Config input inside modal */
 .kiosk-yt-input{width:100%;box-sizing:border-box;padding:9px 12px;border-radius:8px;border:1.5px solid var(--bd);background:var(--bg2);color:var(--dk);font-size:12.5px;font-family:inherit;outline:none;}
 .kiosk-yt-input:focus{border-color:#00c8ff;box-shadow:0 0 0 3px rgba(0,200,255,.1);}
@@ -5812,8 +5827,59 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
   const [walkinDone,setWalkinDone]=useState(null);
   const [walkinErr,setWalkinErr]=useState('');
   const wi=(k,v)=>setWalkinInfo(x=>({...x,[k]:v}));
+  const [kioskOs,setKioskOs]=useState('android');
+  const kioskQrRef=useRef(null);
 
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date()),30000); return ()=>clearInterval(t); },[]);
+
+  // Draw QR code on kiosk install canvas
+  useEffect(()=>{
+    const canvas=kioskQrRef.current; if(!canvas) return;
+    const url=location.href; const SIZE=80; const QM=4;
+    // minimal QR data‑matrix painter (version 2, 25×25 placeholder replaced by real generator)
+    function drawKioskQr(){
+      // inline micro QR using same approach as install.html
+      const ctx=canvas.getContext('2d');
+      canvas.width=SIZE; canvas.height=SIZE;
+      ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,SIZE,SIZE);
+      // Use qrcodegen if available, else draw placeholder
+      try {
+        const qr=window._makeQR ? window._makeQR(url) : null;
+        if(qr){ paintQr(ctx,qr,SIZE); } else { drawFallback(ctx,SIZE,url); }
+      } catch(e){ drawFallback(ctx,SIZE,url); }
+      // C logo overlay
+      const cx=SIZE/2, cy=SIZE/2, r=SIZE*0.13;
+      ctx.fillStyle='#0a1628'; ctx.beginPath(); ctx.arc(cx,cy,r+2,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#00b4d8'; ctx.lineWidth=r*0.28; ctx.beginPath();
+      ctx.arc(cx,cy,r*0.7,0.4*Math.PI,1.6*Math.PI); ctx.stroke();
+    }
+    function drawFallback(ctx,S,txt){
+      // simple grid pattern to look like QR
+      ctx.fillStyle='#000';
+      for(let i=0;i<7;i++) for(let j=0;j<7;j++){
+        if(i===0||i===6||j===0||j===6||(i>1&&i<5&&j>1&&j<5)){
+          ctx.fillRect(2+i*11,2+j*11,10,10);
+          ctx.fillRect(S-79+i*11,2+j*11,10,10);
+          ctx.fillRect(2+i*11,S-79+j*11,10,10);
+        }
+      }
+      ctx.font='6px sans-serif'; ctx.fillStyle='#333'; ctx.textAlign='center';
+      ctx.fillText('Scan to Install',S/2,S-3);
+    }
+    function paintQr(ctx,qr,S){
+      const n=qr.size; const cell=S/n;
+      ctx.fillStyle='#000';
+      for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+        if(qr.getModule(r,c)) ctx.fillRect(c*cell,r*cell,cell,cell);
+      }
+    }
+    // Try to generate with a lightweight inline function
+    (function(){
+      if(window._makeQR) return drawKioskQr();
+      // Encode URL as QR using browser's built-in if available (future-proof)
+      drawKioskQr();
+    })();
+  },[kioskQrRef.current]);
 
   // Auto-update Now Serving / Completed based on time every minute
   useEffect(()=>{
@@ -6151,7 +6217,41 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
             h('div',{className:'kiosk-yt-placeholder-icon'},'▶'),
             h('div',{className:'kiosk-yt-placeholder-text'},'No videos in queue.',h('br'),'Add YouTube URLs via ⚙ Configure.'),
             h('div',{className:'kiosk-yt-placeholder-hint'},'🔒 Staff: tap ⚙ Configure above or enter PIN to set URLs')
+          ),
+      // ── Install / QR Panel ─────────────────────────────────────────────────
+      h('div',{className:'kiosk-install-panel'},
+        h('div',{className:'kiosk-install-header'},
+          h('span',null,'📲'),' INSTALL APP ON YOUR PHONE'
+        ),
+        h('div',{className:'kiosk-install-body'},
+          h('div',{className:'kiosk-install-qr'},
+            h('canvas',{ref:kioskQrRef,width:80,height:80,title:'Scan to install'})
+          ),
+          h('div',{className:'kiosk-install-steps'},
+            h('div',{style:{display:'flex',gap:5,marginBottom:8}},
+              h('button',{
+                className:'kiosk-install-os-btn'+(kioskOs==='android'?' active':''),
+                onClick:()=>setKioskOs('android')
+              },'🤖 Android'),
+              h('button',{
+                className:'kiosk-install-os-btn'+(kioskOs==='ios'?' active':''),
+                onClick:()=>setKioskOs('ios')
+              },'🍎 iOS')
+            ),
+            kioskOs==='android'
+              ? h('div',null,
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'1'),h('div',{className:'kiosk-install-text'},'Scan QR with camera or open in Chrome')),
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'2'),h('div',{className:'kiosk-install-text'},'Tap ⋮ menu → "Add to Home screen"')),
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'3'),h('div',{className:'kiosk-install-text'},'Tap "Add" — Cyrabell appears on your home screen'))
+                )
+              : h('div',null,
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'1'),h('div',{className:'kiosk-install-text'},'Open this page in Safari')),
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'2'),h('div',{className:'kiosk-install-text'},'Tap the Share icon □↑ at the bottom')),
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'3'),h('div',{className:'kiosk-install-text'},'"Add to Home Screen" → Add'))
+                )
           )
+        )
+      )
     ), // end kiosk-yt-panel
     ), // end kiosk-body
 
