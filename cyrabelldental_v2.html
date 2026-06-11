@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://api.allorigins.win https://corsproxy.io https://api.codetabs.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com https://www.youtube.com https://www.youtube-nocookie.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: http://localhost:* http://127.0.0.1:* https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' http://localhost:* http://127.0.0.1:* https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://api.allorigins.win https://corsproxy.io https://api.codetabs.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com https://www.youtube.com https://www.youtube-nocookie.com;">
 <!-- Performance: preconnect to font origin so the browser opens the TCP/TLS connection early -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13740,11 +13740,12 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
     lsSet(LS_KEYS.SYNC_URL, v);
   };
 
-  const isValidUrl = url && /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec\b/.test(url);
+  const isLocalUrl  = url && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/.test(url);
+  const isValidUrl  = url && (/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec\b/.test(url) || isLocalUrl);
 
   // Test connection
   const testConnection = async ()=>{
-    if (!isValidUrl) { addToast('Enter a valid Apps Script URL first', 'error'); return; }
+    if (!isValidUrl) { addToast('Enter a valid Apps Script or Local Server URL first', 'error'); return; }
     setBusy('test');
     addLog('🔌 Testing connection…');
     try {
@@ -14087,26 +14088,54 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
         )
       ),
 
-      // ───── Google Sheets card ─────
+      // ───── Google Sheets / Local Server card ─────
       h('div', {className:'card'},
-        h('div', {className:'ch'}, h('div', {className:'ct'}, '☁️ Google Sheets')),
+        h('div', {className:'ch'}, h('div', {className:'ct'}, isLocalUrl ? '🖥️ Local Server' : '☁️ Google Sheets')),
         h('div', {className:'cb'},
-          h(Field, {label:'Apps Script Web App URL'},
+
+          // Mode quick-switch bar
+          h('div',{style:{display:'flex',gap:8,marginBottom:12}},
+            h('button',{
+              className:'btn bsm'+(isLocalUrl?'':' bp'),
+              style:!isLocalUrl?{}:{background:'var(--bg2)',color:'var(--md)'},
+              title:'Use the Google Apps Script cloud backend',
+              onClick:()=>{ if(isLocalUrl) saveUrl(''); }
+            },'☁️ Cloud (Google)'),
+            h('button',{
+              className:'btn bsm'+(isLocalUrl?' bp':''),
+              style:isLocalUrl?{}:{background:'var(--bg2)',color:'var(--md)'},
+              title:'Use the local Node.js server (backup mode)',
+              onClick:()=>{ if(!isLocalUrl) saveUrl('http://localhost:3001'); }
+            },'🖥️ Local Server'),
+            h('a',{
+              href:'backup-tool.html', target:'_blank',
+              className:'btn bgh bsm',
+              style:{textDecoration:'none'},
+              title:'Open the standalone backup / restore tool',
+            },'📦 Backup Tool')
+          ),
+
+          h(Field, {label: isLocalUrl ? 'Local Server URL' : 'Apps Script Web App URL'},
             h('input', {
               type:'url',
               value:url,
               onChange:e=>saveUrl(e.target.value),
-              placeholder:'https://script.google.com/macros/s/.../exec',
+              placeholder: isLocalUrl ? 'http://localhost:3001' : 'https://script.google.com/macros/s/.../exec',
               style:{fontSize:12,fontFamily:'monospace'},
             })
+          ),
+          isLocalUrl && h('div', {style:{fontSize:11.5,color:'#7bc47b',marginTop:-6,marginBottom:10,lineHeight:1.5,background:'rgba(46,125,50,.12)',padding:'7px 10px',borderRadius:6}},
+            '🖥️ ',h('strong',null,'Local mode active.'),
+            ' Make sure ',h('code',{style:{background:'rgba(0,0,0,.2)',padding:'1px 5px',borderRadius:4}},'node server.js'),
+            ' is running in the ',h('code',{style:{background:'rgba(0,0,0,.2)',padding:'1px 5px',borderRadius:4}},'local-server/'),' folder. Email/SMS will be logged but not sent.'
           ),
           !url && h('div', {style:{fontSize:11.5,color:'var(--md)',marginTop:-6,marginBottom:10,lineHeight:1.5}},
             '💡 ',
             h('strong',null,"Don't have a URL yet?"),
-            ' See ',h('code',{style:{background:'var(--cr)',padding:'1px 5px',borderRadius:4}},'SETUP.md'),' to set up your Google Sheet.'
+            ' See ',h('code',{style:{background:'var(--cr)',padding:'1px 5px',borderRadius:4}},'SETUP.md'),' to set up your Google Sheet, or click ',h('strong',null,'🖥️ Local Server'),' to run offline.'
           ),
           url && !isValidUrl && h('div', {style:{fontSize:12,color:'var(--re)',marginTop:-6,marginBottom:10}},
-            '⚠ URL should look like: https://script.google.com/macros/s/.../exec'
+            '⚠ URL should look like: https://script.google.com/macros/s/.../exec  or  http://localhost:PORT'
           ),
 
           h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}},

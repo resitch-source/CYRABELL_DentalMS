@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cyrabell Dental MS — Backup & Restore Tool</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1b2a;color:#cdd6e0;min-height:100vh;}
+.header{background:linear-gradient(135deg,#071a30,#0d2b4a);padding:20px 32px;border-bottom:1px solid rgba(0,200,255,.12);}
+.header h1{font-size:20px;font-weight:700;color:#e0f4ff;letter-spacing:.3px;}
+.header p{font-size:12px;color:#7aa3c0;margin-top:4px;}
+.main{max-width:860px;margin:0 auto;padding:28px 20px;}
+.card{background:#0f2033;border:1px solid rgba(0,200,255,.1);border-radius:12px;padding:22px 24px;margin-bottom:20px;}
+.card h2{font-size:14px;font-weight:700;color:#63b8e8;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.card h2 .dot{width:8px;height:8px;border-radius:50%;background:#2196f3;}
+label{display:block;font-size:12px;font-weight:600;color:#8ab4cc;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
+input[type=text],input[type=url]{width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(0,200,255,.2);background:#071828;color:#cdd6e0;font-size:13px;outline:none;}
+input:focus{border-color:#2196f3;box-shadow:0 0 0 3px rgba(33,150,243,.15);}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-primary{background:#1565c0;color:#fff;}
+.btn-primary:hover{background:#1976d2;}
+.btn-primary:disabled{background:#1a3a5c;color:#4a6f8a;cursor:not-allowed;}
+.btn-success{background:#1b5e20;color:#a5d6a7;}
+.btn-success:hover{background:#2e7d32;}
+.btn-warning{background:#5d4037;color:#ffcc80;}
+.btn-warning:hover{background:#6d4c41;}
+.btn-sm{padding:6px 13px;font-size:12px;}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;}
+.row .field{flex:1;min-width:200px;}
+.log{background:#071828;border:1px solid rgba(0,200,255,.1);border-radius:8px;padding:12px;max-height:280px;overflow-y:auto;font-size:12px;font-family:'Cascadia Code','Fira Mono',monospace;line-height:1.7;}
+.log-entry{padding:1px 0;}
+.log-entry.ok{color:#66bb6a;}
+.log-entry.err{color:#ef5350;}
+.log-entry.info{color:#90caf9;}
+.log-entry.warn{color:#ffa726;}
+.progress{height:6px;background:#0a1e30;border-radius:3px;overflow:hidden;margin:10px 0;}
+.progress-bar{height:100%;background:linear-gradient(90deg,#1565c0,#42a5f5);width:0%;transition:width .3s;border-radius:3px;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:14px 0;}
+.stat-box{background:#071828;border:1px solid rgba(0,200,255,.1);border-radius:8px;padding:12px;text-align:center;}
+.stat-box .n{font-size:24px;font-weight:700;color:#42a5f5;}
+.stat-box .l{font-size:11px;color:#7aa3c0;margin-top:2px;}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+.badge-ok{background:#1b5e20;color:#a5d6a7;}
+.badge-err{background:#b71c1c;color:#ffcdd2;}
+.badge-warn{background:#5d4037;color:#ffcc80;}
+.section-sep{border:none;border-top:1px solid rgba(0,200,255,.08);margin:18px 0;}
+.tip{font-size:12px;color:#6a8fa8;background:#071828;border-left:3px solid #1565c0;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:14px;line-height:1.6;}
+.tip code{background:#0a1e30;padding:1px 5px;border-radius:3px;font-size:11px;color:#90caf9;}
+.file-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;background:#071828;margin-bottom:4px;font-size:12px;}
+.file-item img{width:36px;height:36px;object-fit:cover;border-radius:4px;background:#0a1e30;}
+.restore-drop{border:2px dashed rgba(0,200,255,.25);border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px;}
+.restore-drop:hover,.restore-drop.over{border-color:#42a5f5;background:rgba(33,150,243,.05);}
+.restore-drop p{font-size:13px;color:#8ab4cc;}
+.restore-drop .icon{font-size:32px;margin-bottom:8px;}
+a{color:#42a5f5;text-decoration:none;}a:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🦷 Cyrabell Dental MS — Backup &amp; Restore</h1>
+  <p>Export all data from Google Sheets + Drive, then run locally or restore to another deployment.</p>
+</div>
+
+<div class="main">
+
+  <!-- ── Step 1: Connect ──────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2><span class="dot"></span> Step 1 — Connect to Google Apps Script</h2>
+
+    <div class="tip">
+      Open the Cyrabell app → <strong>Settings → Sync</strong> to copy your Apps Script URL.<br>
+      It looks like: <code>https://script.google.com/macros/s/AKfycb.../exec</code>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Apps Script Sync URL</label>
+        <input type="url" id="gasUrl" placeholder="https://script.google.com/macros/s/…/exec"/>
+      </div>
+      <button class="btn btn-primary" onclick="testConnection()">🔌 Test</button>
+    </div>
+
+    <div id="connectStatus"></div>
+  </div>
+
+  <!-- ── Step 2: Backup ───────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2><span class="dot" style="background:#66bb6a"></span> Step 2 — Backup</h2>
+
+    <p style="font-size:12px;color:#7aa3c0;margin-bottom:14px;">
+      Pulls all records from Google Sheets and downloads patient photos from Google Drive.
+      Everything is saved into a single <strong>.zip</strong> file you can store on your PC or USB drive.
+    </p>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+      <button class="btn btn-success" onclick="runBackup()" id="backupBtn">⬇ Download Backup (.zip)</button>
+      <button class="btn btn-primary btn-sm" onclick="backupDataOnly()" id="backupDataBtn">📋 Data only (no photos)</button>
+    </div>
+
+    <div class="progress"><div class="progress-bar" id="backupProgress"></div></div>
+
+    <div id="backupStats" class="stats-grid" style="display:none"></div>
+
+    <div class="log" id="backupLog"><span style="color:#4a6f8a">Waiting for backup to start…</span></div>
+  </div>
+
+  <!-- ── Step 3: Run locally ──────────────────────────────────────────────── -->
+  <div class="card">
+    <h2><span class="dot" style="background:#ffa726"></span> Step 3 — Run Locally</h2>
+
+    <div class="tip">
+      After extracting the backup zip, place the <code>local-server/</code> folder next to the backup's
+      <code>data/</code> and <code>uploads/</code> folders, then:
+      <br><br>
+      <strong>Install once:</strong>&nbsp; <code>cd local-server &amp;&amp; npm install</code><br>
+      <strong>Start server:</strong>&nbsp; <code>node server.js</code><br>
+      <strong>Open app:</strong>&nbsp; open <code>cyrabelldental_v2.html</code> in Chrome / Edge<br>
+      <strong>Set Sync URL:</strong>&nbsp; <code>http://localhost:3001</code> in app Settings → Sync
+    </div>
+
+    <p style="font-size:12px;color:#7aa3c0;margin-bottom:10px;">
+      The local server is a drop-in replacement for the Google Apps Script backend — all features work the same
+      except email/SMS sending and OCR scanning (those require cloud access).
+    </p>
+
+    <button class="btn btn-warning" onclick="downloadLocalServer()">📦 Download local-server folder</button>
+  </div>
+
+  <!-- ── Step 4: Restore ──────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2><span class="dot" style="background:#ab47bc"></span> Step 4 — Restore (optional)</h2>
+
+    <p style="font-size:12px;color:#7aa3c0;margin-bottom:14px;">
+      Upload a previously downloaded backup zip to push all data back into Google Sheets.
+    </p>
+
+    <div class="restore-drop" id="restoreDrop" onclick="document.getElementById('restoreFile').click()"
+         ondragover="event.preventDefault();this.classList.add('over')"
+         ondragleave="this.classList.remove('over')"
+         ondrop="handleRestoreDrop(event)">
+      <div class="icon">📂</div>
+      <p>Click or drag &amp; drop a <strong>cyrabell-backup-*.zip</strong> file here</p>
+      <input type="file" id="restoreFile" accept=".zip" style="display:none" onchange="handleRestoreFile(this.files[0])"/>
+    </div>
+
+    <div id="restoreStatus"></div>
+    <div class="log" id="restoreLog" style="display:none"></div>
+  </div>
+
+</div>
+
+<!-- JSZip from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+// ─── helpers ──────────────────────────────────────────────────────────────────
+function log(id, msg, type='info'){
+  const el=document.getElementById(id);
+  if(!el) return;
+  if(el.querySelector('span[style]')) el.innerHTML='';
+  const d=document.createElement('div');
+  d.className='log-entry '+type;
+  d.textContent='['+new Date().toLocaleTimeString()+'] '+msg;
+  el.prepend(d);
+}
+function progress(id, pct){ const el=document.getElementById(id); if(el) el.style.width=pct+'%'; }
+function gasUrl(){ return (document.getElementById('gasUrl').value||'').trim(); }
+function sep(u){ return u.includes('?')?'&':'?'; }
+
+// ─── Test Connection ──────────────────────────────────────────────────────────
+async function testConnection(){
+  const url=gasUrl();
+  if(!url){ alert('Enter the Apps Script URL first.'); return; }
+  const el=document.getElementById('connectStatus');
+  el.innerHTML='<div style="font-size:12px;color:#90caf9">Testing…</div>';
+  try {
+    const res=await fetch(url+sep(url)+'action=ping',{redirect:'follow'});
+    const data=await res.json();
+    if(data.ok&&data.pong){
+      el.innerHTML='<div class="badge badge-ok" style="font-size:12px;padding:5px 12px">✅ Connected</div>';
+    } else {
+      throw new Error(data.error||'Bad response');
+    }
+  } catch(e){
+    el.innerHTML='<div class="badge badge-err" style="font-size:12px;padding:5px 12px">❌ '+e.message+'</div>';
+  }
+}
+
+// ─── Pull all data ────────────────────────────────────────────────────────────
+async function pullData(url){
+  const res=await fetch(url+sep(url)+'action=pull',{redirect:'follow'});
+  const text=await res.text();
+  let j; try{ j=JSON.parse(text); }catch(e){ throw new Error('Response is not JSON. Is the deployment public?'); }
+  if(!j.ok) throw new Error(j.error||'Pull failed');
+  return j.data||{};
+}
+
+// ─── Download patient photo via getPhoto ──────────────────────────────────────
+async function fetchPhoto(url, fileId){
+  try{
+    const res=await fetch(url+sep(url)+'action=getPhoto&fileId='+encodeURIComponent(fileId),{redirect:'follow'});
+    const j=await res.json();
+    if(j.ok&&j.dataUrl){
+      const m=j.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if(m) return {mime:m[1],b64:m[2]};
+    }
+  }catch{}
+  return null;
+}
+
+// ─── Backup with photos ───────────────────────────────────────────────────────
+async function runBackup(dataOnly=false){
+  const url=gasUrl();
+  if(!url){ alert('Enter the Apps Script URL first.'); return; }
+  document.getElementById('backupBtn').disabled=true;
+  document.getElementById('backupDataBtn').disabled=true;
+  progress('backupProgress',5);
+  log('backupLog','Starting backup…','info');
+
+  try{
+    log('backupLog','Pulling records from Google Sheets…','info');
+    const data=await pullData(url);
+    progress('backupProgress',30);
+    log('backupLog','Pulled '+Object.values(data).reduce((s,a)=>s+(Array.isArray(a)?a.length:0),0)+' total records','ok');
+
+    const zip=new JSZip();
+    const dataFolder=zip.folder('data');
+    const uploadsFolder=zip.folder('uploads');
+
+    // Save each table
+    ['patients','appointments','payments','notifications','reminders','reminderLog','services','serverLogs']
+      .forEach(t=>{ if(data[t]) dataFolder.file(t+'.json', JSON.stringify(data[t]||[], null, 2)); });
+
+    log('backupLog','Table data written to zip','ok');
+
+    // Fetch photos unless dataOnly
+    if(!dataOnly){
+      const patients=data.patients||[];
+      const photoIds=[];
+      patients.forEach(p=>{ if(p.photoFileId) photoIds.push({id:p.photoFileId,type:'photo'}); });
+      // Attachments
+      patients.forEach(p=>{
+        (p.attachments||[]).forEach(a=>{ if(a.driveFileId) photoIds.push({id:a.driveFileId,type:'attachment'}); });
+        (p.history||[]).forEach(h=>{
+          (h.attachments||[]).forEach(a=>{ if(a.driveFileId) photoIds.push({id:a.driveFileId,type:'attachment'}); });
+        });
+      });
+      const uniq=[...new Map(photoIds.map(x=>[x.id,x])).values()];
+      log('backupLog','Downloading '+uniq.length+' files from Google Drive…','info');
+
+      let done=0;
+      for(const item of uniq){
+        const ph=await fetchPhoto(url, item.id);
+        if(ph){
+          const ext={'image/jpeg':'.jpg','image/png':'.png','image/gif':'.gif','image/webp':'.webp'}[ph.mime]||'.bin';
+          uploadsFolder.file(item.id+ext, ph.b64, {base64:true});
+          log('backupLog','Downloaded '+item.id,'ok');
+        } else {
+          log('backupLog','Skipped (not available): '+item.id,'warn');
+        }
+        done++;
+        progress('backupProgress', 30 + Math.round(done/Math.max(uniq.length,1)*55));
+      }
+    }
+
+    // Add a manifest
+    zip.file('manifest.json', JSON.stringify({
+      appVersion: 'cyrabell_v2',
+      exportedAt: new Date().toISOString(),
+      dataOnly,
+      tables: Object.fromEntries(Object.entries(data).map(([k,v])=>[k,(v||[]).length])),
+    }, null, 2));
+
+    // Include the Apps Script source files
+    // (These are embedded as text so the backup is self-contained)
+    log('backupLog','Generating zip…','info');
+    progress('backupProgress',90);
+
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}},
+      meta=>{ progress('backupProgress', 90+Math.round(meta.percent*0.1)); });
+    const ts=new Date().toISOString().slice(0,16).replace('T','_').replace(':','-');
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='cyrabell-backup-'+ts+'.zip';
+    a.click();
+    progress('backupProgress',100);
+    log('backupLog','Backup complete — file downloaded!','ok');
+
+    // Show stats
+    const sg=document.getElementById('backupStats');
+    sg.style.display='grid';
+    sg.innerHTML=Object.entries(data).filter(([,v])=>Array.isArray(v)).map(([k,v])=>
+      `<div class="stat-box"><div class="n">${v.length}</div><div class="l">${k}</div></div>`
+    ).join('');
+
+  }catch(e){
+    log('backupLog','Error: '+e.message,'err');
+    progress('backupProgress',0);
+  }finally{
+    document.getElementById('backupBtn').disabled=false;
+    document.getElementById('backupDataBtn').disabled=false;
+  }
+}
+
+function backupDataOnly(){ runBackup(true); }
+
+// ─── Download local-server folder ─────────────────────────────────────────────
+async function downloadLocalServer(){
+  const zip=new JSZip();
+  const ls=zip.folder('local-server');
+  ls.folder('data');
+  ls.folder('uploads');
+
+  const serverJs=await fetch('local-server/server.js').then(r=>r.text()).catch(()=>SERVER_JS_FALLBACK);
+  const pkgJson =await fetch('local-server/package.json').then(r=>r.text()).catch(()=>PKG_JSON_FALLBACK);
+
+  ls.file('server.js', serverJs);
+  ls.file('package.json', pkgJson);
+  ls.file('README.txt', README_TXT);
+
+  const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='cyrabell-local-server.zip';
+  a.click();
+}
+
+// ─── Restore ──────────────────────────────────────────────────────────────────
+function handleRestoreDrop(e){
+  e.preventDefault();
+  document.getElementById('restoreDrop').classList.remove('over');
+  const file=e.dataTransfer.files[0];
+  if(file) handleRestoreFile(file);
+}
+
+async function handleRestoreFile(file){
+  if(!file) return;
+  const url=gasUrl();
+  if(!url){ alert('Enter the Apps Script URL first, then try again.'); return; }
+
+  const rl=document.getElementById('restoreLog');
+  rl.style.display='block';
+  rl.innerHTML='';
+  log('restoreLog','Loading backup zip: '+file.name,'info');
+
+  try{
+    const zip=await JSZip.loadAsync(file);
+
+    // Read tables
+    const tables={};
+    const tableNames=['patients','appointments','payments','notifications','reminders','reminderLog','services'];
+    for(const t of tableNames){
+      const f=zip.file('data/'+t+'.json');
+      if(f){ try{ tables[t]=JSON.parse(await f.async('string')); }catch{ tables[t]=[]; } }
+      else tables[t]=[];
+    }
+    const total=Object.values(tables).reduce((s,a)=>s+a.length,0);
+    log('restoreLog','Loaded '+total+' records from zip','ok');
+
+    // Push to Google Sheets
+    log('restoreLog','Pushing to Google Sheets…','info');
+    const res=await fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({data:tables}),
+      redirect:'follow',
+    });
+    const j=await res.json();
+    if(j.ok){
+      log('restoreLog','Restore complete! '+total+' records pushed.','ok');
+      document.getElementById('restoreStatus').innerHTML='<div class="badge badge-ok" style="font-size:12px;padding:5px 12px">✅ Restore complete</div>';
+    } else {
+      throw new Error(j.error||'Push failed');
+    }
+  }catch(e){
+    log('restoreLog','Error: '+e.message,'err');
+    document.getElementById('restoreStatus').innerHTML='<div class="badge badge-err" style="font-size:12px;padding:5px 12px">❌ '+e.message+'</div>';
+  }
+}
+
+// ─── Fallback text for local-server download ──────────────────────────────────
+const README_TXT=`Cyrabell Dental MS — Local Server
+===================================
+
+REQUIREMENTS
+  - Node.js 18+ (https://nodejs.org/)
+
+SETUP (first time only)
+  1. Extract this zip
+  2. Copy your backup's data/ and uploads/ folders into local-server/
+  3. Open a terminal in local-server/
+  4. Run: npm install
+
+START
+  node server.js
+  (Runs on http://localhost:3001 by default)
+  Custom port: PORT=8080 node server.js
+
+IN THE CYRABELL APP
+  Settings → Sync → Sync URL → http://localhost:3001
+  Click "Test" to verify, then "Pull" to load your data.
+
+SWITCHING BACK TO CLOUD
+  Settings → Sync → Sync URL → paste your Google Apps Script URL
+
+NOTES
+  - Email & SMS are logged but NOT sent in local mode
+  - OCR scanning requires the cloud deployment
+  - All other features (patients, appointments, payments, kiosk) work identically
+`;
+
+const PKG_JSON_FALLBACK=`{
+  "name": "cyrabell-local-server",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "cors": "^2.8.5", "express": "^4.18.2", "multer": "^1.4.5-lts.1" }
+}`;
+
+const SERVER_JS_FALLBACK='// server.js not found — download from the repository';
+</script>
+</body>
+</html>
