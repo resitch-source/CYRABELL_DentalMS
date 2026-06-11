@@ -5591,7 +5591,7 @@ const RSS_FEEDS=[
 // Try multiple CORS proxies in order; return text or null
 async function proxyFetch(url){
   const proxies=[
-    async u=>{ const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(u)); if(!r.ok) throw 0; return r.text(); },
+    async u=>{ const r=await fetch('https://corsproxy.io/?'+u); if(!r.ok) throw 0; return r.text(); },
     async u=>{ const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(u)); if(!r.ok) throw 0; const j=await r.json(); return j.contents||''; },
     async u=>{ const r=await fetch('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u)); if(!r.ok) throw 0; return r.text(); },
   ];
