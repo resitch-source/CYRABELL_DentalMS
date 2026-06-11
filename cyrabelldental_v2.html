@@ -9760,6 +9760,11 @@ function Patients({patients,setPatients,appointments,setAppointments,payments,se
     const rec   = {balance:0, lastVisit:'—', teeth:{}, ...d, id: newId};
     setPatients(p => [rec, ...p.filter(x => x.id !== newId)]);
     syncOneRecord('patients', rec, syncUrl);
+    // If patient was added from a scan, create appointments + payments with the real final ID
+    if (scanPrefill && ((scanPrefill._appointments||[]).length || (scanPrefill._payments||[]).length)) {
+      createScannedRecords({...scanPrefill, name: rec.name, phone: rec.phone, email: rec.email}, newId);
+      setScanPrefill(null);
+    }
     addToast('Patient added!', 'success');
     setModal(false); setEdit(null);
   };
@@ -9772,6 +9777,11 @@ function Patients({patients,setPatients,appointments,setAppointments,payments,se
       return updated;
     }));
     if (updated) syncOneRecord('patients', updated, syncUrl);
+    // If patient was updated from a scan, also import scan appointments + payments
+    if (scanPrefill && ((scanPrefill._appointments||[]).length || (scanPrefill._payments||[]).length)) {
+      createScannedRecords({...scanPrefill, name: d.name||updated?.name, phone: d.phone||updated?.phone, email: d.email||updated?.email}, targetId);
+      setScanPrefill(null);
+    }
     addToast('Record updated!', 'success');
     setModal(false); setEdit(null);
   };
@@ -9811,6 +9821,10 @@ function Patients({patients,setPatients,appointments,setAppointments,payments,se
                 return found ? p.map(x => x.id === sheetDup.id ? merged : x) : [merged, ...p];
               });
               syncOneRecord('patients', merged, syncUrl);
+              if (scanPrefill && ((scanPrefill._appointments||[]).length || (scanPrefill._payments||[]).length)) {
+                createScannedRecords({...scanPrefill, name: merged.name, phone: merged.phone, email: merged.email}, sheetDup.id);
+                setScanPrefill(null);
+              }
               addToast('Updated existing patient from Sheets: ' + merged.name, 'success');
               setModal(false); setEdit(null);
             },
@@ -9983,9 +9997,7 @@ function Patients({patients,setPatients,appointments,setAppointments,payments,se
         setScanPrefill(data);
         setEdit(null);
         setModal(true);
-        // Create appointment + payment records from scanned data
-        const pid = data._pendingId || ('P' + String(Date.now()).slice(-6));
-        createScannedRecords(data, pid);
+        // appointments + payments are created in doAddPatient/doUpdatePatient with the real final ID
         addToast('✅ Data extracted! Review and save the patient record.', 'success');
       },
       onBatchExtracted: (dataList) => {
