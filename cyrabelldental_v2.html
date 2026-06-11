@@ -3835,6 +3835,31 @@ function getCurrentPlan() { const l=getLicense(); return l.plan && PLAN_FEATURES
 function planHas(feature) { return PLAN_FEATURES[getCurrentPlan()][feature] === true; }
 function getPlanLimit(feature) { return PLAN_FEATURES[getCurrentPlan()][feature]; }
 
+// ── License key crypto ────────────────────────────────────────────────────────
+const _LK_SECRET = 'NEXARCH_CYRABELL_LK_SECRET_2024$#@!xQ7mRpZ9vNcY3bWd';
+const _PLAN_CODE_MAP = { STRT:'starter', PROF:'professional', CPRO:'clinic_pro' };
+async function _lkHmac(message){
+  const enc=new TextEncoder();
+  const key=await crypto.subtle.importKey('raw',enc.encode(_LK_SECRET),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const buf=await crypto.subtle.sign('HMAC',key,enc.encode(message));
+  const hex=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  return BigInt('0x'+hex.slice(0,16)).toString(36).toUpperCase().slice(0,8).padStart(8,'0');
+}
+async function validateLicenseKey(key){
+  const parts=(key||'').trim().toUpperCase().split('-');
+  if(parts.length!==5||parts[0]!=='CYRABELL') return {valid:false,error:'Invalid key format.'};
+  const [,planCode,expiry,nonce,sig]=parts;
+  if(!_PLAN_CODE_MAP[planCode]) return {valid:false,error:'Unknown plan code in key.'};
+  if(!/^\d{6}$/.test(expiry)) return {valid:false,error:'Invalid expiry segment.'};
+  const yr=parseInt(expiry.slice(0,4),10), mo=parseInt(expiry.slice(4,6),10);
+  const now=new Date();
+  if(now.getFullYear()>yr||(now.getFullYear()===yr&&now.getMonth()+1>mo))
+    return {valid:false,error:'License key has expired. Contact hello@nexarch.dev'};
+  const expected=await _lkHmac(`CYRABELL-${planCode}-${expiry}-${nonce}`);
+  if(sig!==expected) return {valid:false,error:'Invalid license key. Contact hello@nexarch.dev'};
+  return {valid:true,plan:_PLAN_CODE_MAP[planCode],expiry,error:null};
+}
+
 // APP_DEFAULTS — bake your GAS URL here after first deploy so all browsers auto-fill it
 const APP_DEFAULTS = Object.freeze({
   GAS_URL: '', // ← paste your Apps Script /exec URL here
@@ -14185,20 +14210,20 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
           ),
           h('div',{style:{display:'grid',gap:10,marginBottom:14}},
             h('input',{className:'inp',placeholder:'Clinic Name',value:licClinic,onInput:e=>setLicClinic(e.target.value)}),
-            h('input',{className:'inp',placeholder:'License Key (e.g. CYRABELL-XXXXX-XXXXX-PROFESSIONAL)',value:licKey,onInput:e=>setLicKey(e.target.value)})
+            h('input',{className:'inp',placeholder:'License Key (e.g. CYRABELL-PROF-202612-XK9A-T3MWPQZR)',value:licKey,onInput:e=>setLicKey(e.target.value)})
           ),
           h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
-            h('button',{className:'btn bp',onClick:()=>{
+            h('button',{className:'btn bp',onClick:async()=>{
               const key=(licKey||'').trim().toUpperCase();
               const name=(licClinic||'').trim();
               if(!key){setLicMsg('Please enter a license key.');return;}
-              const seg=key.split('-'); const last=seg[seg.length-1];
-              const planMap={STARTER:'starter',PROFESSIONAL:'professional',CLINICPRO:'clinic_pro'};
-              const plan=planMap[last];
-              if(!plan){setLicMsg('Invalid license key format. Contact hello@nexarch.dev');return;}
-              localStorage.setItem('cyrabell_license',JSON.stringify({plan,licenseKey:key,clinicName:name,activatedAt:new Date().toISOString()}));
-              setLicMsg('✅ License activated! Plan: '+(PLAN_NAMES[plan]||plan));
-              addToast('License activated — '+PLAN_NAMES[plan],'ok');
+              if(!name){setLicMsg('Please enter your clinic name.');return;}
+              setLicMsg('⏳ Validating…');
+              const result=await validateLicenseKey(key);
+              if(!result.valid){setLicMsg('❌ '+result.error);return;}
+              localStorage.setItem('cyrabell_license',JSON.stringify({plan:result.plan,licenseKey:key,clinicName:name,activatedAt:new Date().toISOString(),expiry:result.expiry}));
+              setLicMsg('✅ License activated! Plan: '+(PLAN_NAMES[result.plan]||result.plan));
+              addToast('License activated — '+PLAN_NAMES[result.plan],'ok');
             }},'✅ Activate License'),
             getLicense().plan&&h('button',{className:'btn bd',onClick:()=>{
               localStorage.removeItem('cyrabell_license');

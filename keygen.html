@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cyrabell License Key Generator — NexArch Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0f1a;color:#e0e6f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{background:#111827;border:1px solid rgba(0,180,216,.2);border-radius:16px;padding:36px;width:100%;max-width:520px;box-shadow:0 8px 48px rgba(0,0,0,.6)}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.logo-icon{width:44px;height:44px;background:#0a1628;border-radius:10px;display:flex;align-items:center;justify-content:center}
+.logo svg{display:block}
+.logo-text{font-size:18px;font-weight:800;letter-spacing:.5px;color:#fff}
+.logo-sub{font-size:11px;color:#00b4d8;letter-spacing:1px;text-transform:uppercase;margin-top:1px}
+h2{font-size:15px;font-weight:700;color:#00b4d8;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid rgba(0,180,216,.15)}
+label{display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:6px;margin-top:16px;letter-spacing:.4px;text-transform:uppercase}
+label:first-of-type{margin-top:0}
+input,select{width:100%;background:#0d1526;border:1px solid rgba(100,130,180,.25);border-radius:8px;color:#e0e6f0;font-size:14px;padding:10px 14px;outline:none;transition:border .2s}
+input:focus,select:focus{border-color:#00b4d8}
+select option{background:#0d1526}
+.btn{width:100%;margin-top:22px;padding:13px;background:linear-gradient(135deg,#0077a8,#00b4d8);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.3px;transition:opacity .2s}
+.btn:hover{opacity:.88}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.result{margin-top:20px;background:#0d1526;border:1px solid rgba(0,180,216,.3);border-radius:10px;padding:16px;display:none}
+.result.show{display:block}
+.result-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#00b4d8;margin-bottom:8px}
+.result-key{font-family:'Courier New',monospace;font-size:16px;font-weight:700;color:#fff;letter-spacing:2px;word-break:break-all;line-height:1.5}
+.copy-btn{margin-top:12px;padding:8px 18px;background:rgba(0,180,216,.15);border:1px solid rgba(0,180,216,.35);border-radius:7px;color:#00b4d8;font-size:12px;font-weight:700;cursor:pointer;width:100%;letter-spacing:.5px}
+.copy-btn:hover{background:rgba(0,180,216,.25)}
+.meta{margin-top:10px;font-size:11px;color:#64748b;line-height:1.6}
+.meta span{color:#94a3b8}
+.err{margin-top:12px;padding:10px 14px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:8px;color:#f87171;font-size:13px;display:none}
+.err.show{display:block}
+.lock-screen{position:fixed;inset:0;background:#070d18;display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:16px}
+.lock-screen h1{font-size:22px;font-weight:800;color:#fff}
+.lock-screen p{font-size:13px;color:#64748b}
+.lock-screen input{width:280px;background:#111827;border:1px solid rgba(0,180,216,.3);border-radius:8px;color:#fff;font-size:15px;padding:11px 16px;outline:none;text-align:center;letter-spacing:3px}
+.lock-screen button{width:280px;padding:11px;background:linear-gradient(135deg,#0077a8,#00b4d8);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+.lock-screen .lerr{color:#f87171;font-size:12px;min-height:16px}
+.warn{background:rgba(212,160,23,.1);border:1px solid rgba(212,160,23,.3);border-radius:8px;padding:10px 14px;font-size:11px;color:#d4a017;margin-bottom:20px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<!-- Lock screen -->
+<div class="lock-screen" id="lockScreen">
+  <div class="logo-icon">
+    <svg width="28" height="28" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="100" fill="#0a1628"/>
+      <circle cx="256" cy="256" r="190" fill="none" stroke="#00b4d8" stroke-width="40"/>
+      <path d="M340 160 A120 120 0 1 0 340 352" fill="none" stroke="#00b4d8" stroke-width="52" stroke-linecap="round"/>
+      <circle cx="340" cy="160" r="22" fill="#d4a017"/>
+      <circle cx="340" cy="352" r="22" fill="#d4a017"/>
+    </svg>
+  </div>
+  <h1>Admin Access Required</h1>
+  <p>Enter the NexArch admin password to continue</p>
+  <input type="password" id="adminPwd" placeholder="••••••••" autocomplete="off"/>
+  <button onclick="unlock()">Unlock</button>
+  <div class="lerr" id="lockErr"></div>
+</div>
+
+<!-- Main tool -->
+<div class="card" id="mainCard" style="display:none">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="28" height="28" viewBox="0 0 512 512">
+        <rect width="512" height="512" rx="100" fill="#0a1628"/>
+        <circle cx="256" cy="256" r="190" fill="none" stroke="#00b4d8" stroke-width="40"/>
+        <path d="M340 160 A120 120 0 1 0 340 352" fill="none" stroke="#00b4d8" stroke-width="52" stroke-linecap="round"/>
+        <circle cx="340" cy="160" r="22" fill="#d4a017"/>
+        <circle cx="340" cy="352" r="22" fill="#d4a017"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">Cyrabell Dental MS</div>
+      <div class="logo-sub">License Key Generator</div>
+    </div>
+  </div>
+
+  <div class="warn">⚠️ This tool is for NexArch admins only. Do not share or host publicly. Keep the generated keys secure and only distribute to paying clients.</div>
+
+  <h2>Generate New License Key</h2>
+
+  <label>Clinic Name *</label>
+  <input type="text" id="clinicName" placeholder="e.g. Dela Cruz Dental Clinic" autocomplete="off"/>
+
+  <label>Plan *</label>
+  <select id="plan">
+    <option value="STRT">Starter — ₱599/mo (500 patients, 1 user)</option>
+    <option value="PROF" selected>Professional — ₱1,299/mo (unlimited patients, 2 users, AI, Kiosk)</option>
+    <option value="CPRO">Clinic Pro — ₱1,999/mo (unlimited everything, multi-dentist, branding)</option>
+  </select>
+
+  <label>Expiry Month *</label>
+  <input type="month" id="expiry" min="" />
+
+  <button class="btn" id="genBtn" onclick="generate()">⚡ Generate License Key</button>
+
+  <div class="err" id="errBox"></div>
+
+  <div class="result" id="resultBox">
+    <div class="result-label">Generated License Key</div>
+    <div class="result-key" id="resultKey"></div>
+    <button class="copy-btn" onclick="copyKey()">📋 Copy to Clipboard</button>
+    <div class="meta" id="resultMeta"></div>
+  </div>
+</div>
+
+<script>
+// ── Admin password (separate from HMAC secret) ──────────────────────────────
+const ADMIN_PASSWORD = 'NexArch@2024!Cyrabell';
+
+function unlock() {
+  const pwd = document.getElementById('adminPwd').value;
+  if (pwd === ADMIN_PASSWORD) {
+    document.getElementById('lockScreen').style.display = 'none';
+    document.getElementById('mainCard').style.display = 'block';
+    // Set default expiry to 1 year from now
+    const d = new Date(); d.setMonth(d.getMonth() + 12);
+    document.getElementById('expiry').value =
+      d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    document.getElementById('expiry').min =
+      new Date().toISOString().slice(0,7);
+  } else {
+    document.getElementById('lockErr').textContent = 'Incorrect password.';
+    setTimeout(()=>document.getElementById('lockErr').textContent='', 2000);
+  }
+}
+document.getElementById('adminPwd').addEventListener('keydown', e => {
+  if (e.key === 'Enter') unlock();
+});
+
+// ── HMAC secret (must match cyrabelldental_v2.html exactly) ─────────────────
+const _LK_SECRET = 'NEXARCH_CYRABELL_LK_SECRET_2024$#@!xQ7mRpZ9vNcY3bWd';
+
+async function _lkHmac(message) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(_LK_SECRET),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const buf = await crypto.subtle.sign('HMAC', key, enc.encode(message));
+  const hex = Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2,'0')).join('');
+  return BigInt('0x' + hex.slice(0,16)).toString(36).toUpperCase()
+    .slice(0,8).padStart(8,'0');
+}
+
+async function generateLicenseKey(planCode, expiryYYYYMM, clinicName) {
+  const enc = new TextEncoder();
+  const nameHash = await crypto.subtle.digest('SHA-256', enc.encode(clinicName.trim().toUpperCase()));
+  const arr = new Uint8Array(nameHash);
+  const clinicSeg = ((arr[0] << 16) | (arr[1] << 8) | arr[2])
+    .toString(36).toUpperCase().padStart(5,'0').slice(-3);
+  const randChar = Math.floor(Math.random() * 36).toString(36).toUpperCase();
+  const nonce = clinicSeg + randChar;
+  const message = `CYRABELL-${planCode}-${expiryYYYYMM}-${nonce}`;
+  const sig = await _lkHmac(message);
+  return `CYRABELL-${planCode}-${expiryYYYYMM}-${nonce}-${sig}`;
+}
+
+const PLAN_NAMES = { STRT:'Starter', PROF:'Professional', CPRO:'Clinic Pro' };
+
+let _lastKey = '';
+
+async function generate() {
+  const clinic = document.getElementById('clinicName').value.trim();
+  const plan   = document.getElementById('plan').value;
+  const expiry = document.getElementById('expiry').value; // YYYY-MM
+
+  const errBox = document.getElementById('errBox');
+  const resultBox = document.getElementById('resultBox');
+  errBox.className = 'err';
+  resultBox.className = 'result';
+
+  if (!clinic) { show_err('Please enter the clinic name.'); return; }
+  if (!expiry) { show_err('Please select an expiry month.'); return; }
+
+  const expiryYYYYMM = expiry.replace('-','');
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+
+  try {
+    const key = await generateLicenseKey(plan, expiryYYYYMM, clinic);
+    _lastKey = key;
+    document.getElementById('resultKey').textContent = key;
+    const [yr,mo] = [expiry.slice(0,4), expiry.slice(5,7)];
+    const expiryDate = new Date(parseInt(yr), parseInt(mo)-1+1, 0); // last day of month
+    document.getElementById('resultMeta').innerHTML =
+      `<span>Clinic:</span> ${clinic}<br>` +
+      `<span>Plan:</span> ${PLAN_NAMES[plan]}<br>` +
+      `<span>Valid through:</span> ${expiryDate.toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'})}`;
+    resultBox.className = 'result show';
+  } catch(e) {
+    show_err('Error generating key: ' + e.message);
+  }
+  btn.disabled = false; btn.textContent = '⚡ Generate License Key';
+}
+
+function show_err(msg) {
+  const el = document.getElementById('errBox');
+  el.textContent = msg;
+  el.className = 'err show';
+}
+
+function copyKey() {
+  if (!_lastKey) return;
+  navigator.clipboard.writeText(_lastKey).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy to Clipboard', 2000);
+  });
+}
+</script>
+</body>
+</html>
