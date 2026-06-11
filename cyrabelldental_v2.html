@@ -3511,28 +3511,22 @@ function runDataMigration(patients, appointments, payments, notifications) {
 
 const RBAC = {
   Administrator: {
-    delete_patient: true, export_data: true, view_sync: true,
-    view_analytics: true, view_logs: true, edit_services: true,
-    use_ai: true, use_kiosk: true, manage_license: true, manage_users: true,
+    delete_patient: true,  export_data: true,  view_sync: true,
+    view_analytics: true,  view_logs: true,    edit_services: true,
+    use_ai: true,          use_kiosk: true,    manage_license: true,  manage_users: true,
   },
   Dentist: {
-    delete_patient: true, export_data: true, view_sync: false,
-    view_analytics: true, view_logs: false, edit_services: true,
-    use_ai: true, use_kiosk: true, manage_license: false, manage_users: false,
+    delete_patient: true,  export_data: true,  view_sync: false,
+    view_analytics: true,  view_logs: false,   edit_services: true,
+    use_ai: true,          use_kiosk: true,    manage_license: false, manage_users: false,
   },
   Receptionist: {
     delete_patient: false, export_data: false, view_sync: false,
-    view_analytics: false, view_logs: false, edit_services: false,
-    use_ai: false, use_kiosk: true, manage_license: false, manage_users: false,
+    view_analytics: false, view_logs: false,   edit_services: false,
+    use_ai: false,         use_kiosk: true,    manage_license: false, manage_users: false,
   },
 };
 
-/**
- * Check if the logged-in user can perform a given action.
- * @param {object|null} user - The current user object (has .role).
- * @param {string} action - One of the RBAC action keys.
- * @returns {boolean}
- */
 function canDo(user, action) {
   if (!user) return false;
   const perms = RBAC[user.role] || RBAC.Receptionist;
@@ -3542,66 +3536,18 @@ function canDo(user, action) {
 // ══════════════════════════════════════════════════════════════════════════════
 // 📦  PLAN / LICENSE FEATURE GATES
 // ══════════════════════════════════════════════════════════════════════════════
-
 const PLAN_FEATURES = {
-  starter: {
-    patientLimit: 500,
-    userLimit: 1,
-    aiAssistant: false,
-    kioskMode: false,
-    advancedAnalytics: false,
-    allReminderTypes: false,
-    viber: false,
-    messenger: false,
-    multiDentist: false,
-    conflictAnalysis: false,
-    customBranding: false,
-  },
-  professional: {
-    patientLimit: Infinity,
-    userLimit: 2,
-    aiAssistant: true,
-    kioskMode: true,
-    advancedAnalytics: true,
-    allReminderTypes: true,
-    viber: true,
-    messenger: true,
-    multiDentist: false,
-    conflictAnalysis: true,
-    customBranding: false,
-  },
-  clinic_pro: {
-    patientLimit: Infinity,
-    userLimit: Infinity,
-    aiAssistant: true,
-    kioskMode: true,
-    advancedAnalytics: true,
-    allReminderTypes: true,
-    viber: true,
-    messenger: true,
-    multiDentist: true,
-    conflictAnalysis: true,
-    customBranding: true,
-  },
+  starter:      { patientLimit:500, userLimit:1, aiAssistant:false, kioskMode:false, advancedAnalytics:false, allReminderTypes:false, viber:false, messenger:false, multiDentist:false, conflictAnalysis:false, customBranding:false },
+  professional: { patientLimit:Infinity, userLimit:2, aiAssistant:true, kioskMode:true, advancedAnalytics:true, allReminderTypes:true, viber:true, messenger:true, multiDentist:false, conflictAnalysis:true, customBranding:false },
+  clinic_pro:   { patientLimit:Infinity, userLimit:Infinity, aiAssistant:true, kioskMode:true, advancedAnalytics:true, allReminderTypes:true, viber:true, messenger:true, multiDentist:true, conflictAnalysis:true, customBranding:true },
 };
-
-const PLAN_NAMES = { starter:'Starter', professional:'Professional', clinic_pro:'Clinic Pro' };
+const PLAN_NAMES  = { starter:'Starter', professional:'Professional', clinic_pro:'Clinic Pro' };
 const PLAN_PRICES = { starter:'₱599/mo', professional:'₱1,299/mo', clinic_pro:'₱1,999/mo' };
-const PLAN_UPGRADE = { starter:'professional', professional:'clinic_pro', clinic_pro:null };
-
-function getLicense() {
-  try { return JSON.parse(localStorage.getItem('cyrabell_license')||'{}'); } catch { return {}; }
-}
-function getCurrentPlan() {
-  const lic = getLicense();
-  return lic.plan && PLAN_FEATURES[lic.plan] ? lic.plan : 'starter';
-}
-function planHas(feature) {
-  return PLAN_FEATURES[getCurrentPlan()][feature] === true;
-}
-function getPlanLimit(feature) {
-  return PLAN_FEATURES[getCurrentPlan()][feature];
-}
+const PLAN_UPGRADE= { starter:'professional', professional:'clinic_pro', clinic_pro:null };
+function getLicense() { try { return JSON.parse(localStorage.getItem('cyrabell_license')||'{}'); } catch { return {}; } }
+function getCurrentPlan() { const l=getLicense(); return l.plan && PLAN_FEATURES[l.plan] ? l.plan : 'starter'; }
+function planHas(feature) { return PLAN_FEATURES[getCurrentPlan()][feature] === true; }
+function getPlanLimit(feature) { return PLAN_FEATURES[getCurrentPlan()][feature]; }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🔐  LOGIN LOCKOUT TRACKER
@@ -9396,15 +9342,15 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
         h('div',{className:'fg',style:{marginBottom:12}},h('label',null,'Type'),
           h('div',{className:'ntg'},
             [
-              ['sms','📱','SMS','Text message',true],
-              ['email','📧','Email','To inbox',true],
-              ['whatsapp','💬','WhatsApp','Opens WhatsApp',true],
-              ['viber','🟣','Viber','Opens Viber',planHas('viber')],
-              ['messenger','💙','Messenger','Opens FB Messenger',planHas('messenger')],
-            ].map(([v,e,n,d,allowed])=>
-              h('div',{key:v,className:'ntc'+(ntype===v?' sel':'')+(allowed?'':' ntc-locked'),onClick:()=>allowed&&setNtype(v),title:allowed?undefined:'Upgrade to unlock '+n,style:allowed?undefined:{opacity:.5,cursor:'not-allowed',filter:'grayscale(0.5)'}},
+              ['sms','📱','SMS','Text message'],
+              ['email','📧','Email','To inbox'],
+              ['whatsapp','💬','WhatsApp','Opens WhatsApp'],
+              ['viber','🟣','Viber','Opens Viber'],
+              ['messenger','💙','Messenger','Opens FB Messenger'],
+            ].map(([v,e,n,d])=>
+              h('div',{key:v,className:'ntc'+(ntype===v?' sel':''),onClick:()=>setNtype(v)},
                 h('div',{className:'ntic',style:{background:v==='sms'?'#e8f5f3':v==='email'?'#e8eeff':v==='whatsapp'?'#dcfce7':v==='viber'?'#f3e8ff':'#dbeafe'}},h('span',{style:{fontSize:17}},e)),
-                h('div',{className:'ntn'},n,!allowed&&h('span',{style:{fontSize:9,marginLeft:3}},'🔒')),h('div',{className:'ntd'},d)
+                h('div',{className:'ntn'},n),h('div',{className:'ntd'},d)
               )
             )
           )
@@ -9553,15 +9499,18 @@ function ReminderForm({patients,reminder,onClose,onSave}){
       h('div',{className:'rmnd-ch-grid'},
         CHANNELS.map(ch=>{
           const sel=f.channels.includes(ch.id);
+          const locked=(ch.id==='viber'&&!planHas('viber'))||(ch.id==='messenger'&&!planHas('messenger'));
           return h('button',{
             key:ch.id,type:'button',
-            className:'rmnd-ch'+(sel?' sel':''),
-            onClick:()=>toggleChannel(ch.id),
-            style:sel?{borderColor:ch.color,background:ch.color+'15'}:{}
+            className:'rmnd-ch'+(sel&&!locked?' sel':''),
+            onClick:()=>!locked&&toggleChannel(ch.id),
+            style:{...(sel&&!locked?{borderColor:ch.color,background:ch.color+'15'}:{}),
+                   ...(locked?{opacity:.5,cursor:'not-allowed',position:'relative'}:{})}
           },
             h('span',{style:{fontSize:18}},ch.icon),
             h('span',null,ch.name),
-            sel&&h('span',{style:{marginLeft:'auto',color:ch.color,fontWeight:700}},'✓')
+            locked&&h('span',{style:{fontSize:10,fontWeight:700,color:'#d4a017',marginLeft:4}},'🔒'),
+            sel&&!locked&&h('span',{style:{marginLeft:'auto',color:ch.color,fontWeight:700}},'✓')
           );
         })
       )
@@ -10247,8 +10196,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
           : h('button',{className:'btn bg2',disabled:true,title:'Upgrade to unlock AI Assistant',style:{opacity:.55,cursor:'not-allowed'}},'🤖 AI Assistant',h(UpgradeBadge,{feature:'aiAssistant',inline:true})),
         onGoKiosk && (planHas('kioskMode')
           ? h('button',{className:'btn bs',onClick:onGoKiosk,title:'Switch to kiosk'},'🏥 Open Kiosk')
-          : h('button',{className:'btn bs',disabled:true,title:'Upgrade to unlock Kiosk Mode',style:{opacity:.55,cursor:'not-allowed'}},'🏥 Open Kiosk',h(UpgradeBadge,{feature:'kioskMode',inline:true}))
-        )
+          : h('button',{className:'btn bs',disabled:true,title:'Upgrade to unlock Kiosk Mode',style:{opacity:.55,cursor:'not-allowed'}},'🏥 Open Kiosk',h(UpgradeBadge,{feature:'kioskMode',inline:true})))
       )
     ),
     h('div',{className:'sg sg4'},
@@ -10301,7 +10249,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
         )
       )
     ),
-    showAI && h(AIAssistant,{appointments,patients,payments,addToast:addToast2,onClose:()=>setShowAI(false),defaultTab:'insights'})
+    showAI && planHas('aiAssistant') && h(AIAssistant,{appointments,patients,payments,addToast:addToast2,onClose:()=>setShowAI(false),defaultTab:'insights'})
   );
 }
 
@@ -11475,8 +11423,6 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
   const [log, setLog] = useState([]);
   const [geminiKey, setGeminiKey] = useState(()=>lsGet(LS_KEYS.GEMINI_KEY,''));
   const [showKey, setShowKey]     = useState(false);
-  const [licKey, setLicKey] = useState(()=>getLicense().licenseKey||'');
-  const [licClinic, setLicClinic] = useState(()=>getLicense().clinicName||'');
   const fileInputRef = useRef(null);
 
   const saveGeminiKey = (v) => {
@@ -11699,49 +11645,11 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
     return ()=>clearInterval(t);
   }, [autoSync, isValidUrl, url, patients, appointments, payments, notifications, reminders, reminderLog, busy]);
 
-  const lic = getLicense();
-  const currentPlan = getCurrentPlan();
-
   return h('div', null,
     h('div', {className:'ph'},
       h('div', null,
         h('div', {className:'ptl'}, '☁️ Sync & Backup'),
         h('div', {className:'psl'}, 'Google Sheets cloud sync & local Excel backup')
-      )
-    ),
-
-    // License & Plan card
-    h('div',{style:{padding:'0 16px 8px'}},
-      h('div',{className:'card'},
-        h('div',{className:'ch'}, h('div',{className:'ct'},'📦 License & Plan')),
-        h('div',{className:'cb'},
-          h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:14,padding:'12px 14px',background:'var(--cr)',borderRadius:9}},
-            h('div',{style:{flex:1}},
-              h('div',{style:{fontWeight:700,fontSize:13}},'Current Plan: ', h('span',{style:{color:currentPlan==='clinic_pro'?'#63b8e8':currentPlan==='professional'?'#d4a017':'#66bb6a'}}, PLAN_NAMES[currentPlan])),
-              h('div',{style:{fontSize:11,color:'var(--md)',marginTop:2}}, lic.clinicName||'No clinic name set', lic.expiresAt?' · Expires: '+lic.expiresAt:''),
-            ),
-            h('div',{style:{fontSize:24}}, currentPlan==='clinic_pro'?'🏆':currentPlan==='professional'?'⭐':'🌱')
-          ),
-          h(Field,{label:'License Key'},
-            h('input',{type:'text', style:{fontSize:12,fontFamily:'monospace'}, placeholder:'CYRABELL-XXXXX-XXXXX-PROFESSIONAL', value:licKey, onChange:e=>setLicKey(e.target.value)})
-          ),
-          h(Field,{label:'Clinic Name'},
-            h('input',{type:'text', placeholder:'Your Clinic Name', value:licClinic, onChange:e=>setLicClinic(e.target.value)})
-          ),
-          h('button',{className:'btn bp bsm',onClick:()=>{
-            const key = licKey.trim().toUpperCase();
-            let plan = 'starter';
-            if (key.includes('PROFESSIONAL') || key.endsWith('-PROFESSIONAL')) plan='professional';
-            if (key.includes('CLINICPRO') || key.includes('CLINIC-PRO') || key.endsWith('-CLINICPRO')) plan='clinic_pro';
-            const newLic = {plan, licenseKey:licKey.trim(), clinicName:licClinic.trim(), activatedAt:new Date().toISOString().slice(0,10), expiresAt:''};
-            localStorage.setItem('cyrabell_license', JSON.stringify(newLic));
-            addToast('License activated! Plan: '+PLAN_NAMES[plan],'success');
-            window.location.reload();
-          }},'✓ Activate License'),
-          PLAN_UPGRADE[currentPlan] && h('div',{style:{marginTop:10,fontSize:11.5,color:'var(--md)',lineHeight:1.5}},
-            '💡 Upgrade to ',h('strong',null,PLAN_NAMES[PLAN_UPGRADE[currentPlan]]),' for AI Assistant, Kiosk Mode, unlimited patients, and more. Contact ',h('a',{href:'mailto:hello@nexarch.dev',style:{color:'var(--pr)'}},'hello@nexarch.dev'),'.'
-          )
-        )
       )
     ),
 
@@ -11764,6 +11672,57 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
     ),
 
     h('div', {className:'sync-grid'},
+
+      // ───── License & Plan card ─────
+      (()=>{
+        const [licKey,setLicKey]=useState(()=>getLicense().licenseKey||'');
+        const [licClinic,setLicClinic]=useState(()=>getLicense().clinicName||'');
+        const [licMsg,setLicMsg]=useState('');
+        const currentPlan=getCurrentPlan();
+        const lic=getLicense();
+        const activateLicense=()=>{
+          const key=(licKey||'').trim().toUpperCase();
+          const name=(licClinic||'').trim();
+          if(!key){setLicMsg('Please enter a license key.');return;}
+          const seg=key.split('-');
+          const last=seg[seg.length-1];
+          const planMap={STARTER:'starter',PROFESSIONAL:'professional',CLINICPRO:'clinic_pro'};
+          const plan=planMap[last];
+          if(!plan){setLicMsg('Invalid license key. Contact hello@nexarch.dev');return;}
+          const obj={plan,licenseKey:key,clinicName:name,activatedAt:new Date().toISOString()};
+          localStorage.setItem('cyrabell_license',JSON.stringify(obj));
+          setLicMsg('✅ License activated! Plan: '+PLAN_NAMES[plan]);
+        };
+        const clearLicense=()=>{
+          localStorage.removeItem('cyrabell_license');
+          setLicKey('');setLicClinic('');setLicMsg('License cleared. Running in Starter mode.');
+        };
+        return h('div',{className:'card',style:{borderTop:'3px solid #d4a017',gridColumn:'1/-1'}},
+          h('div',{className:'ch'},h('div',{className:'ct'},'🏷️ License & Plan')),
+          h('div',{className:'cb'},
+            h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:16,flexWrap:'wrap'}},
+              h('span',{style:{fontSize:28}},currentPlan==='clinic_pro'?'🏆':currentPlan==='professional'?'⭐':'🌱'),
+              h('div',null,
+                h('div',{style:{fontWeight:700,fontSize:16,color:'#fff'}},PLAN_NAMES[currentPlan]+' Plan'),
+                h('div',{style:{fontSize:13,color:'var(--md)'}},PLAN_PRICES[currentPlan]),
+                lic.clinicName&&h('div',{style:{fontSize:12,color:'var(--md)'}},lic.clinicName)
+              )
+            ),
+            h('div',{style:{display:'grid',gap:10,marginBottom:14}},
+              h('input',{className:'inp',placeholder:'Clinic Name',value:licClinic,onInput:e=>setLicClinic(e.target.value)}),
+              h('input',{className:'inp',placeholder:'License Key (CYRABELL-XXXXX-XXXXX-PROFESSIONAL)',value:licKey,onInput:e=>setLicKey(e.target.value)})
+            ),
+            h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+              h('button',{className:'btn bp',onClick:activateLicense},'✅ Activate License'),
+              lic.plan&&h('button',{className:'btn bd',onClick:clearLicense},'🗑 Clear License')
+            ),
+            licMsg&&h('p',{style:{marginTop:10,fontSize:13,color:licMsg.startsWith('✅')?'#22c55e':'#ef4444'}},licMsg),
+            h('p',{style:{fontSize:12,color:'var(--md)',marginTop:10}},
+              'Need a license? Contact ',h('a',{href:'mailto:hello@nexarch.dev',style:{color:'var(--accent)'}},'hello@nexarch.dev')
+            )
+          )
+        );
+      })(),
 
       // ───── Gemini API key card ─────
       h('div', {className:'card', style:{borderTop:'3px solid #4f8ef7'}},
@@ -12629,24 +12588,20 @@ function LogsViewer({addToast}) {
 
 
 function UpgradeBadge({feature, inline}) {
-  const plan = getCurrentPlan();
-  const next = PLAN_UPGRADE[plan];
-  if (!next) return null;
-  const nextName = PLAN_NAMES[next];
-  const nextPrice = PLAN_PRICES[next];
-  if (inline) return h('span',{style:{display:'inline-flex',alignItems:'center',gap:4,background:'linear-gradient(90deg,#b8860b,#d4a017)',color:'#fff',fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:10,letterSpacing:.5,verticalAlign:'middle',marginLeft:6}},'🔒 '+nextName);
-  return h('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8,padding:'32px 24px',textAlign:'center',background:'rgba(184,134,11,.06)',border:'1px dashed rgba(184,134,11,.3)',borderRadius:12}},
-    h('div',{style:{fontSize:28}},'🔒'),
-    h('div',{style:{fontSize:14,fontWeight:700,color:'var(--fg)'}},'Upgrade Required'),
-    h('div',{style:{fontSize:12,color:'var(--md)',maxWidth:280,lineHeight:1.5}},'This feature is available on the ',h('strong',null,nextName),' plan (',nextPrice,') and above.'),
-    h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4}},'Contact NexArch to upgrade: hello@nexarch.dev')
+  const plan=getCurrentPlan(), next=PLAN_UPGRADE[plan];
+  if(!next) return null;
+  if(inline) return h('span',{style:{background:'linear-gradient(90deg,#b8860b,#d4a017)',color:'#fff',fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:10,marginLeft:6}},'🔒 '+PLAN_NAMES[next]);
+  return h('div',{style:{textAlign:'center',padding:'40px 20px',color:'#888'}},
+    h('div',{style:{fontSize:40,marginBottom:8}},'🔒'),
+    h('p',{style:{fontSize:16,fontWeight:700,marginBottom:4}},'Upgrade to '+PLAN_NAMES[next]),
+    h('p',{style:{marginBottom:4}},PLAN_PRICES[next]+' — Contact NexArch'),
+    h('a',{href:'mailto:hello@nexarch.dev',style:{color:'#00b4d8'}},'hello@nexarch.dev')
   );
 }
-
 function FeatureGate({feature, children, inline, fallback}) {
-  if (planHas(feature)) return children;
-  if (fallback !== undefined) return fallback;
-  return h(UpgradeBadge, {feature, inline});
+  if(planHas(feature)) return children;
+  if(fallback!==undefined) return fallback;
+  return h(UpgradeBadge,{feature,inline});
 }
 
 function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointments,payments,setPayments,notifications,setNotifications,reminders,setReminders,reminderLog,setReminderLog,addToast,onGoKiosk}){
@@ -12742,20 +12697,14 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
           ),
           h('div',{className:'uc',onClick:onLogout,title:'Click to log out'},
             h('div',{className:'ua'},userInitial),
-            h('div',null,h('div',{className:'un'},user.name||user.username),h('div',{className:'ur'},user.role)),
+            h('div',null,
+              h('div',{className:'un'},user.name||user.username),
+              h('div',{className:'ur'},user.role,
+                h('span',{style:{fontSize:9,padding:'1px 7px',borderRadius:8,background:getCurrentPlan()==='clinic_pro'?'#7c3aed':getCurrentPlan()==='professional'?'#00b4d8':'#475569',color:'#fff',marginLeft:5,fontWeight:700}},PLAN_NAMES[getCurrentPlan()])
+              )
+            ),
             h(Svg,{d:IC.logout,size:13,color:'rgba(255,255,255,.5)'})
           ),
-          // Plan badge
-          (function(){
-            const cp = getCurrentPlan();
-            return h('div',{style:{margin:'6px 10px 0',padding:'5px 10px',borderRadius:8,background:cp==='clinic_pro'?'rgba(99,184,232,.15)':cp==='professional'?'rgba(212,160,23,.15)':'rgba(102,187,106,.1)',border:cp==='clinic_pro'?'1px solid rgba(99,184,232,.3)':cp==='professional'?'1px solid rgba(212,160,23,.3)':'1px solid rgba(102,187,106,.2)',display:'flex',alignItems:'center',gap:6}},
-              h('span',{style:{fontSize:14}},cp==='clinic_pro'?'🏆':cp==='professional'?'⭐':'🌱'),
-              h('div',null,
-                h('div',{style:{fontSize:10,color:'rgba(255,255,255,.5)',textTransform:'uppercase',letterSpacing:.5}},'Plan'),
-                h('div',{style:{fontSize:11,fontWeight:700,color:'#fff'}},PLAN_NAMES[cp])
-              )
-            );
-          })(),
           // NexArch power badge
           h('div',{className:'nexarch-sb-badge'},
             h('img',{src:NEXARCH_LOGO,alt:'NexArch',className:'nexarch-logo-xs'}),
