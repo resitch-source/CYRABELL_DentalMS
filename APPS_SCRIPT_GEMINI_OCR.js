@@ -133,6 +133,9 @@ function doPost(e) {
     if (action === 'upsertRecord')    return jsonOut(handleUpsertRecord(payload));
     if (action === 'checkDuplicate')  return jsonOut(handleCheckDuplicate(payload));
 
+    // ── Append client-side log entries to serverLogs sheet ───────────────
+    if (action === 'appendLogs')      return jsonOut(handleAppendLogs(payload));
+
     // ── Default: push all data ────────────────────────────────────────────
     if (!payload.data) return jsonOut({ ok:false, error:'Missing "data" field' });
     var stats = pushAll(payload.data);
@@ -390,6 +393,51 @@ function handleCheckDuplicate(payload) {
     }
   }
   return { ok:true, found:false, existing:null };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// APPEND CLIENT LOGS — append frontend log entries to serverLogs sheet
+// payload: { action:'appendLogs', logs:[{id,time,level,source,message,detail},...] }
+// ═══════════════════════════════════════════════════════════════════════════
+
+function handleAppendLogs(payload) {
+  var entries = payload.logs;
+  if (!Array.isArray(entries) || entries.length === 0) return { ok:true, appended:0 };
+  try {
+    ensureSheets();
+    var ss    = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('serverLogs');
+    if (!sheet) {
+      sheet = ss.insertSheet('serverLogs');
+      sheet.getRange(1,1,1,6).setValues([['id','time','level','source','message','detail']])
+        .setFontWeight('bold').setBackground('#fef3c7');
+      sheet.setFrozenRows(1);
+    }
+    // Collect existing ids to avoid duplicate log entries on retry
+    var lastRow = sheet.getLastRow();
+    var existingIds = {};
+    if (lastRow > 1) {
+      var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      ids.forEach(function(r) { if (r[0]) existingIds[String(r[0])] = true; });
+    }
+    var toAdd = entries.filter(function(e) { return !existingIds[String(e.id || '')]; });
+    toAdd.forEach(function(e) {
+      sheet.appendRow([
+        String(e.id      || Utilities.getUuid().substring(0,8)),
+        String(e.time    || new Date().toISOString()),
+        String(e.level   || 'info'),
+        String(e.source  || 'client'),
+        String(e.message || '').substring(0, 500),
+        e.detail ? String(e.detail).substring(0, 2000) : ''
+      ]);
+    });
+    // Cap at 500 rows
+    var total = sheet.getLastRow();
+    if (total > 501) sheet.deleteRows(2, total - 501);
+    return { ok:true, appended:toAdd.length };
+  } catch(e) {
+    return { ok:false, error:String(e.message || e) };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
