@@ -1806,27 +1806,28 @@ th:hover .sort-icon{opacity:.9}
 
 /* ── NEXARCH BRANDING ── */
 .nexarch-badge{
-  display:flex;align-items:center;justify-content:center;gap:7px;
-  margin-top:18px;padding:10px 0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  margin-top:18px;padding:14px 0;
   border-top:1px solid rgba(255,255,255,.08);
-  opacity:0.75;
+  opacity:0.85;
   transition:opacity .2s;
+  text-align:center;
 }
 .nexarch-badge:hover{opacity:1}
 .nexarch-badge span{
-  font-size:13px;color:rgba(255,255,255,.6);
-  letter-spacing:.3px;
+  font-size:12px;color:rgba(255,255,255,.55);
+  letter-spacing:2px;text-transform:uppercase;font-weight:600;
 }
 .nexarch-badge strong{
   color:var(--tl);font-weight:700;
 }
 .nexarch-logo-sm{
-  width:80px;height:80px;
+  width:110px;height:110px;
   object-fit:contain;
-  filter:drop-shadow(0 0 4px rgba(0,200,255,.5));
+  filter:drop-shadow(0 0 6px rgba(0,200,255,.5));
 }
 .nexarch-logo-xs{
-  width:60px;height:60px;
+  width:80px;height:80px;
   object-fit:contain;
   filter:drop-shadow(0 0 3px rgba(0,200,255,.5));
 }
@@ -5259,8 +5260,8 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
           },'📅 I just want to book an appointment')
         ),
         h('div',{className:'nexarch-badge',style:{marginTop:20}},
-          h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',className:'nexarch-logo-sm'}),
-          h('span',null,'Powered by')
+          h('span',null,'POWERED BY:'),
+          h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',className:'nexarch-logo-sm'})
         )
       )
     );
@@ -5299,8 +5300,8 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
         h('button',{onClick:()=>{setMode('choose');setError('');setUsername('');setPassword('');}},'← Back')
       ),
       h('div',{className:'nexarch-badge',style:{marginTop:12}},
-        h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',className:'nexarch-logo-sm'}),
-        h('span',null,'Powered by')
+        h('span',null,'POWERED BY:'),
+        h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',className:'nexarch-logo-sm'})
       )
     )
   );
@@ -12647,8 +12648,8 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
           ),
           // NexArch power badge
           h('div',{className:'nexarch-sb-badge'},
-            h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',style:{width:72,height:72,objectFit:'contain',borderRadius:4}}),
-            h('span',null,'Powered by')
+            h('span',null,'POWERED BY:'),
+            h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',style:{width:100,height:100,objectFit:'contain',borderRadius:4}})
           )
         )
       ),
@@ -13481,8 +13482,8 @@ function App(){
         h('div', {className: 'boot-status'}, '☁️ Loading data from Google Sheets…'),
         h('div', {className: 'boot-hint'}, 'Google Sheets is the source of truth'),
         h('div', {className: 'nexarch-badge', style: {marginTop: 16}},
-          h('img', {src: CYRABELL_LOGO, alt: 'Cyrabell', className: 'nexarch-logo-sm'}),
-          h('span', null, 'Powered by')
+          h('span', null, 'POWERED BY:'),
+          h('img', {src: CYRABELL_LOGO, alt: 'Cyrabell', className: 'nexarch-logo-sm'})
         )
       )
     );
@@ -13514,8 +13515,8 @@ function App(){
           }, 'Use local data (offline mode)')
         ),
         h('div', {className: 'nexarch-badge', style: {marginTop: 16}},
-          h('img', {src: CYRABELL_LOGO, alt: 'Cyrabell', className: 'nexarch-logo-sm'}),
-          h('span', null, 'Powered by')
+          h('span', null, 'POWERED BY:'),
+          h('img', {src: CYRABELL_LOGO, alt: 'Cyrabell', className: 'nexarch-logo-sm'})
         )
       )
     );
