@@ -5506,6 +5506,27 @@ const ADS_KEY = 'cyrabell_kiosk_ads';
 function getKioskAds(){ try{ return JSON.parse(localStorage.getItem(ADS_KEY)||'[]'); }catch(e){ return []; } }
 function saveKioskAds(ads){ try{ localStorage.setItem(ADS_KEY,JSON.stringify(ads)); }catch(e){} }
 
+// Resolves patient photo: inline dataUrl → Drive fetch → null
+function KioskPatientPhoto({patient, syncUrl, className, fallback}){
+  const inline = patient && S(patient.photoDataUrl).startsWith('data:') ? patient.photoDataUrl : null;
+  const [url, setUrl] = useState(inline);
+
+  useEffect(()=>{
+    if(inline){ setUrl(inline); return; }
+    if(!patient || !patient.photoFileId || !syncUrl){ setUrl(null); return; }
+    const cache = window.__cyrabellPhotoCache = window.__cyrabellPhotoCache||{};
+    if(cache[patient.photoFileId]){ setUrl(cache[patient.photoFileId]); return; }
+    let live = true;
+    fetchPhotoFromDrive(syncUrl, patient.photoFileId)
+      .then(u=>{ if(live&&u){ cache[patient.photoFileId]=u; setUrl(u); } })
+      .catch(()=>{});
+    return ()=>{ live=false; };
+  }, [patient && patient.id, patient && patient.photoFileId, inline]);
+
+  if(url) return h('img',{src:url, className, alt:'Patient', onError:()=>setUrl(null)});
+  return fallback||null;
+}
+
 function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patients,syncUrl}){
   const [step,setStep]=useState('queue'); // 'queue'|'checkin'|'walkin'|'confirm'|'success'
   const [search,setSearch]=useState('');
@@ -5631,14 +5652,14 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
           : h('div',{className:'kiosk-queue-grid'},
               todayAppts.map((a,idx)=>{
                 const isIn=a.arrived||a.checkedIn;
-                const photo=a.photoDataUrl||(patients&&patients.find(p=>p.id===a.patientId)?.photoDataUrl)||'';
+                const pat=patients&&patients.find(p=>p.id===a.patientId);
                 return h('div',{key:a.id,className:'kiosk-queue-card'+(isIn?' kqc-in':'')},
                   h('div',{className:'kiosk-queue-seq'},
                     a.appointmentType==='standby'?h('span',{className:'kiosk-q-badge'},'Q'+a.queueNumber):(idx+1)
                   ),
-                  photo
-                    ? h('img',{src:photo,className:'kiosk-queue-photo',alt:a.patientName})
-                    : h('div',{className:'kiosk-queue-avatar'},initials(a.patientName)),
+                  h(KioskPatientPhoto,{patient:pat,syncUrl,className:'kiosk-queue-photo',
+                    fallback:h('div',{className:'kiosk-queue-avatar'},initials(a.patientName))
+                  }),
                   h('div',{className:'kiosk-queue-info'},
                     h('div',{className:'kiosk-queue-name'},a.patientName),
                     h('div',{className:'kiosk-queue-time'},
@@ -5672,11 +5693,11 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
             )
           : h('div',{className:'kiosk-appt-list'},
               filtered.map(a=>{
-                const photo=a.photoDataUrl||(patients&&patients.find(p=>p.id===a.patientId)?.photoDataUrl)||'';
+                const pat2=patients&&patients.find(p=>p.id===a.patientId);
                 return h('div',{key:a.id,className:'kiosk-appt-card'+((a.arrived||a.checkedIn)?' checked':''),onClick:()=>handlePick(a)},
-                  photo
-                    ? h('img',{src:photo,className:'kiosk-avatar-photo',alt:a.patientName})
-                    : h('div',{className:'kiosk-avatar'},initials(a.patientName)),
+                  h(KioskPatientPhoto,{patient:pat2,syncUrl,className:'kiosk-avatar-photo',
+                    fallback:h('div',{className:'kiosk-avatar'},initials(a.patientName))
+                  }),
                   h('div',{className:'kiosk-info'},
                     h('div',{className:'kiosk-pname'},a.patientName),
                     h('div',{className:'kiosk-pdetails'},
