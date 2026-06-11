@@ -2012,6 +2012,44 @@ th:hover .sort-icon{opacity:.9}
   background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.18);
   border-radius:7px;font-size:11.5px;color:var(--md);
 }
+.ocr-section-hdr{
+  display:flex;align-items:center;flex-wrap:wrap;gap:6px;
+  margin-top:14px;margin-bottom:6px;
+  font-size:13px;font-weight:700;color:var(--fg);
+}
+.ocr-section-count{font-size:11px;color:var(--md);font-weight:400;margin-left:4px;}
+.ocr-add-row-btn{
+  margin-left:auto;background:var(--ac);color:#fff;border:none;
+  border-radius:6px;padding:3px 10px;font-size:11.5px;cursor:pointer;
+}
+.ocr-add-row-btn:hover{opacity:.85;}
+.ocr-empty-hint{font-size:12px;color:var(--md);padding:8px 0 4px;font-style:italic;}
+.ocr-del-row-btn{
+  background:none;border:none;cursor:pointer;color:var(--re);
+  font-size:15px;font-weight:700;padding:0 4px;
+}
+.ocr-del-row-btn:hover{opacity:.7;}
+.ocr-ledger-table{
+  border:1px solid var(--bd);border-radius:8px;overflow:hidden;font-size:12px;
+  margin-bottom:6px;
+}
+.ocr-ledger-head{
+  display:flex;gap:4px;padding:5px 8px;
+  background:var(--bg3);font-weight:700;font-size:11px;color:var(--md);
+}
+.ocr-ledger-head span{flex:1;min-width:60px;}
+.ocr-ledger-row{
+  display:flex;gap:4px;padding:4px 8px;
+  border-top:1px solid var(--bd);align-items:center;
+}
+.ocr-cell-input{
+  flex:1;min-width:0;padding:3px 5px;
+  border:1px solid var(--bd);border-radius:5px;
+  background:var(--bg2);color:var(--fg);font-size:11.5px;
+}
+.ocr-cell-input:focus{outline:none;border-color:var(--ac);}
+.ocr-cell-wide{flex:2;}
+.ocr-cell-sm{flex:0 0 70px;max-width:70px;}
 .ocr-learn-icon{font-size:14px;}
 .ocr-fields{
   display:flex;flex-direction:column;gap:8px;
@@ -8884,6 +8922,11 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
         '  "generalCondition":"general condition","clinicalNotes":"clinical notes",',
         '  "dentalChartNotes":"dental chart annotations","teethConditions":"tooth-by-tooth conditions"',
         '}',
+        'ALSO extract any visit/appointment entries as "_appointments":',
+        '[{"date":"YYYY-MM-DD","time":"HH:MM","service":"procedure","notes":"","fee":""}]',
+        'AND any ledger entries as "_payments":',
+        '[{"date":"YYYY-MM-DD","service":"","debit":"","credit":"","balance":"","method":"Cash","note":""}]',
+        'If none found, use [] for those fields.',
         'RULES: Read ALL text including handwritten. Dates → YYYY-MM-DD. Return ONLY the JSON object.' +
         buildLearningHints(),
       ].join('\n');
@@ -8898,6 +8941,11 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
       '  "allergies":"known allergies","lastVisit":"YYYY-MM-DD","balance":"0",',
       '  "physician":"physician name","emergencyContact":"contact name and number"',
       '}',
+      'ALSO extract any appointment or visit history entries as an array "_appointments":',
+      '[{"date":"YYYY-MM-DD","time":"HH:MM","service":"procedure done","notes":"","fee":""}]',
+      'AND extract any ledger/payment entries (debit=charges, credit=payments) as "_payments":',
+      '[{"date":"YYYY-MM-DD","service":"","debit":"","credit":"","balance":"","method":"Cash","note":""}]',
+      'If no appointments or payments found, use empty arrays [] for those fields.',
       'RULES: Read every character carefully. Dates → YYYY-MM-DD. Return ONLY the JSON object.' +
       buildLearningHints(),
     ].join('\n');
@@ -9207,6 +9255,18 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
       ['dob', 'lastVisit'].forEach(k => {
         if (result[k]) result[k] = sanitizeDate(result[k]) || result[k];
       });
+      // Normalize appointment dates
+      if (Array.isArray(result._appointments)) {
+        result._appointments = result._appointments.map(a => ({
+          ...a, date: sanitizeDate(a.date) || a.date || ''
+        }));
+      } else { result._appointments = []; }
+      // Normalize payment dates
+      if (Array.isArray(result._payments)) {
+        result._payments = result._payments.map(p => ({
+          ...p, date: sanitizeDate(p.date) || p.date || ''
+        }));
+      } else { result._payments = []; }
       setExtracted(result);
       setEditData({...result});
       setStep('review');
@@ -9404,7 +9464,7 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
             h('div', {className: 'ocr-notes-text'}, extracted.notes)
           )
         ),
-        // Right: editable fields
+        // Right: editable fields + appointments + payments
         h('div', {className: 'ocr-review-form'},
           h('div', {className: 'ocr-review-form-header'},
             h('div', {style: {fontWeight: 700, fontSize: 15}}, '✏️ Edit if needed'),
@@ -9418,6 +9478,7 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
                 : h('span', null, 'Edit any wrong fields — AI will learn and improve next time')
             )
           ),
+          // Patient fields
           h('div', {className: 'ocr-fields'},
             fields.map(fi => h('div', {key: fi.k, className: 'ocr-field'},
               h('label', {className: 'ocr-field-label'},
@@ -9440,7 +9501,87 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
                     className: 'ocr-field-input' + (extracted[fi.k] ? ' ocr-filled' : '')
                   })
             ))
-          )
+          ),
+
+          // ── Appointment history section ──────────────────────────────────
+          h('div', {className: 'ocr-section-hdr'},
+            h('span', null, '📅 Appointment History'),
+            h('span', {className: 'ocr-section-count'},
+              (editData._appointments || []).length + ' record(s) — will be added to appointment history'
+            ),
+            h('button', {
+              type: 'button', className: 'ocr-add-row-btn',
+              onClick: () => ed('_appointments', [...(editData._appointments || []),
+                {date: localToday(), time: '09:00', service: '', notes: '', fee: ''}])
+            }, '+ Add Row')
+          ),
+          (editData._appointments || []).length === 0
+            ? h('div', {className: 'ocr-empty-hint'}, 'No appointments extracted. Click "+ Add Row" to add manually.')
+            : h('div', {className: 'ocr-ledger-table'},
+                h('div', {className: 'ocr-ledger-head'},
+                  h('span', null, 'Date'), h('span', null, 'Time'), h('span', null, 'Description / Service'),
+                  h('span', null, 'Notes'), h('span', null, 'Fee (₱)'), h('span', null, '')
+                ),
+                (editData._appointments || []).map((appt, i) =>
+                  h('div', {key: i, className: 'ocr-ledger-row'},
+                    h('input', {type:'date', value: appt.date||'', className:'ocr-cell-input',
+                      onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],date:e.target.value}; ed('_appointments',a); }}),
+                    h('input', {type:'time', value: appt.time||'', className:'ocr-cell-input',
+                      onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],time:e.target.value}; ed('_appointments',a); }}),
+                    h('input', {type:'text', value: appt.service||'', placeholder:'e.g. Teeth Cleaning', className:'ocr-cell-input ocr-cell-wide',
+                      onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],service:e.target.value}; ed('_appointments',a); }}),
+                    h('input', {type:'text', value: appt.notes||'', placeholder:'notes', className:'ocr-cell-input ocr-cell-wide',
+                      onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],notes:e.target.value}; ed('_appointments',a); }}),
+                    h('input', {type:'number', value: appt.fee||'', placeholder:'0', className:'ocr-cell-input ocr-cell-sm',
+                      onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],fee:e.target.value}; ed('_appointments',a); }}),
+                    h('button', {type:'button', className:'ocr-del-row-btn',
+                      onClick: () => { const a=[...(editData._appointments||[])]; a.splice(i,1); ed('_appointments',a); }}, '×')
+                  )
+                )
+              ),
+
+          // ── Payment / ledger section ─────────────────────────────────────
+          h('div', {className: 'ocr-section-hdr', style:{marginTop:14}},
+            h('span', null, '💳 Payment Records (Ledger)'),
+            h('span', {className: 'ocr-section-count'},
+              (editData._payments || []).length + ' record(s) — will be added to payment history'
+            ),
+            h('button', {
+              type: 'button', className: 'ocr-add-row-btn',
+              onClick: () => ed('_payments', [...(editData._payments || []),
+                {date: localToday(), service: '', debit: '', credit: '', balance: '', method: 'Cash', note: ''}])
+            }, '+ Add Row')
+          ),
+          (editData._payments || []).length === 0
+            ? h('div', {className: 'ocr-empty-hint'}, 'No payment records extracted. Click "+ Add Row" to add manually.')
+            : h('div', {className: 'ocr-ledger-table'},
+                h('div', {className: 'ocr-ledger-head'},
+                  h('span', null, 'Date'), h('span', null, 'Service'),
+                  h('span', {style:{color:'var(--re)'}}, 'Debit (₱)'),
+                  h('span', {style:{color:'#22c55e'}}, 'Credit (₱)'),
+                  h('span', null, 'Balance (₱)'), h('span', null, 'Method'), h('span', null, '')
+                ),
+                (editData._payments || []).map((pay, i) =>
+                  h('div', {key: i, className: 'ocr-ledger-row'},
+                    h('input', {type:'date', value: pay.date||'', className:'ocr-cell-input',
+                      onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],date:e.target.value}; ed('_payments',a); }}),
+                    h('input', {type:'text', value: pay.service||'', placeholder:'service', className:'ocr-cell-input ocr-cell-wide',
+                      onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],service:e.target.value}; ed('_payments',a); }}),
+                    h('input', {type:'number', value: pay.debit||'', placeholder:'0', className:'ocr-cell-input ocr-cell-sm',
+                      onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],debit:e.target.value}; ed('_payments',a); }}),
+                    h('input', {type:'number', value: pay.credit||'', placeholder:'0', className:'ocr-cell-input ocr-cell-sm',
+                      onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],credit:e.target.value}; ed('_payments',a); }}),
+                    h('input', {type:'number', value: pay.balance||'', placeholder:'0', className:'ocr-cell-input ocr-cell-sm',
+                      onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],balance:e.target.value}; ed('_payments',a); }}),
+                    h('select', {value: pay.method||'Cash', className:'ocr-cell-input',
+                      onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],method:e.target.value}; ed('_payments',a); }},
+                      ['Cash','GCash','Maya','Card','Bank Transfer','HMO','Other'].map(m => h('option',{key:m,value:m},m))
+                    ),
+                    h('button', {type:'button', className:'ocr-del-row-btn',
+                      onClick: () => { const a=[...(editData._payments||[])]; a.splice(i,1); ed('_payments',a); }}, '×')
+                  )
+                )
+              )
         )
       )
     );
@@ -9450,7 +9591,7 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
 }
 
 
-function Patients({patients,setPatients,appointments,payments,addToast,syncUrl,user}){
+function Patients({patients,setPatients,appointments,setAppointments,payments,setPayments,addToast,syncUrl,user}){
   const [search,setSearch]=useState('');
   const [modal,setModal]=useState(false);
   const [edit,setEdit]=useState(null);
@@ -9509,6 +9650,64 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl,u
       });
     }
   };
+
+  // Create appointment and payment records from scanned data for a given patient ID
+  const createScannedRecords = (data, patientId) => {
+    const pname = S(data.name).trim();
+    // ── Appointment records ───────────────────────────────────────────────────
+    if (setAppointments && Array.isArray(data._appointments) && data._appointments.length) {
+      setAppointments(prev => {
+        let updated = [...prev];
+        data._appointments.forEach(appt => {
+          if (!appt.date) return;
+          const newId = 'A' + String(Date.now() + Math.random() * 1000 | 0).slice(-7);
+          updated = [...updated, {
+            id: newId,
+            patientId,
+            patientName: pname,
+            service: S(appt.service) || 'Dental Visit',
+            date: appt.date,
+            time: S(appt.time) || '09:00',
+            status: 'completed',
+            notes: S(appt.notes) || '',
+            fee: parseFloat(appt.fee) || 0,
+            dentist: '',
+            phone: S(data.phone) || '',
+            email: S(data.email) || '',
+            arrived: true,
+          }];
+        });
+        return updated;
+      });
+    }
+    // ── Payment records ───────────────────────────────────────────────────────
+    if (setPayments && Array.isArray(data._payments) && data._payments.length) {
+      setPayments(prev => {
+        let updated = [...prev];
+        data._payments.forEach(pay => {
+          if (!pay.amount && !pay.credit) return;
+          const amount = parseFloat(pay.credit || pay.debit || pay.amount) || 0;
+          if (!amount) return;
+          const newId = 'PAY' + String(Date.now() + Math.random() * 1000 | 0).slice(-7);
+          updated = [...updated, {
+            id: newId,
+            patientId,
+            patientName: pname,
+            amount,
+            method: S(pay.method) || 'Cash',
+            service: S(pay.service) || 'Dental Visit',
+            date: S(pay.date) || localToday(),
+            status: pay.debit ? 'debit' : 'paid',
+            ref: 'SCAN-' + newId,
+            balance: parseFloat(pay.balance) || 0,
+            note: S(pay.note) || '',
+          }];
+        });
+        return updated;
+      });
+    }
+  };
+
   return h('div',null,
     h('div',{className:'ph'},
       h('div',null,h('div',{className:'ptl'},'Patient Records'),h('div',{className:'psl'},'Profiles · Dental Chart · History')),
@@ -9589,19 +9788,26 @@ function Patients({patients,setPatients,appointments,payments,addToast,syncUrl,u
         setScanPrefill(data);
         setEdit(null);
         setModal(true);
+        // Create appointment + payment records from scanned data
+        const pid = data._pendingId || ('P' + String(Date.now()).slice(-6));
+        createScannedRecords(data, pid);
         addToast('✅ Data extracted! Review and save the patient record.', 'success');
       },
       onBatchExtracted: (dataList) => {
-        // Auto-add all scanned records as new patients
         setShowScanner(false);
         let added = 0;
         setPatients(prev => {
           let updated = [...prev];
           dataList.forEach(d => {
             const dup = findExistingPatient(updated, d);
-            if (dup) return; // skip duplicates silently in batch
+            if (dup) {
+              createScannedRecords(d, dup.id);
+              return;
+            }
             const newId = 'P' + String(Date.now() + added).slice(-6);
+            d._pendingId = newId;
             updated = [{balance:0, lastVisit:'—', teeth:{}, ...d, id: newId}, ...updated];
+            createScannedRecords(d, newId);
             added++;
           });
           return updated;
@@ -13121,7 +13327,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
     try {
       if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments),onGoKiosk});
       if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast,syncUrl});
-      if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),payments:safe(payments),addToast,syncUrl,user});
+      if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),setAppointments,payments:safe(payments),setPayments,addToast,syncUrl,user});
       if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),appointments:safe(appointments),setAppointments,addToast});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
       if(page==='services')return canDo(user,'edit_services')?h(ServicesPage,{addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
