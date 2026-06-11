@@ -1777,7 +1777,7 @@ th:hover .sort-icon{opacity:.9}
 
 /* ── NEXARCH BRANDING ── */
 .nexarch-badge{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
   margin-top:18px;padding:14px 0;
   border-top:1px solid rgba(255,255,255,.08);
   opacity:0.85;
@@ -1786,8 +1786,16 @@ th:hover .sort-icon{opacity:.9}
 }
 .nexarch-badge:hover{opacity:1}
 .nexarch-badge span{
-  font-size:12px;color:#888;
+  font-size:11px;color:#888;
   letter-spacing:2px;text-transform:uppercase;font-weight:600;
+}
+.nexarch-badge .badge-brand{
+  font-size:15px;font-weight:800;letter-spacing:3px;
+  color:#00c8ff;text-transform:uppercase;line-height:1.2;
+}
+.nexarch-badge .badge-tagline{
+  font-size:9.5px;color:#aaa;letter-spacing:1.5px;
+  text-transform:uppercase;font-weight:500;margin-top:1px;
 }
 .nexarch-badge strong{
   color:var(--tl);font-weight:700;
@@ -5362,7 +5370,9 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
         ),
         h('div',{className:'nexarch-badge',style:{marginTop:20}},
           h('span',null,'POWERED BY:'),
-          h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',className:'nexarch-logo-sm'})
+          h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',className:'nexarch-logo-sm'}),
+          h('div',{className:'badge-brand'},'CYRABELL'),
+          h('div',{className:'badge-tagline'},'Systems Engineering Solution')
         )
       )
     );
@@ -14722,7 +14732,9 @@ function App(){
         h('div', {className: 'boot-hint'}, 'Google Sheets is the source of truth'),
         h('div', {className: 'nexarch-badge', style: {marginTop: 16}},
           h('span', null, 'POWERED BY:'),
-          h('img', {src: CYRABELL_LOGO, alt: 'Cyrabell', className: 'nexarch-logo-sm'})
+          h('img', {src: CYRABELL_LOGO, alt: 'Cyrabell', className: 'nexarch-logo-sm'}),
+          h('div', {className: 'badge-brand'}, 'CYRABELL'),
+          h('div', {className: 'badge-tagline'}, 'Systems Engineering Solution')
         )
       )
     );
@@ -14755,7 +14767,9 @@ function App(){
         ),
         h('div', {className: 'nexarch-badge', style: {marginTop: 16}},
           h('span', null, 'POWERED BY:'),
-          h('img', {src: CYRABELL_LOGO, alt: 'Cyrabell', className: 'nexarch-logo-sm'})
+          h('img', {src: CYRABELL_LOGO, alt: 'Cyrabell', className: 'nexarch-logo-sm'}),
+          h('div', {className: 'badge-brand'}, 'CYRABELL'),
+          h('div', {className: 'badge-tagline'}, 'Systems Engineering Solution')
         )
       )
     );
