@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Cyrabell Dental MS — Deployment Manual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --navy:#0a1628;--navy2:#0f1f3d;--navy3:#162545;
+  --teal:#00b4d8;--teal-dim:rgba(0,180,216,.12);
+  --gold:#d4a017;--gold-dim:rgba(212,160,23,.12);
+  --green:#22c55e;--green-dim:rgba(34,197,94,.1);
+  --red:#ef4444;--red-dim:rgba(239,68,68,.1);
+  --yellow:#f59e0b;--yellow-dim:rgba(245,158,11,.1);
+  --text:#e8eaf0;--text2:#a0aec0;--text3:#64748b;
+  --card:#111e36;--border:rgba(255,255,255,.08);
+  --radius:12px;--code-bg:#0d1a2d;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--text);line-height:1.7;display:flex;}
+
+/* ── SIDEBAR TOC ── */
+#toc{
+  width:280px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;
+  background:var(--navy2);border-right:1px solid var(--border);padding:24px 0;
+}
+#toc::-webkit-scrollbar{width:4px;}
+#toc::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.toc-logo{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:16px;}
+.toc-logo h2{font-family:'Outfit',sans-serif;font-size:17px;color:#fff;font-weight:700;}
+.toc-logo p{font-size:11px;color:var(--text3);margin-top:4px;}
+.toc-section{padding:6px 20px 2px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-top:10px;}
+#toc a{display:block;padding:6px 20px 6px 28px;font-size:13px;color:var(--text2);text-decoration:none;border-left:2px solid transparent;transition:color .15s,border-color .15s;}
+#toc a:hover,#toc a.active{color:var(--teal);border-left-color:var(--teal);background:var(--teal-dim);}
+#toc a.phase{padding-left:20px;font-weight:600;color:var(--text);font-size:13px;}
+#toc a.phase:hover,#toc a.phase.active{color:var(--teal);}
+
+/* ── MAIN ── */
+main{flex:1;padding:48px 64px;max-width:900px;}
+@media(max-width:960px){main{padding:32px 24px;}#toc{display:none;}}
+
+/* ── HEADINGS ── */
+h1{font-family:'Outfit',sans-serif;font-size:2.4rem;font-weight:800;color:#fff;margin-bottom:8px;}
+h2{font-family:'Outfit',sans-serif;font-size:1.5rem;font-weight:700;color:#fff;margin:48px 0 20px;padding-top:48px;border-top:1px solid var(--border);}
+h2:first-of-type{border-top:none;margin-top:0;padding-top:0;}
+h3{font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:700;color:var(--teal);margin:28px 0 12px;}
+h4{font-size:.9rem;font-weight:700;color:#fff;margin:20px 0 8px;text-transform:uppercase;letter-spacing:.06em;}
+p{color:var(--text2);margin-bottom:14px;}
+a{color:var(--teal);text-decoration:none;}
+a:hover{text-decoration:underline;}
+strong{color:#fff;font-weight:600;}
+
+/* ── PHASE BADGE ── */
+.phase-header{display:flex;align-items:center;gap:14px;margin-bottom:28px;}
+.phase-num{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;}
+.ph-1{background:linear-gradient(135deg,#7c3aed,#6d28d9);}
+.ph-2{background:linear-gradient(135deg,#00b4d8,#0096b7);}
+.ph-3{background:linear-gradient(135deg,#d4a017,#f0c040);}
+.ph-4{background:linear-gradient(135deg,#22c55e,#16a34a);}
+.ph-5{background:linear-gradient(135deg,#ef4444,#dc2626);}
+.ph-6{background:linear-gradient(135deg,#f59e0b,#d97706);}
+.phase-header h2{margin:0;padding:0;border:none;}
+
+/* ── STEP ── */
+.step{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px 28px;margin-bottom:20px;position:relative;}
+.step-num{position:absolute;top:20px;right:20px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:var(--text3);background:rgba(255,255,255,.05);padding:2px 10px;border-radius:20px;}
+.step h3{margin-top:0;}
+
+/* ── CODE ── */
+code{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--code-bg);color:#7dd3fc;padding:2px 7px;border-radius:5px;}
+pre{background:var(--code-bg);border:1px solid rgba(0,180,216,.15);border-radius:10px;padding:20px 24px;overflow-x:auto;margin:14px 0 18px;position:relative;}
+pre code{background:none;padding:0;color:#e2e8f0;font-size:13px;line-height:1.7;}
+.copy-btn{position:absolute;top:10px;right:10px;background:rgba(0,180,216,.15);border:1px solid rgba(0,180,216,.3);color:var(--teal);font-size:11px;font-weight:600;padding:4px 12px;border-radius:6px;cursor:pointer;font-family:'Inter',sans-serif;}
+.copy-btn:hover{background:rgba(0,180,216,.25);}
+.copy-btn.copied{color:var(--green);border-color:var(--green);background:var(--green-dim);}
+
+/* ── CALLOUTS ── */
+.callout{border-radius:10px;padding:16px 20px;margin:16px 0;display:flex;gap:14px;align-items:flex-start;}
+.callout-icon{font-size:20px;flex-shrink:0;margin-top:1px;}
+.callout p{margin:0;font-size:14px;}
+.callout.info{background:var(--teal-dim);border:1px solid rgba(0,180,216,.2);}
+.callout.info p{color:var(--teal);}
+.callout.warn{background:var(--yellow-dim);border:1px solid rgba(245,158,11,.25);}
+.callout.warn p{color:#fcd34d;}
+.callout.danger{background:var(--red-dim);border:1px solid rgba(239,68,68,.2);}
+.callout.danger p{color:#fca5a5;}
+.callout.success{background:var(--green-dim);border:1px solid rgba(34,197,94,.2);}
+.callout.success p{color:#86efac;}
+
+/* ── LISTS ── */
+ul,ol{color:var(--text2);padding-left:24px;margin-bottom:14px;}
+li{margin-bottom:6px;font-size:14px;}
+li strong{color:#fff;}
+
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse;margin:16px 0 24px;font-size:14px;}
+th{background:rgba(255,255,255,.05);color:#fff;font-weight:600;padding:10px 14px;text-align:left;border-bottom:2px solid rgba(0,180,216,.2);}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top;}
+tr:hover td{background:rgba(255,255,255,.02);}
+
+/* ── BADGES ── */
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;margin-left:6px;vertical-align:middle;}
+.badge.required{background:rgba(239,68,68,.15);color:#fca5a5;}
+.badge.optional{background:rgba(100,116,139,.15);color:#94a3b8;}
+.badge.cloud{background:var(--teal-dim);color:var(--teal);}
+.badge.local{background:var(--gold-dim);color:var(--gold);}
+
+/* ── CHECKLIST ── */
+.checklist{list-style:none;padding:0;margin:16px 0;}
+.checklist li{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--text2);}
+.checklist li:last-child{border-bottom:none;}
+.checklist li::before{content:'☐';font-size:16px;flex-shrink:0;}
+
+/* ── FILE TREE ── */
+.filetree{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--code-bg);border:1px solid var(--border);border-radius:10px;padding:20px 24px;line-height:1.9;color:#e2e8f0;margin:14px 0;}
+.filetree .dir{color:var(--teal);}
+.filetree .file{color:#e2e8f0;}
+.filetree .comment{color:var(--text3);}
+
+/* ── DIVIDER ── */
+hr{border:none;border-top:1px solid var(--border);margin:32px 0;}
+
+/* ── HERO ── */
+.hero{margin-bottom:48px;padding:36px;background:linear-gradient(135deg,var(--navy2),var(--navy3));border:1px solid rgba(0,180,216,.15);border-radius:16px;}
+.hero p{font-size:15px;margin-bottom:0;}
+.version-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(0,180,216,.1);border:1px solid rgba(0,180,216,.25);color:var(--teal);padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:14px;}
+
+/* ── FOOTER ── */
+footer{padding:32px 0 0;margin-top:48px;border-top:1px solid var(--border);color:var(--text3);font-size:13px;}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="toc">
+  <div class="toc-logo">
+    <h2>🦷 Cyrabell Dental MS</h2>
+    <p>Deployment Manual v2.0</p>
+  </div>
+  <div class="toc-section">Overview</div>
+  <a href="#overview" class="phase">System Overview</a>
+  <a href="#prerequisites">Prerequisites</a>
+  <a href="#architecture">Architecture Diagram</a>
+
+  <div class="toc-section">Phase 1 — Google Setup</div>
+  <a href="#ph1-sheets">1.1 Create Google Sheet</a>
+  <a href="#ph1-apps-script">1.2 Deploy Apps Script</a>
+  <a href="#ph1-drive">1.3 Drive Upload Script</a>
+  <a href="#ph1-gemini">1.4 Gemini API Key</a>
+
+  <div class="toc-section">Phase 2 — App Deployment</div>
+  <a href="#ph2-github">2.1 Fork / Upload to GitHub</a>
+  <a href="#ph2-pages">2.2 Enable GitHub Pages</a>
+  <a href="#ph2-config">2.3 Configure GAS URL</a>
+
+  <div class="toc-section">Phase 3 — First Launch</div>
+  <a href="#ph3-login">3.1 First Login</a>
+  <a href="#ph3-license">3.2 Activate License</a>
+  <a href="#ph3-settings">3.3 Clinic Settings</a>
+  <a href="#ph3-sync">3.4 Test Cloud Sync</a>
+
+  <div class="toc-section">Phase 4 — Local Server</div>
+  <a href="#ph4-node">4.1 Install Node.js</a>
+  <a href="#ph4-server">4.2 Start Local Server</a>
+  <a href="#ph4-switch">4.3 Switch to Local Mode</a>
+  <a href="#ph4-usb">4.4 USB / Offline Setup</a>
+
+  <div class="toc-section">Phase 5 — Backup &amp; Restore</div>
+  <a href="#ph5-backup">5.1 Create a Backup</a>
+  <a href="#ph5-restore">5.2 Restore from Backup</a>
+
+  <div class="toc-section">Phase 6 — User Management</div>
+  <a href="#ph6-roles">6.1 User Roles</a>
+  <a href="#ph6-users">6.2 Add Staff Accounts</a>
+  <a href="#ph6-plans">6.3 Plan Features</a>
+
+  <div class="toc-section">Reference</div>
+  <a href="#troubleshooting">Troubleshooting</a>
+  <a href="#faq">FAQ</a>
+  <a href="#checklist">Go-Live Checklist</a>
+</nav>
+
+<!-- MAIN -->
+<main>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="version-badge">📄 Version 2.0 · June 2025</div>
+  <h1>Deployment Manual</h1>
+  <p>Complete step-by-step guide to deploying <strong>Cyrabell Dental MS</strong> — from Google account setup through live clinic use. Covers cloud deployment via GitHub Pages, local/offline server mode, backup tools, user roles, and plan licensing.</p>
+</div>
+
+<!-- ═══════════════════════════════════════ OVERVIEW ═══ -->
+<section id="overview">
+<h2>System Overview</h2>
+<p>Cyrabell Dental MS is a <strong>single-file web application</strong> that works with two backend modes:</p>
+<table>
+  <tr><th>Mode</th><th>Backend</th><th>Best For</th></tr>
+  <tr><td><strong>☁️ Cloud</strong></td><td>Google Apps Script + Google Sheets</td><td>Multiple devices, anywhere access, no PC required 24/7</td></tr>
+  <tr><td><strong>🖥️ Local</strong></td><td>Node.js server on your PC or USB</td><td>Offline clinics, no internet dependency, fast performance</td></tr>
+</table>
+<p>The app can switch between modes at any time from the <strong>Settings → Sync</strong> page without losing data.</p>
+
+<div class="filetree">
+<span class="dir">CYRABELL_DentalMS/</span>
+├── <span class="file">cyrabelldental_v2.html</span>   <span class="comment">← Main application (open this in browser)</span>
+├── <span class="file">backup-tool.html</span>          <span class="comment">← Backup &amp; restore utility</span>
+├── <span class="file">cyrabell-presentation.html</span> <span class="comment">← Sales/marketing presentation</span>
+├── <span class="dir">local-server/</span>
+│   ├── <span class="file">server.js</span>             <span class="comment">← Node.js local backend</span>
+│   └── <span class="file">package.json</span>
+├── <span class="file">APPS_SCRIPT_GEMINI_OCR.js</span>  <span class="comment">← Paste into Google Apps Script</span>
+└── <span class="file">APPS_SCRIPT_DRIVE_UPLOAD.js</span> <span class="comment">← Paste into Google Apps Script</span>
+</div>
+</section>
+
+<!-- ═══ PREREQUISITES ═══ -->
+<section id="prerequisites">
+<h2>Prerequisites</h2>
+<table>
+  <tr><th>Item</th><th>Required For</th><th>Where to Get</th></tr>
+  <tr><td>Google Account (Gmail)</td><td>Cloud mode</td><td>google.com</td></tr>
+  <tr><td>GitHub Account</td><td>Hosting the app</td><td>github.com — free</td></tr>
+  <tr><td>Gemini API Key</td><td>AI Assistant &amp; OCR scanning</td><td>aistudio.google.com</td></tr>
+  <tr><td>Node.js v18+</td><td>Local server mode only</td><td>nodejs.org</td></tr>
+  <tr><td>Modern browser (Chrome recommended)</td><td>All modes</td><td>Already installed</td></tr>
+</table>
+</section>
+
+<!-- ═══ ARCHITECTURE ═══ -->
+<section id="architecture">
+<h2>Architecture Diagram</h2>
+<pre><code>  Browser (cyrabelldental_v2.html)
+       │
+       ├──[Cloud Mode]──► Google Apps Script (/exec URL)
+       │                        │
+       │                   Google Sheets (data store)
+       │                   Google Drive  (file uploads)
+       │                   Gemini API    (AI / OCR)
+       │
+       └──[Local Mode]──► Node.js server (localhost:3001)
+                               │
+                          /local-server/data/*.json
+                          /local-server/uploads/*</code></pre>
+</section>
+
+<!-- ═══════════════════════════════════════ PHASE 1 ═══ -->
+<div class="phase-header">
+  <div class="phase-num ph-1">1</div>
+  <h2 id="ph1-sheets" style="margin:0;padding:0;border:none;">Google Setup</h2>
+</div>
+
+<div class="step" id="ph1-sheets">
+  <span class="step-num">Step 1.1</span>
+  <h3>Create the Google Sheet</h3>
+  <p>This sheet is the database for the cloud deployment.</p>
+  <ol>
+    <li>Go to <a href="https://sheets.google.com" target="_blank">sheets.google.com</a> and click <strong>Blank spreadsheet</strong>.</li>
+    <li>Rename it: click "Untitled spreadsheet" at the top → type <strong>Cyrabell Dental MS</strong>.</li>
+    <li>Create the following tabs (click the <strong>+</strong> at the bottom for each):
+      <ul>
+        <li><code>patients</code></li>
+        <li><code>appointments</code></li>
+        <li><code>payments</code></li>
+        <li><code>notifications</code></li>
+        <li><code>reminders</code></li>
+        <li><code>reminderLog</code></li>
+        <li><code>services</code></li>
+        <li><code>serverLogs</code></li>
+      </ul>
+    </li>
+    <li>Copy the URL from your browser — you will need the <strong>Spreadsheet ID</strong> (the long string between <code>/d/</code> and <code>/edit</code>).</li>
+  </ol>
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <p>The tab names are case-sensitive. Make sure they match exactly as listed above.</p>
+  </div>
+</div>
+
+<div class="step" id="ph1-apps-script">
+  <span class="step-num">Step 1.2</span>
+  <h3>Deploy the Apps Script Backend</h3>
+  <ol>
+    <li>In your Google Sheet, click <strong>Extensions → Apps Script</strong>. A new tab opens.</li>
+    <li>Delete all default code in the editor.</li>
+    <li>Open the file <code>APPS_SCRIPT_GEMINI_OCR.js</code> from the Cyrabell folder and <strong>copy all its contents</strong>.</li>
+    <li>Paste it into the Apps Script editor.</li>
+    <li>Find the line near the top:
+<pre><code>const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';</code></pre>
+      Replace <code>YOUR_SPREADSHEET_ID_HERE</code> with the ID you copied in Step 1.1.
+    </li>
+    <li>Click the 💾 <strong>Save</strong> icon (or Ctrl+S).</li>
+    <li>Click <strong>Deploy → New deployment</strong>.</li>
+    <li>Click the gear ⚙️ next to "Select type" → choose <strong>Web app</strong>.</li>
+    <li>Fill in:
+      <ul>
+        <li><strong>Description:</strong> Cyrabell Dental MS v1</li>
+        <li><strong>Execute as:</strong> Me</li>
+        <li><strong>Who has access:</strong> Anyone</li>
+      </ul>
+    </li>
+    <li>Click <strong>Deploy</strong>. Google will ask you to authorize — click <strong>Authorize access</strong> and follow the prompts.</li>
+    <li>Copy the <strong>Web app URL</strong> that appears — it looks like:<br/>
+      <code>https://script.google.com/macros/s/AKfycb.../exec</code><br/>
+      <strong>Save this URL — you will need it in Phase 2.</strong>
+    </li>
+  </ol>
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <p>Every time you edit the Apps Script code you must create a <strong>New Deployment</strong> (not "Manage deployments") to get an updated URL. The old URL will stop working.</p>
+  </div>
+</div>
+
+<div class="step" id="ph1-drive">
+  <span class="step-num">Step 1.3</span>
+  <h3>Add the Drive Upload Script (for photo/file uploads)</h3>
+  <ol>
+    <li>In Apps Script, click <strong>+</strong> next to "Files" on the left panel → <strong>Script</strong>.</li>
+    <li>Name the new file <code>DriveUpload</code>.</li>
+    <li>Open <code>APPS_SCRIPT_DRIVE_UPLOAD.js</code> from the Cyrabell folder, copy all its contents, and paste into the new script file.</li>
+    <li>Save. The function is automatically available to the main script — no re-deployment needed for this step.</li>
+  </ol>
+</div>
+
+<div class="step" id="ph1-gemini">
+  <span class="step-num">Step 1.4</span>
+  <h3>Get Your Gemini API Key <span class="badge required">Required for AI + OCR</span></h3>
+  <ol>
+    <li>Go to <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>.</li>
+    <li>Click <strong>Create API key</strong> → select your Google project → <strong>Create API key in existing project</strong>.</li>
+    <li>Copy the API key (starts with <code>AIza...</code>).</li>
+    <li>In your app, go to <strong>Settings → Sync</strong> → scroll to the <em>Gemini API Key</em> card.</li>
+    <li>Paste the key and click <strong>☁️ Save to Server</strong>. The key is stored securely in Google's PropertiesService — it is never visible in the browser after saving.</li>
+    <li>Click <strong>🗑 Clear Local Copy</strong> to remove it from your device.</li>
+  </ol>
+  <div class="callout info">
+    <div class="callout-icon">🔒</div>
+    <p>The Gemini key is stored server-side only. The app only receives a <code>true/false</code> confirmation that a key exists — the actual key is never sent back to the browser.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ PHASE 2 ═══ -->
+<div class="phase-header">
+  <div class="phase-num ph-2">2</div>
+  <h2 id="ph2-github" style="margin:0;padding:0;border:none;">App Deployment (GitHub Pages)</h2>
+</div>
+
+<div class="step" id="ph2-github">
+  <span class="step-num">Step 2.1</span>
+  <h3>Upload the App to GitHub</h3>
+  <ol>
+    <li>Log in to <a href="https://github.com" target="_blank">github.com</a>.</li>
+    <li>Click <strong>New repository</strong>. Name it e.g. <code>cyrabell-dental</code>. Set it to <strong>Public</strong>. Click <strong>Create repository</strong>.</li>
+    <li>On your computer, open a terminal in the Cyrabell folder and run:
+<pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>git init
+git add cyrabelldental_v2.html index.html
+git commit -m "Initial deploy"
+git branch -M main
+git remote add origin https://github.com/YOUR_USERNAME/cyrabell-dental.git
+git push -u origin main</code></pre>
+    </li>
+    <li>Replace <code>YOUR_USERNAME</code> with your GitHub username.</li>
+  </ol>
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <p>Only push <code>cyrabelldental_v2.html</code> and <code>index.html</code>. Do NOT push <code>local-server/</code> or any file containing API keys.</p>
+  </div>
+</div>
+
+<div class="step" id="ph2-pages">
+  <span class="step-num">Step 2.2</span>
+  <h3>Enable GitHub Pages</h3>
+  <ol>
+    <li>In your GitHub repository, click <strong>Settings</strong> (top menu).</li>
+    <li>Click <strong>Pages</strong> in the left sidebar.</li>
+    <li>Under <em>Source</em>, select <strong>Deploy from a branch</strong>.</li>
+    <li>Set branch to <strong>main</strong>, folder to <strong>/ (root)</strong>. Click <strong>Save</strong>.</li>
+    <li>Wait 1–2 minutes. Refresh the page. Your site URL will appear:<br/>
+      <code>https://YOUR_USERNAME.github.io/cyrabell-dental/cyrabelldental_v2.html</code>
+    </li>
+    <li>Open this URL in your browser to confirm the app loads.</li>
+  </ol>
+  <div class="callout success">
+    <div class="callout-icon">✅</div>
+    <p>GitHub Pages is free and serves the app over HTTPS. Bookmark this URL — share it with all clinic staff for access on any device.</p>
+  </div>
+</div>
+
+<div class="step" id="ph2-config">
+  <span class="step-num">Step 2.3</span>
+  <h3>Bake the GAS URL Into the App (Zero-Config for Staff)</h3>
+  <p>This optional step means staff never need to type the GAS URL — it's pre-filled automatically.</p>
+  <ol>
+    <li>Open <code>cyrabelldental_v2.html</code> in a text editor.</li>
+    <li>Search for <code>APP_DEFAULTS</code> (around line 3388).</li>
+    <li>Find this line:
+<pre><code>GAS_URL: '',  // ← paste your Apps Script /exec URL here</code></pre>
+    </li>
+    <li>Paste your Apps Script URL between the quotes:
+<pre><code>GAS_URL: 'https://script.google.com/macros/s/AKfycb.../exec',</code></pre>
+    </li>
+    <li>Save the file, commit, and push to GitHub:
+<pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>git add cyrabelldental_v2.html
+git commit -m "Set default GAS URL"
+git push</code></pre>
+    </li>
+  </ol>
+  <p>After this, any device that opens the GitHub Pages URL will have the GAS URL pre-filled in Settings.</p>
+</div>
+
+<!-- ═══════════════════════════════════════ PHASE 3 ═══ -->
+<div class="phase-header">
+  <div class="phase-num ph-3">3</div>
+  <h2 id="ph3-login" style="margin:0;padding:0;border:none;">First Launch</h2>
+</div>
+
+<div class="step" id="ph3-login">
+  <span class="step-num">Step 3.1</span>
+  <h3>First Login</h3>
+  <ol>
+    <li>Open the app URL in Chrome.</li>
+    <li>The login screen will appear. Default credentials:
+      <table>
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td>Username</td><td><code>admin</code></td></tr>
+        <tr><td>Password</td><td><code>admin123</code></td></tr>
+        <tr><td>Role</td><td>Administrator</td></tr>
+      </table>
+    </li>
+    <li>Click <strong>Login</strong>.</li>
+  </ol>
+  <div class="callout danger">
+    <div class="callout-icon">🔴</div>
+    <p>Change the default password immediately after first login. Go to Settings → Users → Edit your account.</p>
+  </div>
+</div>
+
+<div class="step" id="ph3-license">
+  <span class="step-num">Step 3.2</span>
+  <h3>Activate Your License</h3>
+  <ol>
+    <li>Go to <strong>Settings → Sync</strong> (gear icon in the sidebar).</li>
+    <li>Scroll to the <strong>License &amp; Plan</strong> card.</li>
+    <li>Enter your <strong>Clinic Name</strong> and <strong>License Key</strong> (provided by NexArch).</li>
+    <li>Click <strong>Activate License</strong>.</li>
+    <li>The plan badge in the sidebar will update to show your plan (Starter / Professional / Clinic Pro).</li>
+  </ol>
+  <table>
+    <tr><th>License Key Format</th><th>Plan Activated</th></tr>
+    <tr><td><code>CYRABELL-XXXXX-XXXXX-STARTER</code></td><td>Starter (₱599/mo)</td></tr>
+    <tr><td><code>CYRABELL-XXXXX-XXXXX-PROFESSIONAL</code></td><td>Professional (₱1,299/mo)</td></tr>
+    <tr><td><code>CYRABELL-XXXXX-XXXXX-CLINICPRO</code></td><td>Clinic Pro (₱1,999/mo)</td></tr>
+  </table>
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <p>Without a license key, the app runs in <strong>Starter</strong> mode (500 patients, 1 user, basic features). Contact <a href="mailto:hello@nexarch.dev">hello@nexarch.dev</a> to purchase a license.</p>
+  </div>
+</div>
+
+<div class="step" id="ph3-settings">
+  <span class="step-num">Step 3.3</span>
+  <h3>Configure Clinic Settings</h3>
+  <ol>
+    <li>Go to <strong>Settings → Clinic Info</strong>.</li>
+    <li>Fill in: Clinic Name, Address, Phone, Email, Operating Hours, Logo.</li>
+    <li>Go to <strong>Settings → Services</strong> → add your dental services with pricing (e.g., Cleaning ₱500, Extraction ₱800).</li>
+    <li>Go to <strong>Settings → Reminders</strong> → configure which reminder types are active and their timing (e.g., 24 hours before appointment).</li>
+  </ol>
+</div>
+
+<div class="step" id="ph3-sync">
+  <span class="step-num">Step 3.4</span>
+  <h3>Test Cloud Sync</h3>
+  <ol>
+    <li>Go to <strong>Settings → Sync</strong>.</li>
+    <li>Confirm the GAS URL is filled in. If not, paste your Apps Script URL and click <strong>Save</strong>.</li>
+    <li>Click <strong>🔄 Test Connection</strong>. You should see a green ✅ "Connected" message.</li>
+    <li>Add a test patient (Patients → Add Patient).</li>
+    <li>Click <strong>⬆️ Push to Cloud</strong> (in the Sync card).</li>
+    <li>Open your Google Sheet → check the <code>patients</code> tab — your test patient should appear.</li>
+  </ol>
+  <div class="callout success">
+    <div class="callout-icon">✅</div>
+    <p>If the patient appears in the Sheet, cloud sync is working correctly.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ PHASE 4 ═══ -->
+<div class="phase-header">
+  <div class="phase-num ph-4">4</div>
+  <h2 id="ph4-node" style="margin:0;padding:0;border:none;">Local Server Setup</h2>
+</div>
+
+<p>The local server lets you run Cyrabell entirely on your clinic PC or USB drive — no internet required after initial setup.</p>
+
+<div class="step" id="ph4-node">
+  <span class="step-num">Step 4.1</span>
+  <h3>Install Node.js</h3>
+  <ol>
+    <li>Go to <a href="https://nodejs.org" target="_blank">nodejs.org</a> and download the <strong>LTS version</strong> (e.g., v20).</li>
+    <li>Run the installer. Accept all defaults.</li>
+    <li>Verify installation — open Command Prompt (Windows) or Terminal (Mac/Linux):
+<pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>node --version
+npm --version</code></pre>
+      Both commands should print a version number (e.g., <code>v20.11.0</code>).
+    </li>
+  </ol>
+</div>
+
+<div class="step" id="ph4-server">
+  <span class="step-num">Step 4.2</span>
+  <h3>Start the Local Server</h3>
+  <ol>
+    <li>Open Command Prompt / Terminal.</li>
+    <li>Navigate to the <code>local-server</code> folder:
+<pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>cd C:\cyrabell\local-server</code></pre>
+      (Adjust the path to where you saved the Cyrabell folder.)
+    </li>
+    <li>Install dependencies (first time only):
+<pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>npm install</code></pre>
+    </li>
+    <li>Start the server:
+<pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>npm start</code></pre>
+      You should see:
+<pre><code>╔══════════════════════════════════════════════════════╗
+║       Cyrabell Dental MS — Local Server              ║
+╚══════════════════════════════════════════════════════╝
+
+  URL  : http://localhost:3001
+  Data : C:\cyrabell\local-server\data
+  Files: C:\cyrabell\local-server\uploads</code></pre>
+    </li>
+    <li>Leave this terminal window open while using the app.</li>
+  </ol>
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <p>To use a different port: <code>PORT=8080 npm start</code> (Mac/Linux) or set the PORT environment variable before running on Windows.</p>
+  </div>
+</div>
+
+<div class="step" id="ph4-switch">
+  <span class="step-num">Step 4.3</span>
+  <h3>Switch the App to Local Mode</h3>
+  <ol>
+    <li>Open <code>cyrabelldental_v2.html</code> directly in Chrome (double-click the file, or drag it into the browser).</li>
+    <li>Go to <strong>Settings → Sync</strong>.</li>
+    <li>Click the <strong>🖥️ Local Server</strong> toggle button.</li>
+    <li>The URL field will be pre-filled with <code>http://localhost:3001</code>. Click <strong>Save</strong>.</li>
+    <li>Click <strong>🔄 Test Connection</strong> → should show ✅ "Local server connected".</li>
+    <li>Click <strong>⬆️ Push to Local</strong> to sync all existing data to the local server.</li>
+  </ol>
+</div>
+
+<div class="step" id="ph4-usb">
+  <span class="step-num">Step 4.4</span>
+  <h3>USB / Fully Offline Setup</h3>
+  <p>To run Cyrabell from a USB drive with no internet at all:</p>
+  <ol>
+    <li>Copy the entire <code>CYRABELL_DentalMS</code> folder onto your USB drive.</li>
+    <li>On the USB, create a file called <strong><code>START_CYRABELL.bat</code></strong> (Windows) with this content:
+<pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>@echo off
+cd /d "%~dp0local-server"
+start "" cmd /k "npm start"
+timeout /t 3
+start "" "%~dp0cyrabelldental_v2.html"</code></pre>
+    </li>
+    <li>Double-clicking <code>START_CYRABELL.bat</code> will start the local server AND open the app in the browser automatically.</li>
+    <li>All data is stored in <code>local-server/data/</code> on the USB.</li>
+  </ol>
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <p>Node.js must be installed on the clinic PC even for USB mode. It does not run from the USB itself.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ PHASE 5 ═══ -->
+<div class="phase-header">
+  <div class="phase-num ph-5">5</div>
+  <h2 id="ph5-backup" style="margin:0;padding:0;border:none;">Backup &amp; Restore</h2>
+</div>
+
+<div class="step" id="ph5-backup">
+  <span class="step-num">Step 5.1</span>
+  <h3>Create a Backup</h3>
+  <ol>
+    <li>Open <code>backup-tool.html</code> in your browser.</li>
+    <li><strong>Step 1 — Connect:</strong> Enter your GAS URL and click <strong>Test Connection</strong>.</li>
+    <li><strong>Step 2 — Download:</strong> Click <strong>Download Backup ZIP</strong>. This downloads all patient records, appointments, payments, and uploaded photos into a single <code>cyrabell-backup-YYYY-MM-DD.zip</code> file.</li>
+    <li>Store the ZIP file in a safe place (Google Drive, external hard drive, email to yourself).</li>
+  </ol>
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <p>Schedule weekly backups — every Friday before closing. Keep at least 4 weeks of backups.</p>
+  </div>
+</div>
+
+<div class="step" id="ph5-restore">
+  <span class="step-num">Step 5.2</span>
+  <h3>Restore from a Backup</h3>
+  <ol>
+    <li>Open <code>backup-tool.html</code>.</li>
+    <li>Scroll to <strong>Step 4 — Restore</strong>.</li>
+    <li>Drag and drop your backup ZIP file into the drop zone.</li>
+    <li>Click <strong>Push to Server</strong>. All data from the backup will be written back to the server.</li>
+  </ol>
+  <div class="callout danger">
+    <div class="callout-icon">🔴</div>
+    <p>Restore <strong>overwrites all current data</strong> on the server. Only restore if you are certain — there is no undo.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ PHASE 6 ═══ -->
+<div class="phase-header">
+  <div class="phase-num ph-6">6</div>
+  <h2 id="ph6-roles" style="margin:0;padding:0;border:none;">User Management</h2>
+</div>
+
+<div class="step" id="ph6-roles">
+  <span class="step-num">Step 6.1</span>
+  <h3>User Roles &amp; Permissions</h3>
+  <table>
+    <tr><th>Permission</th><th>Administrator</th><th>Dentist</th><th>Receptionist</th></tr>
+    <tr><td>View &amp; add patients</td><td>✅</td><td>✅</td><td>✅</td></tr>
+    <tr><td>Delete patients</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td>Manage appointments</td><td>✅</td><td>✅</td><td>✅</td></tr>
+    <tr><td>Record payments</td><td>✅</td><td>✅</td><td>✅</td></tr>
+    <tr><td>Export data</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td>Analytics dashboard</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td>AI Assistant</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td>Kiosk Mode</td><td>✅</td><td>✅</td><td>✅</td></tr>
+    <tr><td>Edit services/pricing</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td>Sync &amp; server settings</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td>Manage users</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td>Manage license</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td>View server logs</td><td>✅</td><td>❌</td><td>❌</td></tr>
+  </table>
+</div>
+
+<div class="step" id="ph6-users">
+  <span class="step-num">Step 6.2</span>
+  <h3>Add Staff Accounts</h3>
+  <ol>
+    <li>Log in as <strong>Administrator</strong>.</li>
+    <li>Go to <strong>Settings → Users</strong>.</li>
+    <li>Click <strong>Add User</strong>.</li>
+    <li>Fill in: Name, Username, Password, Role (Administrator / Dentist / Receptionist).</li>
+    <li>Click <strong>Save</strong>.</li>
+    <li>Share the username and password with the staff member. They log in at the same app URL.</li>
+  </ol>
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <p>User accounts are stored in <code>localStorage</code> on the device. If staff use different devices, you may need to add accounts on each device, or sync users via the cloud push/pull feature.</p>
+  </div>
+</div>
+
+<div class="step" id="ph6-plans">
+  <span class="step-num">Step 6.3</span>
+  <h3>Plan Feature Summary</h3>
+  <table>
+    <tr><th>Feature</th><th>Starter ₱599</th><th>Professional ₱1,299</th><th>Clinic Pro ₱1,999</th></tr>
+    <tr><td>Patient records</td><td>500</td><td>Unlimited</td><td>Unlimited</td></tr>
+    <tr><td>Staff users</td><td>1</td><td>2</td><td>Unlimited</td></tr>
+    <tr><td>Reminder channels</td><td>Email, SMS, WhatsApp</td><td>All 5 incl. Viber &amp; Messenger</td><td>All 5</td></tr>
+    <tr><td>Reminder types</td><td>3 (Cleaning, Checkup, Custom)</td><td>All 9</td><td>All 9</td></tr>
+    <tr><td>AI Assistant</td><td>❌</td><td>✅</td><td>✅</td></tr>
+    <tr><td>Kiosk Mode</td><td>❌</td><td>✅</td><td>✅</td></tr>
+    <tr><td>Advanced analytics</td><td>❌</td><td>✅</td><td>✅</td></tr>
+    <tr><td>Multi-dentist scheduling</td><td>❌</td><td>❌</td><td>✅</td></tr>
+    <tr><td>Custom branding</td><td>❌</td><td>❌</td><td>✅</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════ TROUBLESHOOTING ═══ -->
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3>❌ "Test Connection" fails</h3>
+<ul>
+  <li>Double-check the GAS URL is correct (no extra spaces, ends with <code>/exec</code>).</li>
+  <li>In Apps Script → Deployments, verify <em>Who has access</em> is set to <strong>Anyone</strong>.</li>
+  <li>Try opening the GAS URL directly in the browser — you should see a JSON response.</li>
+</ul>
+
+<h3>❌ Push/Pull shows no data in Google Sheet</h3>
+<ul>
+  <li>Verify all 8 Sheet tabs exist with exact names (lowercase, no spaces).</li>
+  <li>Check the Apps Script <em>Executions</em> log for errors: Apps Script → Executions.</li>
+  <li>Make sure you created a <em>New Deployment</em> after any code changes.</li>
+</ul>
+
+<h3>❌ AI Assistant says "No API key"</h3>
+<ul>
+  <li>Go to Settings → Sync → Gemini API Key card.</li>
+  <li>Re-enter the key and click <strong>☁️ Save to Server</strong>.</li>
+  <li>If on local mode, the key is stored in <code>local-server/data/_config.json</code>.</li>
+</ul>
+
+<h3>❌ Local server — "Cannot connect to localhost:3001"</h3>
+<ul>
+  <li>Make sure the terminal running <code>npm start</code> is still open and shows no errors.</li>
+  <li>Try <code>http://127.0.0.1:3001</code> instead of <code>localhost:3001</code> in the Sync URL field.</li>
+  <li>Check if another program is using port 3001: run <code>netstat -an | find "3001"</code> (Windows).</li>
+  <li>Start on a different port: <code>PORT=8080 npm start</code> and update the Sync URL to match.</li>
+</ul>
+
+<h3>❌ Photos not loading after switching modes</h3>
+<ul>
+  <li>Cloud photos are stored in Google Drive — they only work in Cloud mode.</li>
+  <li>Local photos are stored in <code>uploads/</code> — they only work in Local mode.</li>
+  <li>Use the backup tool to migrate photos between modes.</li>
+</ul>
+
+<h3>❌ "Unverified" login / can't log in</h3>
+<ul>
+  <li>Default credentials are <code>admin</code> / <code>admin123</code>. Try these first.</li>
+  <li>If locked out, open browser DevTools (F12) → Console → type:<br/>
+    <code>localStorage.removeItem('cyrabell_users'); location.reload();</code><br/>
+    This resets users to default. <strong>Warning: this removes all custom user accounts.</strong>
+  </li>
+</ul>
+
+<!-- ═══ FAQ ═══ -->
+<h2 id="faq">Frequently Asked Questions</h2>
+
+<h4>Can multiple staff use the app at the same time?</h4>
+<p>Yes, if they are all using the <strong>cloud (GitHub Pages)</strong> URL. Each staff member opens the URL in their own browser. Data is synced through Google Sheets. In local mode, only one device can use the server at a time (unless you configure network access).</p>
+
+<h4>Does the app work on mobile phones / tablets?</h4>
+<p>Yes. The app is mobile-responsive. Use the GitHub Pages URL in Safari (iPhone) or Chrome (Android). Kiosk Mode is specifically designed for tablets.</p>
+
+<h4>How do I update the app when a new version is released?</h4>
+<p>Download the new <code>cyrabelldental_v2.html</code>, replace the old file in your repository, and push to GitHub. Re-paste your <code>APP_DEFAULTS.GAS_URL</code> if you set it. Your data in Google Sheets is not affected.</p>
+
+<h4>Can I change the clinic name shown inside the app?</h4>
+<p>Yes — go to Settings → Clinic Info → update the Clinic Name field. On Clinic Pro, you can also upload a custom logo.</p>
+
+<h4>What happens if I exceed the 500-patient limit on Starter?</h4>
+<p>The app will show a warning and block adding new patients. Existing data is not affected. Upgrade to Professional to remove the limit.</p>
+
+<h4>How do I set up Viber or Messenger reminders?</h4>
+<p>Viber and Messenger channels require <strong>Professional or Clinic Pro</strong> plan. Once unlocked, go to Settings → Reminders → enable the channels and enter the required credentials (Viber Business API token, Facebook Page Access Token).</p>
+
+<!-- ═══ CHECKLIST ═══ -->
+<h2 id="checklist">Go-Live Checklist</h2>
+<p>Use this checklist to confirm everything is set up before going live with patients.</p>
+
+<ul class="checklist">
+  <li>Google Sheet created with all 8 tabs</li>
+  <li>Apps Script deployed as Web app (access: Anyone)</li>
+  <li>GAS URL saved in the app Settings → Sync</li>
+  <li>Test Connection shows ✅ Connected</li>
+  <li>Gemini API key saved to server (AI/OCR functions)</li>
+  <li>App accessible via GitHub Pages URL</li>
+  <li>APP_DEFAULTS.GAS_URL baked in (optional but recommended)</li>
+  <li>License key activated (plan badge shows in sidebar)</li>
+  <li>Clinic name, address, phone set in Settings → Clinic Info</li>
+  <li>Services catalog populated with prices</li>
+  <li>Default admin password changed</li>
+  <li>Staff user accounts created with correct roles</li>
+  <li>Reminder channels tested (send test email/SMS)</li>
+  <li>Test patient added and synced to Google Sheet</li>
+  <li>First backup created with backup-tool.html</li>
+  <li>(Optional) Local server tested with START_CYRABELL.bat</li>
+</ul>
+
+<hr/>
+<footer>
+  <p>Cyrabell Dental MS · Deployment Manual v2.0 · June 2025</p>
+  <p style="margin-top:6px;">Developed by <strong>NexArch</strong> · <a href="mailto:hello@nexarch.dev">hello@nexarch.dev</a> · <a href="https://nexarch.dev">nexarch.dev</a></p>
+</footer>
+
+</main>
+
+<script>
+// Copy code button
+function copyCode(btn){
+  const code = btn.nextElementSibling.textContent;
+  navigator.clipboard.writeText(code).then(()=>{
+    btn.textContent='Copied!';
+    btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('copied');},2000);
+  });
+}
+
+// Active TOC highlighting
+const sections = document.querySelectorAll('section[id], div[id], h2[id], h3[id]');
+const links    = document.querySelectorAll('#toc a');
+const obs = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      links.forEach(l=>l.classList.remove('active'));
+      const active = document.querySelector('#toc a[href="#'+e.target.id+'"]');
+      if(active) active.classList.add('active');
+    }
+  });
+},{rootMargin:'-20% 0px -70% 0px'});
+document.querySelectorAll('[id]').forEach(el=>obs.observe(el));
+</script>
+</body>
+</html>
