@@ -1814,19 +1814,19 @@ th:hover .sort-icon{opacity:.9}
 }
 .nexarch-badge:hover{opacity:1}
 .nexarch-badge span{
-  font-size:11px;color:rgba(255,255,255,.6);
+  font-size:13px;color:rgba(255,255,255,.6);
   letter-spacing:.3px;
 }
 .nexarch-badge strong{
   color:var(--tl);font-weight:700;
 }
 .nexarch-logo-sm{
-  width:24px;height:24px;
+  width:48px;height:48px;
   object-fit:contain;
   filter:drop-shadow(0 0 4px rgba(0,200,255,.5));
 }
 .nexarch-logo-xs{
-  width:16px;height:16px;
+  width:28px;height:28px;
   object-fit:contain;
   filter:drop-shadow(0 0 3px rgba(0,200,255,.5));
 }
@@ -12647,7 +12647,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
           ),
           // NexArch power badge
           h('div',{className:'nexarch-sb-badge'},
-            h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',style:{width:24,height:24,objectFit:'contain',borderRadius:4}}),
+            h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',style:{width:44,height:44,objectFit:'contain',borderRadius:4}}),
             h('span',null,'Powered by CYRABELL')
           )
         )
