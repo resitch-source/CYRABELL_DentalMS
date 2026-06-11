@@ -9910,7 +9910,7 @@ function Patients({patients,setPatients,appointments,setAppointments,payments,se
             status: 'completed',
             notes: S(appt.notes) || '',
             fee: parseFloat(appt.fee) || 0,
-            dentist: '',
+            dentist: 'Dr. Arnold Colao',
             phone: S(data.phone) || '',
             email: S(data.email) || '',
             arrived: true,
@@ -11776,7 +11776,7 @@ function ApptForm({patients,appointments,onClose,onSave,onAddPatient,syncUrl,add
     ),
     h('div',{className:'fg2'},
       h(Field,{label:'Date *'},h('input',{type:'date',value:f.date,onChange:e=>s('date',e.target.value),min:localToday()})),
-      h(Field,{label:'Dentist'},h('select',{value:f.dentist,onChange:e=>s('dentist',e.target.value)},DENTISTS.map(d=>h('option',{key:d},d))))
+      h(Field,{label:'Dentist'},h('input',{type:'text',value:'Dr. Arnold Colao',readOnly:true,style:{background:'var(--bg3)',color:'var(--md)',cursor:'default'}}))
     ),
     h(Field,{label:'Time'+(f.service?' · '+(SERVICE_DURATIONS[f.service]||DEFAULT_SLOT_MIN)+' min slot':'')},
       h(TimeSlotGrid,{
@@ -13370,9 +13370,7 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
             onChange:e=>ss('date',e.target.value)})
         ),
         h(Field,{label:'Dentist'},
-          h('select',{value:sched.dentist,onChange:e=>ss('dentist',e.target.value)},
-            DENTISTS.map(d=>h('option',{key:d},d))
-          )
+          h('input',{type:'text',value:'Dr. Arnold Colao',readOnly:true,style:{background:'var(--bg3)',color:'var(--md)',cursor:'default'}})
         )
       ),
 
