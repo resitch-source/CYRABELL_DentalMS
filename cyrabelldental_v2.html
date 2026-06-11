@@ -4827,7 +4827,7 @@ function aiScheduleInsights(appointments) {
   // Most common service this month
   const thisMonth = appointments.filter(a => a.date && a.date.startsWith(today.substring(0,7)));
   const svcCount = {};
-  thisMonth.forEach(a => { svcCount[a.service] = (svcCount[a.service]||0) + 1; });
+  thisMonth.forEach(a => { svcList(a).forEach(sv => { svcCount[sv] = (svcCount[sv]||0) + 1; }); });
   const topService = Object.entries(svcCount).sort((a,b)=>b[1]-a[1])[0];
   if (topService) {
     insights.push({
@@ -5537,7 +5537,7 @@ function KioskMode({appointments,onCheckIn,onExit,addToast}){
                   h('div',{className:'kiosk-pname'},a.patientName),
                   h('div',{className:'kiosk-pdetails'},
                     h('span',null,'🕐 '+a.time),
-                    h('span',null,'• '+a.service),
+                    h('span',null,'• '+svcStr(a)),
                     h('span',null,'• '+a.dentist)
                   )
                 ),
@@ -5562,7 +5562,7 @@ function KioskMode({appointments,onCheckIn,onExit,addToast}){
 
         h('div',{className:'kiosk-success-card'},
           h('div',{className:'kiosk-confirm-info'},
-            h('div',{className:'row'},h('span',null,'Appointment'),h('span',null,picked.service)),
+            h('div',{className:'row'},h('span',null,'Appointment'),h('span',null,svcStr(picked))),
             h('div',{className:'row'},h('span',null,'Time'),h('span',null,picked.time)),
             h('div',{className:'row'},h('span',null,'Dentist'),h('span',null,picked.dentist))
           )
@@ -5583,7 +5583,7 @@ function KioskMode({appointments,onCheckIn,onExit,addToast}){
         h('div',{className:'kiosk-confirm-title'},'Confirm Check-In'),
         h('div',{className:'kiosk-confirm-name'},picked.patientName),
         h('div',{className:'kiosk-confirm-info'},
-          h('div',{className:'row'},h('span',null,'Service'),h('span',null,picked.service)),
+          h('div',{className:'row'},h('span',null,'Service'),h('span',null,svcStr(picked))),
           h('div',{className:'row'},h('span',null,'Time'),h('span',null,picked.time)),
           h('div',{className:'row'},h('span',null,'Dentist'),h('span',null,picked.dentist))
         ),
@@ -8757,14 +8757,14 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
     tab==='dental'&&h(DentalChart3D,{teethData,onToothEdit}),
     tab==='appointments'&&(appts.length===0?h('div',{className:'empty'},'No appointments'):
       h('div',{style:{display:'flex',flexDirection:'column',gap:10}},appts.map(a=>h('div',{key:a.id,className:'mc'},
-        h('div',{className:'mc-top'},h('div',{className:'mc-nm'},a.service),h(SBadge,{status:a.status})),
+        h('div',{className:'mc-top'},h('div',{className:'mc-nm'},svcStr(a)),h(SBadge,{status:a.status})),
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Date'),h('span',{className:'mc-val'},a.date)),
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Dentist'),h('span',{className:'mc-val'},a.dentist))
       )))
     ),
     tab==='payments'&&(pays.length===0?h('div',{className:'empty'},'No payments'):
       h('div',{style:{display:'flex',flexDirection:'column',gap:10}},pays.map(p=>h('div',{key:p.id,className:'mc'},
-        h('div',{className:'mc-top'},h('div',{className:'mc-nm'},p.service),h(SBadge,{status:p.status})),
+        h('div',{className:'mc-top'},h('div',{className:'mc-nm'},svcStr(p)),h(SBadge,{status:p.status})),
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Amount'),h('span',{className:'mc-val',style:{color:'var(--t)',fontWeight:700}},'₱'+p$(p.amount))),
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Method'),h('span',{className:'mc-val'},p.method)),
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Date'),h('span',{className:'mc-val'},p.date))
@@ -9703,7 +9703,7 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
             h('button', {
               type: 'button', className: 'ocr-add-row-btn',
               onClick: () => ed('_appointments', [...(editData._appointments || []),
-                {date: localToday(), time: '09:00', service: '', notes: '', fee: ''}])
+                {date: localToday(), time: '09:00', services: [], service: '', notes: '', fee: ''}])
             }, '+ Add Row')
           ),
           (editData._appointments || []).length === 0
@@ -9712,7 +9712,7 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
                 h('div', {className: 'ocr-ledger-head ocr-appt-head'},
                   h('span', {className:'ocr-col-date'}, 'Date'),
                   h('span', {className:'ocr-col-time'}, 'Time'),
-                  h('span', {className:'ocr-col-svc'}, 'Service'),
+                  h('span', {className:'ocr-col-svc'}, 'Services'),
                   h('span', {className:'ocr-col-notes'}, 'Notes'),
                   h('span', {className:'ocr-col-fee'}, 'Fee (₱)'),
                   h('span', {className:'ocr-col-del'}, '')
@@ -9723,12 +9723,30 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
                       onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],date:e.target.value}; ed('_appointments',a); }}),
                     h('input', {type:'time', value: appt.time||'', className:'ocr-cell-input ocr-col-time',
                       onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],time:e.target.value}; ed('_appointments',a); }}),
-                    h('select', {value: appt.service||'', className:'ocr-cell-input ocr-col-svc',
-                      onChange: e => { const a=[...(editData._appointments||[])]; a[i]={...a[i],service:e.target.value}; ed('_appointments',a); }},
-                      h('option', {value:''}, '— select service —'),
-                      Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
-                        h('optgroup', {key:cat, label:cat},
-                          svcs.map(sv => h('option',{key:sv.name,value:sv.name}, sv.name))
+                    h('div', {className:'ocr-cell-input ocr-col-svc', style:{display:'flex',flexWrap:'wrap',gap:2,alignItems:'center',padding:'2px 3px',minHeight:28}},
+                      svcList(appt).map((sv,si)=>h('span',{key:si,className:'svc-tag',style:{fontSize:10,padding:'1px 5px 1px 6px'}},sv,
+                        h('button',{type:'button',onClick:()=>{
+                          const a=[...(editData._appointments||[])];
+                          const next=svcList(appt).filter(x=>x!==sv);
+                          const fee=next.reduce((sum,nm)=>{const x=getActiveSvcs().find(q=>q.name===nm);return sum+(x?+x.fee:0);},0);
+                          a[i]={...a[i],services:next,service:next[0]||'',fee:fee||a[i].fee};
+                          ed('_appointments',a);
+                        }},'×')
+                      )),
+                      h('select',{value:'',className:'svc-add-select',style:{fontSize:10,maxWidth:110},onChange:e=>{
+                        const n=e.target.value;if(!n)return;
+                        const a=[...(editData._appointments||[])];
+                        const cur=svcList(appt);if(cur.includes(n))return;
+                        const next=[...cur,n];
+                        const fee=next.reduce((sum,nm)=>{const x=getActiveSvcs().find(q=>q.name===nm);return sum+(x?+x.fee:0);},0);
+                        a[i]={...a[i],services:next,service:next[0]||'',fee};
+                        ed('_appointments',a);
+                      }},
+                        h('option',{value:''},svcList(appt).length?'＋ more…':'＋ service'),
+                        Object.entries(getActiveSvcsByCat()).map(([cat,svcs])=>
+                          h('optgroup',{key:cat,label:cat},
+                            svcs.map(sv=>h('option',{key:sv.name,value:sv.name},sv.name))
+                          )
                         )
                       )
                     ),
@@ -9753,7 +9771,7 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
             h('button', {
               type: 'button', className: 'ocr-add-row-btn',
               onClick: () => ed('_payments', [...(editData._payments || []),
-                {date: localToday(), service: '', debit: '', credit: '', balance: '', method: 'Cash', note: ''}])
+                {date: localToday(), services: [], service: '', debit: '', credit: '', balance: '', method: 'Cash', note: ''}])
             }, '+ Add Row')
           ),
           (editData._payments || []).length === 0
@@ -9761,7 +9779,7 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
             : h('div', {className: 'ocr-ledger-table'},
                 h('div', {className: 'ocr-ledger-head ocr-pay-head'},
                   h('span', {className:'ocr-col-date'}, 'Date'),
-                  h('span', {className:'ocr-col-svc'}, 'Service'),
+                  h('span', {className:'ocr-col-svc'}, 'Services'),
                   h('span', {className:'ocr-col-amt', style:{color:'var(--re)'}}, 'Debit (₱)'),
                   h('span', {className:'ocr-col-amt', style:{color:'#22c55e'}}, 'Credit (₱)'),
                   h('span', {className:'ocr-col-amt'}, 'Balance (₱)'),
@@ -9772,12 +9790,28 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
                   h('div', {key: i, className: 'ocr-ledger-row ocr-pay-head'},
                     h('input', {type:'date', value: pay.date||'', className:'ocr-cell-input ocr-col-date',
                       onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],date:e.target.value}; ed('_payments',a); }}),
-                    h('select', {value: pay.service||'', className:'ocr-cell-input ocr-col-svc',
-                      onChange: e => { const a=[...(editData._payments||[])]; a[i]={...a[i],service:e.target.value}; ed('_payments',a); }},
-                      h('option', {value:''}, '— select service —'),
-                      Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
-                        h('optgroup', {key:cat, label:cat},
-                          svcs.map(sv => h('option',{key:sv.name,value:sv.name}, sv.name))
+                    h('div', {className:'ocr-cell-input ocr-col-svc', style:{display:'flex',flexWrap:'wrap',gap:2,alignItems:'center',padding:'2px 3px',minHeight:28}},
+                      svcList(pay).map((sv,si)=>h('span',{key:si,className:'svc-tag',style:{fontSize:10,padding:'1px 5px 1px 6px'}},sv,
+                        h('button',{type:'button',onClick:()=>{
+                          const a=[...(editData._payments||[])];
+                          const next=svcList(pay).filter(x=>x!==sv);
+                          a[i]={...a[i],services:next,service:next[0]||''};
+                          ed('_payments',a);
+                        }},'×')
+                      )),
+                      h('select',{value:'',className:'svc-add-select',style:{fontSize:10,maxWidth:110},onChange:e=>{
+                        const n=e.target.value;if(!n)return;
+                        const a=[...(editData._payments||[])];
+                        const cur=svcList(pay);if(cur.includes(n))return;
+                        const next=[...cur,n];
+                        a[i]={...a[i],services:next,service:next[0]||''};
+                        ed('_payments',a);
+                      }},
+                        h('option',{value:''},svcList(pay).length?'＋ more…':'＋ service'),
+                        Object.entries(getActiveSvcsByCat()).map(([cat,svcs])=>
+                          h('optgroup',{key:cat,label:cat},
+                            svcs.map(sv=>h('option',{key:sv.name,value:sv.name},sv.name))
+                          )
                         )
                       )
                     ),
@@ -9936,7 +9970,8 @@ function Patients({patients,setPatients,appointments,setAppointments,payments,se
             id: newId,
             patientId,
             patientName: pname,
-            service: S(appt.service) || 'Dental Visit',
+            services: svcList(appt).length ? svcList(appt) : ['Dental Visit'],
+            service: svcList(appt)[0] || 'Dental Visit',
             date: appt.date,
             time: S(appt.time) || '09:00',
             status: 'completed',
@@ -9968,7 +10003,8 @@ function Patients({patients,setPatients,appointments,setAppointments,payments,se
             patientName: pname,
             amount: amount || 0,
             method: S(pay.method) || 'Cash',
-            service: S(pay.service) || 'Dental Visit',
+            services: svcList(pay).length ? svcList(pay) : ['Dental Visit'],
+            service: svcList(pay)[0] || 'Dental Visit',
             date: S(pay.date) || localToday(),
             status: debit && !credit ? 'debit' : 'paid',
             ref: 'SCAN-' + newId,
@@ -10094,9 +10130,9 @@ function Patients({patients,setPatients,appointments,setAppointments,payments,se
 // ─── PAYMENTS ─────────────────────────────────────────────────────────────────
 // PayForm variant that accepts an optional prefill (used when paying from an appointment)
 function PayFormPrefilled({patients,prefill,onClose,onSave}){
-  const [f,setF]=useState(prefill||{patientId:'',patientName:'',service:'',amount:'',method:'Cash',date:localToday()});
+  const [f,setF]=useState({patientId:'',patientName:'',services:[],service:'',...(prefill||{}),amount:prefill?.amount||'',method:prefill?.method||'Cash',date:prefill?.date||localToday()});
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
-  const ok=f.patientId&&f.service&&f.amount;
+  const ok=f.patientId&&svcList(f).length>0&&f.amount;
   return h(Modal,{title:'Record Payment',sub:'Enter payment details',onClose,
     footer:h(Fragment,null,h('button',{className:'btn bgh',onClick:onClose},'Cancel'),h('button',{className:'btn bg2',onClick:()=>ok&&onSave(f),disabled:!ok},'Record'))},
     h(Field,{label:'Patient *'},
@@ -10111,11 +10147,31 @@ function PayFormPrefilled({patients,prefill,onClose,onSave}){
         }
       })
     ),
-    h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>{s('service',e.target.value);const sv=getActiveSvcs().find(x=>x.name===e.target.value);if(sv)s('amount',sv.fee);}},h('option',{value:''},'Select service…'),Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
-        h('optgroup', {key:cat, label:cat},
-          svcs.map(sv => h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
+    h(Field,{label:'Services *'},
+      h('div',{className:'svc-tags-wrap'},
+        svcList(f).map((sv,i)=>h('span',{key:i,className:'svc-tag'},sv,
+          h('button',{type:'button',onClick:()=>{
+            const next=svcList(f).filter(x=>x!==sv);
+            const amt=next.reduce((sum,nm)=>{const x=getActiveSvcs().find(a=>a.name===nm);return sum+(x?+x.fee:0);},0);
+            setF(x=>({...x,services:next,service:next[0]||'',amount:amt||x.amount}));
+          }},'×')
+        )),
+        h('select',{value:'',className:'svc-add-select',onChange:e=>{
+          const n=e.target.value;if(!n)return;
+          const cur=svcList(f);if(cur.includes(n))return;
+          const next=[...cur,n];
+          const amt=next.reduce((sum,nm)=>{const x=getActiveSvcs().find(a=>a.name===nm);return sum+(x?+x.fee:0);},0);
+          setF(x=>({...x,services:next,service:next[0]||'',amount:amt}));
+        }},
+          h('option',{value:''},'＋ Add service…'),
+          Object.entries(getActiveSvcsByCat()).map(([cat,svcs])=>
+            h('optgroup',{key:cat,label:cat},
+              svcs.map(sv=>h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
+            )
+          )
         )
-      ))),
+      )
+    ),
     h('div',{className:'fg2'},
       h(Field,{label:'Amount (₱)'},h('input',{type:'number',value:f.amount,onChange:e=>s('amount',+e.target.value),placeholder:'0'})),
       h(Field,{label:'Method'},h('select',{value:f.method,onChange:e=>s('method',e.target.value)},METHODS.map(m=>h('option',{key:m},m))))
@@ -10124,9 +10180,9 @@ function PayFormPrefilled({patients,prefill,onClose,onSave}){
   );
 }
 function PayForm({patients,onClose,onSave}){
-  const [f,setF]=useState({patientId:'',patientName:'',service:'',amount:'',method:'Cash',date:localToday()});
+  const [f,setF]=useState({patientId:'',patientName:'',services:[],service:'',amount:'',method:'Cash',date:localToday()});
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
-  const ok=f.patientId&&f.service&&f.amount;
+  const ok=f.patientId&&svcList(f).length>0&&f.amount;
   return h(Modal,{title:'Record Payment',sub:'Enter payment details',onClose,
     footer:h(Fragment,null,h('button',{className:'btn bgh',onClick:onClose},'Cancel'),h('button',{className:'btn bg2',onClick:()=>ok&&onSave(f),disabled:!ok},'Record'))},
     h(Field,{label:'Patient *'},
@@ -10146,11 +10202,31 @@ function PayForm({patients,onClose,onSave}){
         }
       })
     ),
-    h(Field,{label:'Service *'},h('select',{value:f.service,onChange:e=>{s('service',e.target.value);const sv=getActiveSvcs().find(x=>x.name===e.target.value);if(sv)s('amount',sv.fee);}},h('option',{value:''},'Select service…'),Object.entries(getActiveSvcsByCat()).map(([cat, svcs]) =>
-        h('optgroup', {key:cat, label:cat},
-          svcs.map(sv => h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
+    h(Field,{label:'Services *'},
+      h('div',{className:'svc-tags-wrap'},
+        svcList(f).map((sv,i)=>h('span',{key:i,className:'svc-tag'},sv,
+          h('button',{type:'button',onClick:()=>{
+            const next=svcList(f).filter(x=>x!==sv);
+            const amt=next.reduce((sum,nm)=>{const x=getActiveSvcs().find(a=>a.name===nm);return sum+(x?+x.fee:0);},0);
+            setF(x=>({...x,services:next,service:next[0]||'',amount:amt||x.amount}));
+          }},'×')
+        )),
+        h('select',{value:'',className:'svc-add-select',onChange:e=>{
+          const n=e.target.value;if(!n)return;
+          const cur=svcList(f);if(cur.includes(n))return;
+          const next=[...cur,n];
+          const amt=next.reduce((sum,nm)=>{const x=getActiveSvcs().find(a=>a.name===nm);return sum+(x?+x.fee:0);},0);
+          setF(x=>({...x,services:next,service:next[0]||'',amount:amt}));
+        }},
+          h('option',{value:''},'＋ Add service…'),
+          Object.entries(getActiveSvcsByCat()).map(([cat,svcs])=>
+            h('optgroup',{key:cat,label:cat},
+              svcs.map(sv=>h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
+            )
+          )
         )
-      ))),
+      )
+    ),
     h('div',{className:'fg2'},
       h(Field,{label:'Amount (₱)'},h('input',{type:'number',value:f.amount,onChange:e=>s('amount',+e.target.value),placeholder:'0'})),
       h(Field,{label:'Method'},h('select',{value:f.method,onChange:e=>s('method',e.target.value)},METHODS.map(m=>h('option',{key:m},m))))
@@ -10162,7 +10238,7 @@ function ReceiptView({pay,onClose}){
   return h(Modal,{title:'Payment Receipt',onClose,footer:h(Fragment,null,h('button',{className:'btn bgh',onClick:onClose},'Close'),h('button',{className:'btn bp',onClick:()=>window.print()},'🖨️ Print'))},
     h('div',{className:'rc'},
       h('div',{className:'rh'},h('div',{className:'rl'},'🦷 Cyrabell Dental'),h('div',{style:{fontSize:11,color:'var(--md)',marginTop:3}},'Official Payment Receipt')),
-      [['Receipt No.',pay.ref],['Patient',pay.patientName],['Service',pay.service],['Method',pay.method],['Date',pay.date]].map(([l,v])=>h('div',{key:l,className:'rr'},h('span',{className:'rr-l'},l),h('span',{className:'rr-v'},v))),
+      [['Receipt No.',pay.ref],['Patient',pay.patientName],['Service',svcStr(pay)],['Method',pay.method],['Date',pay.date]].map(([l,v])=>h('div',{key:l,className:'rr'},h('span',{className:'rr-l'},l),h('span',{className:'rr-v'},v))),
       h('div',{className:'rr rtot'},h('span',null,'Total Paid'),h('span',null,'₱'+p$(pay.amount))),
       h('div',{style:{textAlign:'center',marginTop:14,fontSize:12,color:'var(--lt)'}},'Thank you for choosing Cyrabell Dental! 🙏')
     )
@@ -10273,7 +10349,7 @@ function Payments({payments,setPayments,patients,appointments,setAppointments,ad
   };
   const openPayForAppt = (a) => {
     setPayingApptId(a.id);
-    setPrefill({patientId:a.patientId,patientName:a.patientName,service:a.service,amount:a.fee||'',method:'Cash',date:localToday()});
+    setPrefill({patientId:a.patientId,patientName:a.patientName,services:svcList(a),service:svcList(a)[0]||a.service,amount:a.fee||'',method:'Cash',date:localToday()});
     setModal(true);
   };
   return h('div',null,
@@ -10296,7 +10372,7 @@ function Payments({payments,setPayments,patients,appointments,setAppointments,ad
         h('thead',null,h('tr',null,['Patient','Service','Fee','Date','Time','Dentist',''].map(c=>h('th',{key:c},c)))),
         h('tbody',null,pendingAppts.map(a=>h('tr',{key:a.id},
           h('td',null,h('strong',null,a.patientName)),
-          h('td',null,a.service),
+          h('td',null,svcStr(a)),
           h('td',{style:{fontWeight:700,color:'var(--t)'}},a.fee?'₱'+p$(a.fee):'—'),
           h('td',null,a.date),
           h('td',null,a.time),
@@ -10312,7 +10388,7 @@ function Payments({payments,setPayments,patients,appointments,setAppointments,ad
         pagedPayments.map(p=>h('tr',{key:p.id},
           h('td',null,h('code',{style:{fontSize:11,background:'var(--cr)',padding:'2px 6px',borderRadius:5}},p.ref)),
           h('td',null,h('strong',null,p.patientName)),
-          h('td',null,p.service),
+          h('td',null,svcStr(p)),
           h('td',{style:{fontWeight:700,color:'var(--t)'}},'₱'+p$(p.amount)),
           h('td',null,h('span',{className:'tag',style:{background:'#f0f8ff',color:'#2563eb'}},p.method)),
           h('td',{style:{whiteSpace:'nowrap'}},p.date),
@@ -10328,7 +10404,7 @@ function Payments({payments,setPayments,patients,appointments,setAppointments,ad
       filtered.length===0&&h('div',{className:'empty'},'No payment records'),
       pagedPayments.map(p=>h('div',{key:p.id,className:'mc'},
         h('div',{className:'mc-top'},
-          h('div',null,h('div',{className:'mc-nm'},p.patientName),h('div',{className:'mc-sb'},p.service)),
+          h('div',null,h('div',{className:'mc-nm'},p.patientName),h('div',{className:'mc-sb'},svcStr(p))),
           h('div',{style:{textAlign:'right'}},h('div',{style:{fontWeight:700,color:'var(--t)',fontSize:16}},'₱'+p$(p.amount)),h(SBadge,{status:p.status}))
         ),
         h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Method'),h('span',{className:'mc-val'},p.method)),
@@ -10348,10 +10424,10 @@ function Payments({payments,setPayments,patients,appointments,setAppointments,ad
 
 // ─── NOTIFICATIONS (unchanged) ────────────────────────────────────────────────
 const TMPL={
-  confirmation:a=>'Hi '+a.patientName+'! 😊 Your '+a.service+' on '+a.date+' at '+a.time+' with '+a.dentist+' is CONFIRMED.\n\nPlease arrive 10 mins early. See you at Cyrabell Dental! 🦷',
-  reminder:a=>'📅 REMINDER: Dental appointment tomorrow!\n\nDate: '+a.date+' at '+a.time+'\nService: '+a.service+'\nDentist: '+a.dentist+'\n\nCyrabell Dental',
-  cancellation:a=>'Hi '+a.patientName+', your appointment for '+a.service+' on '+a.date+' has been CANCELLED.\n\nPlease contact us to reschedule. — Cyrabell Dental',
-  followup:a=>'Hi '+a.patientName+'! 💙 Thank you for your visit. We hope your '+a.service+' went well! Stay healthy! — Cyrabell Dental',
+  confirmation:a=>'Hi '+a.patientName+'! 😊 Your '+svcStr(a)+' on '+a.date+' at '+a.time+' with '+a.dentist+' is CONFIRMED.\n\nPlease arrive 10 mins early. See you at Cyrabell Dental! 🦷',
+  reminder:a=>'📅 REMINDER: Dental appointment tomorrow!\n\nDate: '+a.date+' at '+a.time+'\nService: '+svcStr(a)+'\nDentist: '+a.dentist+'\n\nCyrabell Dental',
+  cancellation:a=>'Hi '+a.patientName+', your appointment for '+svcStr(a)+' on '+a.date+' has been CANCELLED.\n\nPlease contact us to reschedule. — Cyrabell Dental',
+  followup:a=>'Hi '+a.patientName+'! 💙 Thank you for your visit. We hope your '+svcStr(a)+' went well! Stay healthy! — Cyrabell Dental',
 };
 function Notifications({notifications,setNotifications,appointments,addToast}){
   const [tab,setTab]=useState('send');
@@ -10422,7 +10498,7 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
         h('div',{className:'fg',style:{marginBottom:12}},h('label',null,'Appointment'),
           h('select',{value:apptId,onChange:e=>setApptId(e.target.value)},
             h('option',{value:''},'Choose appointment…'),
-            appointments.map(a=>h('option',{key:a.id,value:a.id},a.patientName+' — '+a.service+' ('+a.date+')'))
+            appointments.map(a=>h('option',{key:a.id,value:a.id},a.patientName+' — '+svcStr(a)+' ('+a.date+')'))
           )
         ),
         h('div',{className:'fg',style:{marginBottom:12}},h('label',null,'Template'),
@@ -11100,8 +11176,8 @@ function checkAvailability(appointments, date, time, service, excludeId) {
       conflicts: conflicts,
       reason: conflicts[0].time === time ? 'booked' : 'overlapping',
       message: conflicts[0].time === time
-        ? '❌ Already booked: ' + c.patientName + ' (' + c.service + ')'
-        : '⚠ Overlaps with ' + c.patientName + ' at ' + fmtTime(c.time) + ' (' + c.service + ', needs ' + (SERVICE_DURATIONS[c.service]||DEFAULT_SLOT_MIN) + ' min)'
+        ? '❌ Already booked: ' + c.patientName + ' (' + svcStr(c) + ')'
+        : '⚠ Overlaps with ' + c.patientName + ' at ' + fmtTime(c.time) + ' (' + svcStr(c) + ', needs ' + (SERVICE_DURATIONS[c.service]||DEFAULT_SLOT_MIN) + ' min)'
     };
   }
   return { available: true, conflicts: [], reason: '', message: '✅ Available' };
@@ -11274,7 +11350,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
                     h('thead',null,h('tr',null,['Patient','Service','Time','Status'].map(c=>h('th',{key:c},c)))),
                     h('tbody',null,todayAppts.map(a=>h('tr',{key:a.id},
                       h('td',null,h('strong',null,a.patientName + (a.arrived?' 🪑':''))),
-                      h('td',null,a.service),
+                      h('td',null,svcStr(a)),
                       h('td',{style:{whiteSpace:'nowrap'}},fmtTime(a.time)),
                       h('td',null,a.arrived?h('span',{className:'kiosk-arrived-badge'},'In Clinic'):h(SBadge,{status:a.status}))
                     )))
@@ -11284,7 +11360,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
                   h('div',{className:'mc-top'},
                     h('div',null,
                       h('div',{className:'mc-nm'},a.patientName + (a.arrived?' 🪑':'')),
-                      h('div',{className:'mc-sb'},a.service)
+                      h('div',{className:'mc-sb'},svcStr(a))
                     ),
                     a.arrived?h('span',{className:'kiosk-arrived-badge'},'In Clinic'):h(SBadge,{status:a.status})
                   ),
@@ -11300,7 +11376,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
             h('div',{className:'tld',style:{background:a.arrived?'#f59e0b':a.status==='confirmed'?'var(--gr)':a.status==='pending'?'var(--go)':a.status==='completed'?'var(--bl)':'var(--re)'}}),
             h('div',null,
               h('div',{className:'tlt'},a.patientName + (a.arrived?' 🪑':'')),
-              h('div',{className:'tls'},a.service+' · '+fmtDateWithDay(a.date))
+              h('div',{className:'tls'},svcStr(a)+' · '+fmtDateWithDay(a.date))
             )
           )))
         )
@@ -11317,7 +11393,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
 // ApptDetail — shows appointment details
 function ApptDetail({a, onClose, syncUrl}){
   const [viewing, setViewing] = useState(null);
-  const rows=[['Patient',a.patientName],['Service',a.service],['Dentist',a.dentist],['Date',fmtDateFull(a.date)],['Time',fmtTime(a.time)],['When',fmtDateRelative(a.date)],['Fee','₱'+p$(a.fee)],['Phone',a.phone||'—'],['Email',a.email||'—'],['Notes',a.notes||'—']];
+  const rows=[['Patient',a.patientName],['Service',svcStr(a)],['Dentist',a.dentist],['Date',fmtDateFull(a.date)],['Time',fmtTime(a.time)],['When',fmtDateRelative(a.date)],['Fee','₱'+p$(a.fee)],['Phone',a.phone||'—'],['Email',a.email||'—'],['Notes',a.notes||'—']];
   const atts = safe(a.attachments);
   return h(Modal,{title:'Appointment Details',sub:'#'+a.id,onClose,footer:h('button',{className:'btn bgh',onClick:onClose},'Close')},
     h('div',{style:{display:'flex',flexDirection:'column',gap:10}},
@@ -11835,18 +11911,18 @@ const rmSvc=n=>{
       h(Field,{label:'Date *'},h('input',{type:'date',value:f.date,onChange:e=>s('date',e.target.value),min:localToday()})),
       h(Field,{label:'Dentist'},h('input',{type:'text',value:'Dr. Arnold Colao',readOnly:true,style:{background:'var(--bg3)',color:'var(--md)',cursor:'default'}}))
     ),
-    h(Field,{label:'Time'+(f.service?' · '+(SERVICE_DURATIONS[f.service]||DEFAULT_SLOT_MIN)+' min slot':'')},
+    h(Field,{label:'Time'+(_primarySvc?' · '+(SERVICE_DURATIONS[_primarySvc]||DEFAULT_SLOT_MIN)+' min slot':'')},
       h(TimeSlotGrid,{
         appointments: appointments || [],
         selectedDate: f.date,
-        selectedService: f.service,
+        selectedService: _primarySvc,
         selectedTime: f.time,
         onTimeChange: (t) => s('time', t)
       })
     ),
-    f.date && f.time && f.service && h(AvailabilityBanner, {
+    f.date && f.time && _primarySvc && h(AvailabilityBanner, {
       appointments: appointments || [],
-      date: f.date, time: f.time, service: f.service
+      date: f.date, time: f.time, service: _primarySvc
     }),
     showSuggestions && suggestions.length > 0 && h('div', {className: 'avail-suggest'},
       h('div', {className: 'avail-suggest-title'}, '🤖 Try one of these available slots:'),
@@ -11991,7 +12067,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
     return filter==='all'||a.status===filter;
   }).filter(a=>!search||
     S(a.patientName).toLowerCase().includes(S(search).toLowerCase())||
-    S(a.service).toLowerCase().includes(S(search).toLowerCase()));
+    svcStr(a).toLowerCase().includes(S(search).toLowerCase()));
 
   const sortFns = {
     patient:  (a,b)=> S(a.patientName).localeCompare(S(b.patientName)),
@@ -12042,7 +12118,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
     const msgs={confirmed:'Confirmed! Auto-SMS sent.',completed:'Marked complete.',cancelled:'Appointment cancelled.'};
     addToast(msgs[status]||'Updated.',status==='cancelled'?'error':'success');
     if(status==='confirmed'&&a){
-      setNotifications(prev=>[{id:'N'+uid(),type:'sms',recipient:a.patientName,phone:a.phone||'—',email:a.email||'—',message:'Hi '+a.patientName+'! Your '+a.service+' on '+fmtDateLong(a.date)+' at '+fmtTime(a.time)+' is CONFIRMED. See you at Cyrabell Dental! 🦷',sentAt:new Date().toLocaleString(),status:'sent'},...prev]);
+      setNotifications(prev=>[{id:'N'+uid(),type:'sms',recipient:a.patientName,phone:a.phone||'—',email:a.email||'—',message:'Hi '+a.patientName+'! Your '+svcStr(a)+' on '+fmtDateLong(a.date)+' at '+fmtTime(a.time)+' is CONFIRMED. See you at Cyrabell Dental! 🦷',sentAt:new Date().toLocaleString(),status:'sent'},...prev]);
       if (setPayments && a.fee > 0) {
         const refTag = 'auto-' + a.id;
         setPayments(prev => {
@@ -12112,7 +12188,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
               a.arrived&&h('span',{className:'kiosk-arrived-badge',style:{marginLeft:6,fontSize:9}},'🪑'),
               h('div',{style:{fontSize:11,color:'var(--lt)'}},a.dentist)
             ),
-            h('td',null,a.service),
+            h('td',null,svcStr(a)),
             h('td',{style:{whiteSpace:'nowrap'}},
               h('div',{style:{fontWeight:600,fontSize:13}}, fmtDateWithDay(a.date)),
               h('div',{style:{fontSize:11,color:'var(--md)'}}, fmtTime(a.time) + ' · ' + fmtDateRelative(a.date))
@@ -12134,7 +12210,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
           h('div',{className:'mc-top'},
             h('div',null,
               h('div',{className:'mc-nm'},a.patientName,a.arrived&&h('span',{style:{marginLeft:6,fontSize:13}},'🪑')),
-              h('div',{className:'mc-sb'},a.service+' · '+a.dentist)
+              h('div',{className:'mc-sb'},svcStr(a)+' · '+a.dentist)
             ),
             a.arrived?h('span',{className:'kiosk-arrived-badge'},'In Clinic'):h(SBadge,{status:a.status})
           ),
@@ -12172,7 +12248,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
             h('div', {className: 'day-detail-time'}, fmtTime(a.time)),
             h('div', {style: {flex: 1, minWidth: 0}},
               h('div', {style: {fontWeight: 600}}, a.patientName),
-              h('div', {style: {fontSize: 12, color: 'var(--md)'}}, a.service + ' · ' + a.dentist)
+              h('div', {style: {fontSize: 12, color: 'var(--md)'}}, svcStr(a) + ' · ' + a.dentist)
             ),
             a.arrived?h('span',{className:'kiosk-arrived-badge'},'In Clinic'):h(SBadge,{status:a.status}),
             h('button', {className: 'btn bgh bsm', onClick: ()=>{setDayDetail(null);setDetail(a);}}, 'View')
@@ -12190,7 +12266,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
         a.date === newAppt.date && a.time === newAppt.time && a.id !== newAppt.id
       );
       if (localDup) {
-        if (!confirm('⚠️ Duplicate Appointment: ' + localDup.patientName + ' already has "' + localDup.service + '" on ' + localDup.date + ' at ' + localDup.time + '.\n\nClick OK to update the existing appointment, or Cancel to book anyway.')) {
+        if (!confirm('⚠️ Duplicate Appointment: ' + localDup.patientName + ' already has "' + svcStr(localDup) + '" on ' + localDup.date + ' at ' + localDup.time + '.\n\nClick OK to update the existing appointment, or Cancel to book anyway.')) {
           return; // user cancelled
         }
         // Update existing
@@ -12337,7 +12413,7 @@ function ConflictAnalysisModal({appointments, onClose}){
           h('div', {className: 'conflict-side'},
             h('div', {style: {fontSize: 12, fontWeight: 600}}, fmtTime(c.a.time)),
             h('div', {style: {fontWeight: 600}}, c.a.patientName),
-            h('div', {style: {fontSize: 11, color: 'var(--md)'}}, c.a.service+' ('+(SERVICE_DURATIONS[c.a.service]||DEFAULT_SLOT_MIN)+' min)')
+            h('div', {style: {fontSize: 11, color: 'var(--md)'}}, svcStr(c.a)+' ('+(SERVICE_DURATIONS[c.a.service]||DEFAULT_SLOT_MIN)+' min)')
           ),
           h('div', {className: 'conflict-vs'}, '⚡'),
           h('div', {className: 'conflict-side'},
@@ -13109,7 +13185,7 @@ function ExportPage({appointments,patients,payments}){
     const rh=k=>'<tr>'+k.map(x=>'<th>'+x+'</th>').join('')+'</tr>';
     const rb=(d,k)=>d.map(r=>'<tr>'+k.map(x=>'<td>'+(r[x]||'')+'</td>').join('')+'</tr>').join('');
     if(type==='appts'){
-      const d=appointments.map(a=>({ID:a.id,Patient:a.patientName,Service:a.service,Date:a.date,Time:a.time,Dentist:a.dentist,Status:a.status,Arrived:a.arrived?'Yes':'No',Fee:'₱'+a.fee}));
+      const d=appointments.map(a=>({ID:a.id,Patient:a.patientName,Service:svcStr(a),Date:a.date,Time:a.time,Dentist:a.dentist,Status:a.status,Arrived:a.arrived?'Yes':'No',Fee:'₱'+a.fee}));
       const k=Object.keys(d[0]);
       if(fmt==='csv')expCSV(d,'appointments.csv');else if(fmt==='json')expJSON(d,'appointments.json');else printDoc('<h2>📅 Appointments</h2><table>'+rh(k)+rb(d,k)+'</table>','Appointments');
     }else if(type==='pats'){
@@ -13120,7 +13196,7 @@ function ExportPage({appointments,patients,payments}){
       const k=Object.keys(d[0]);
       if(fmt==='csv')expCSV(d,'patients.csv');else if(fmt==='json')expJSON(d,'patients.json');else printDoc('<h2>👤 Patients</h2><table>'+rh(k)+rb(d,k)+'</table>','Patients');
     }else if(type==='pays'){
-      const d=payments.map(p=>({Ref:p.ref,Patient:p.patientName,Service:p.service,Amount:'₱'+p.amount,Method:p.method,Date:p.date,Status:p.status}));
+      const d=payments.map(p=>({Ref:p.ref,Patient:p.patientName,Service:svcStr(p),Amount:'₱'+p.amount,Method:p.method,Date:p.date,Status:p.status}));
       const k=Object.keys(d[0]);const tot=payments.filter(p=>p.status==='paid').reduce((s,p)=>s+p.amount,0);
       if(fmt==='csv')expCSV(d,'payments.csv');else if(fmt==='json')expJSON(d,'payments.json');else printDoc('<h2>💳 Payments</h2><table>'+rh(k)+rb(d,k)+'</table><p><strong>Total: ₱'+p$(tot)+'</strong></p>','Payments');
     }else{
@@ -13157,7 +13233,7 @@ function ExportPage({appointments,patients,payments}){
 // ─── ANALYTICS (unchanged) ────────────────────────────────────────────────────
 function Analytics({appointments,payments,patients}){
   const bm={};payments.filter(p=>p.status==='paid').forEach(p=>{const m=(p.date||'').slice(0,7)||'?';bm[m]=(bm[m]||0)+p.amount;});
-  const bs={};payments.forEach(p=>{const sv=S(p.service)||'Unknown';bs[sv]=(bs[sv]||0)+(+p.amount||0);});
+  const bs={};payments.forEach(p=>{svcList(p).forEach(sv=>{bs[sv]=(bs[sv]||0)+(+p.amount/Math.max(1,svcList(p).length)||0);});});if(!Object.keys(bs).length)payments.forEach(p=>{const sv='Unknown';bs[sv]=(bs[sv]||0)+(+p.amount||0);});
   const top=Object.entries(bs).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const maxR=Math.max(...Object.values(bm),1);
   const issueStats={};
