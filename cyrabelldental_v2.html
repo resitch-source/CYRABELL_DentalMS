@@ -160,7 +160,18 @@ textarea{resize:vertical;min-height:80px}
 .svcc{border:1.5px solid var(--bd);border-radius:11px;padding:12px 10px;cursor:pointer;transition:all .18s}
 .svcc:hover,.svcc.sel{border-color:var(--t);background:var(--tp)}
 .svcn{font-weight:600;font-size:13px}.svcf{font-size:12px;color:var(--t);font-weight:700;margin-top:2px}
-.npv{background:var(--cr);border-radius:10px;padding:13px;font-size:13px;line-height:1.6;color:var(--md);border:1px solid var(--bd);margin-top:7px;white-space:pre-wrap;word-break:break-word}
+.npv{background:var(--cr);border-radius:10px;padding:0;font-size:13px;line-height:1.6;color:var(--md);border:1px solid var(--bd);margin-top:7px;overflow:hidden;}
+.npv-sms{padding:13px;white-space:pre-wrap;word-break:break-word;font-family:'Courier New',monospace;font-size:12.5px;background:var(--cr);}
+.npv-email{padding:0;background:#f4f4f4;}
+.npv-email iframe{width:100%;border:none;display:block;min-height:480px;border-radius:0 0 10px 10px;}
+.notif-card-preview{background:linear-gradient(135deg,#0a7c6e08,#0a5c8e08);border:1px solid var(--bd);border-radius:10px;overflow:hidden;margin-top:6px;}
+.notif-card-header{background:linear-gradient(135deg,#0a7c6e,#0a5c8e);padding:10px 14px;display:flex;align-items:center;gap:8px;}
+.notif-card-header-title{color:#fff;font-size:11px;font-weight:700;letter-spacing:.5px;}
+.notif-card-header-sub{color:rgba(255,255,255,.7);font-size:9.5px;}
+.notif-card-body{padding:12px 14px;font-size:12px;line-height:1.6;color:var(--dk);}
+.notif-card-footer{background:#0a1628;padding:7px 14px;display:flex;align-items:center;justify-content:center;gap:6px;}
+.notif-card-footer-brand{color:#00c8ff;font-size:10px;font-weight:700;letter-spacing:1.5px;}
+.notif-card-footer-tag{color:#888;font-size:9px;}
 .ntg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:13px}
 .ntc{border:1.5px solid var(--bd);border-radius:11px;padding:12px;cursor:pointer;transition:all .18s}
 .ntc:hover,.ntc.sel{border-color:var(--t);background:var(--tp)}
@@ -10457,12 +10468,166 @@ function Payments({payments,setPayments,patients,appointments,setAppointments,ad
 }
 
 // ─── NOTIFICATIONS (unchanged) ────────────────────────────────────────────────
+// ── Professional notification templates ──────────────────────────────────────
+// Plain-text (SMS) — compact, professional, clinic-branded
 const TMPL={
-  confirmation:a=>'Hi '+a.patientName+'! 😊 Your '+svcStr(a)+' on '+a.date+' at '+a.time+' with '+a.dentist+' is CONFIRMED.\n\nPlease arrive 10 mins early. See you at Cyrabell Dental! 🦷',
-  reminder:a=>'📅 REMINDER: Dental appointment tomorrow!\n\nDate: '+a.date+' at '+a.time+'\nService: '+svcStr(a)+'\nDentist: '+a.dentist+'\n\nCyrabell Dental',
-  cancellation:a=>'Hi '+a.patientName+', your appointment for '+svcStr(a)+' on '+a.date+' has been CANCELLED.\n\nPlease contact us to reschedule. — Cyrabell Dental',
-  followup:a=>'Hi '+a.patientName+'! 💙 Thank you for your visit. We hope your '+svcStr(a)+' went well! Stay healthy! — Cyrabell Dental',
+  confirmation:a=>[
+    'SIMPLIFIED DENTAL CLINIC',
+    '━━━━━━━━━━━━━━━━━━━━━━━━',
+    '✅ APPOINTMENT CONFIRMED',
+    '',
+    'Dear '+a.patientName+',',
+    '',
+    'Your appointment has been confirmed:',
+    '  📅 Date    : '+fmtDateFull(a.date),
+    '  🕐 Time    : '+fmtTime(a.time),
+    '  🦷 Service : '+svcStr(a),
+    '  👨‍⚕️ Dentist : '+a.dentist,
+    '',
+    'Please arrive 10 minutes early.',
+    'Bring any previous dental records if available.',
+    '',
+    'We look forward to seeing you!',
+    '',
+    '— Simplified Dental Clinic Management System',
+    '  Powered by CYRABELL Systems Engineering Solutions'
+  ].join('\n'),
+  reminder:a=>[
+    'SIMPLIFIED DENTAL CLINIC',
+    '━━━━━━━━━━━━━━━━━━━━━━━━',
+    '⏰ APPOINTMENT REMINDER',
+    '',
+    'Dear '+a.patientName+',',
+    '',
+    'This is a friendly reminder of your upcoming appointment:',
+    '  📅 Date    : '+fmtDateFull(a.date),
+    '  🕐 Time    : '+fmtTime(a.time),
+    '  🦷 Service : '+svcStr(a),
+    '  👨‍⚕️ Dentist : '+a.dentist,
+    '',
+    'Please confirm your attendance or contact us to reschedule.',
+    '',
+    '— Simplified Dental Clinic Management System',
+    '  Powered by CYRABELL Systems Engineering Solutions'
+  ].join('\n'),
+  cancellation:a=>[
+    'SIMPLIFIED DENTAL CLINIC',
+    '━━━━━━━━━━━━━━━━━━━━━━━━',
+    '❌ APPOINTMENT CANCELLED',
+    '',
+    'Dear '+a.patientName+',',
+    '',
+    'Your appointment has been cancelled:',
+    '  📅 Date    : '+fmtDateFull(a.date),
+    '  🦷 Service : '+svcStr(a),
+    '',
+    'Please contact us to reschedule at your convenience.',
+    'We apologize for any inconvenience.',
+    '',
+    '— Simplified Dental Clinic Management System',
+    '  Powered by CYRABELL Systems Engineering Solutions'
+  ].join('\n'),
+  followup:a=>[
+    'SIMPLIFIED DENTAL CLINIC',
+    '━━━━━━━━━━━━━━━━━━━━━━━━',
+    '💙 THANK YOU FOR YOUR VISIT',
+    '',
+    'Dear '+a.patientName+',',
+    '',
+    'Thank you for choosing Simplified Dental Clinic.',
+    'We hope your '+svcStr(a)+' procedure went smoothly!',
+    '',
+    'Aftercare reminders:',
+    '  • Avoid hard foods for 24 hours if advised',
+    '  • Follow your dentist\'s post-care instructions',
+    '  • Schedule your next check-up in 6 months',
+    '',
+    'Your smile is our priority. Stay healthy! 🦷',
+    '',
+    '— Simplified Dental Clinic Management System',
+    '  Powered by CYRABELL Systems Engineering Solutions'
+  ].join('\n'),
 };
+
+// HTML email template builder — returns full HTML string
+function buildNotifHTML(tmplKey, a){
+  const COLORS={confirmation:'#0a7c6e',reminder:'#0a5c8e',cancellation:'#c0392b',followup:'#6c3483'};
+  const ICONS={confirmation:'✅',reminder:'⏰',cancellation:'❌',followup:'💙'};
+  const TITLES={confirmation:'Appointment Confirmed',reminder:'Appointment Reminder',cancellation:'Appointment Cancelled',followup:'Thank You for Your Visit'};
+  const accentColor=COLORS[tmplKey]||'#0a7c6e';
+  const icon=ICONS[tmplKey]||'🦷';
+  const title=TITLES[tmplKey]||'Notification';
+
+  const bodyMap={
+    confirmation:`
+      <p style="color:#444;font-size:14px;line-height:1.7;margin:0 0 16px">Dear <strong>${a.patientName}</strong>,</p>
+      <p style="color:#444;font-size:14px;margin:0 0 16px">Your dental appointment has been <strong style="color:${accentColor}">confirmed</strong>. Please review the details below:</p>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 18px;font-size:13.5px;">
+        <tr><td style="padding:8px 10px;background:#f0fdf9;border-radius:6px 6px 0 0;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px">📅 Date</td><td style="padding:8px 10px;background:#f0fdf9;border-radius:6px 6px 0 0;color:#222;font-weight:700">${fmtDateFull(a.date)}</td></tr>
+        <tr><td style="padding:8px 10px;background:#fff;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px">🕐 Time</td><td style="padding:8px 10px;background:#fff;color:#222;font-weight:700">${fmtTime(a.time)}</td></tr>
+        <tr><td style="padding:8px 10px;background:#f0fdf9;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px">🦷 Service</td><td style="padding:8px 10px;background:#f0fdf9;color:#222;font-weight:700">${svcStr(a)}</td></tr>
+        <tr><td style="padding:8px 10px;background:#fff;border-radius:0 0 6px 6px;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px">👨‍⚕️ Dentist</td><td style="padding:8px 10px;background:#fff;border-radius:0 0 6px 6px;color:#222;font-weight:700">${a.dentist}</td></tr>
+      </table>
+      <p style="color:#555;font-size:13px;border-left:3px solid ${accentColor};padding-left:10px;margin:0">Please arrive <strong>10 minutes early</strong> and bring any previous dental records if available.</p>`,
+    reminder:`
+      <p style="color:#444;font-size:14px;line-height:1.7;margin:0 0 16px">Dear <strong>${a.patientName}</strong>,</p>
+      <p style="color:#444;font-size:14px;margin:0 0 16px">This is a friendly reminder of your <strong style="color:${accentColor}">upcoming appointment</strong>:</p>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 18px;font-size:13.5px;">
+        <tr><td style="padding:8px 10px;background:#eff6ff;border-radius:6px 6px 0 0;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px">📅 Date</td><td style="padding:8px 10px;background:#eff6ff;color:#222;font-weight:700">${fmtDateFull(a.date)}</td></tr>
+        <tr><td style="padding:8px 10px;background:#fff;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px">🕐 Time</td><td style="padding:8px 10px;background:#fff;color:#222;font-weight:700">${fmtTime(a.time)}</td></tr>
+        <tr><td style="padding:8px 10px;background:#eff6ff;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px">🦷 Service</td><td style="padding:8px 10px;background:#eff6ff;color:#222;font-weight:700">${svcStr(a)}</td></tr>
+        <tr><td style="padding:8px 10px;background:#fff;border-radius:0 0 6px 6px;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px">👨‍⚕️ Dentist</td><td style="padding:8px 10px;background:#fff;color:#222;font-weight:700">${a.dentist}</td></tr>
+      </table>
+      <p style="color:#555;font-size:13px;border-left:3px solid ${accentColor};padding-left:10px;margin:0">Please confirm your attendance or contact us to reschedule.</p>`,
+    cancellation:`
+      <p style="color:#444;font-size:14px;line-height:1.7;margin:0 0 16px">Dear <strong>${a.patientName}</strong>,</p>
+      <p style="color:#444;font-size:14px;margin:0 0 16px">We regret to inform you that your appointment has been <strong style="color:${accentColor}">cancelled</strong>:</p>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 18px;font-size:13.5px;">
+        <tr><td style="padding:8px 10px;background:#fef2f2;border-radius:6px 6px 0 0;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px">📅 Date</td><td style="padding:8px 10px;background:#fef2f2;color:#222;font-weight:700">${fmtDateFull(a.date)}</td></tr>
+        <tr><td style="padding:8px 10px;background:#fff;border-radius:0 0 6px 6px;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px">🦷 Service</td><td style="padding:8px 10px;background:#fff;color:#222;font-weight:700">${svcStr(a)}</td></tr>
+      </table>
+      <p style="color:#555;font-size:13px;border-left:3px solid ${accentColor};padding-left:10px;margin:0">Please contact us at your convenience to <strong>reschedule</strong>. We apologize for any inconvenience caused.</p>`,
+    followup:`
+      <p style="color:#444;font-size:14px;line-height:1.7;margin:0 0 16px">Dear <strong>${a.patientName}</strong>,</p>
+      <p style="color:#444;font-size:14px;margin:0 0 16px">Thank you for visiting <strong>Simplified Dental Clinic</strong>. We hope your <strong style="color:${accentColor}">${svcStr(a)}</strong> procedure went smoothly!</p>
+      <div style="background:#f8f8ff;border-radius:8px;padding:14px 16px;margin:0 0 16px;font-size:13px;color:#555;line-height:1.8">
+        <strong style="color:#444;display:block;margin-bottom:6px">Aftercare Reminders:</strong>
+        <div>• Avoid hard foods for 24 hours if advised</div>
+        <div>• Follow your dentist's post-care instructions</div>
+        <div>• Schedule your next check-up in 6 months</div>
+      </div>
+      <p style="color:#555;font-size:13px;border-left:3px solid ${accentColor};padding-left:10px;margin:0">Your smile is our priority. Stay healthy! 😊</p>`,
+  };
+
+  const bodyHTML = bodyMap[tmplKey] || `<p style="color:#444">${TMPL[tmplKey]?TMPL[tmplKey](a):''}</p>`;
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:16px;background:#f0f0f0;font-family:Arial,Helvetica,sans-serif">
+<div style="max-width:520px;margin:0 auto;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.12)">
+  <!-- HEADER -->
+  <div style="background:linear-gradient(135deg,${accentColor} 0%,#0a2a4a 100%);padding:22px 24px;text-align:center">
+    <div style="font-size:26px;margin-bottom:4px">🦷</div>
+    <div style="color:#fff;font-size:16px;font-weight:700;letter-spacing:.5px">Simplified Dental Clinic</div>
+    <div style="color:rgba(255,255,255,.75);font-size:11px;margin-top:2px;letter-spacing:1px;text-transform:uppercase">Management System</div>
+    <div style="display:inline-block;margin-top:10px;background:rgba(255,255,255,.15);border-radius:20px;padding:4px 14px">
+      <span style="color:#fff;font-size:14px">${icon}</span>
+      <span style="color:#fff;font-size:13px;font-weight:600;margin-left:6px">${title}</span>
+    </div>
+  </div>
+  <!-- BODY -->
+  <div style="background:#fff;padding:24px 24px 20px">
+    ${bodyHTML}
+  </div>
+  <!-- DIVIDER TEETH -->
+  <div style="background:#fff;text-align:center;padding:4px 0;font-size:11px;letter-spacing:4px;color:#ddd">🦷 🦷 🦷 🦷 🦷 🦷 🦷 🦷</div>
+  <!-- FOOTER -->
+  <div style="background:#0a1628;padding:14px 24px;text-align:center">
+    <div style="color:#00c8ff;font-size:13px;font-weight:800;letter-spacing:3px;text-transform:uppercase">CYRABELL</div>
+    <div style="color:#aaa;font-size:10px;margin-top:2px;letter-spacing:1px">Systems Engineering Solutions</div>
+    <div style="color:#555;font-size:9px;margin-top:6px">This is an automated notification from Simplified Dental Clinic Management System</div>
+  </div>
+</div>
+</body></html>`;
+}
 function Notifications({notifications,setNotifications,appointments,addToast}){
   const [tab,setTab]=useState('send');
   const { pageItems: pagedNotifs, PagerUI: NotifsPager } = usePagination(notifications);
@@ -10550,12 +10715,38 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
       )),
       h('div',{className:'card'},h('div',{className:'ch'},h('div',{className:'ct'},'Preview')),h('div',{className:'cb'},
         preview?h(Fragment,null,
-          h('div',{style:{fontSize:11,color:'var(--md)',marginBottom:7}},
-            (ntype==='sms'?'📱':ntype==='email'?'📧':ntype==='whatsapp'?'💬':ntype==='viber'?'🟣':'💙')+
-            (curA?' → '+(ntype==='email'?(curA.email||'no email'):(curA.phone||'no phone')):'')
+          h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
+            h('span',{style:{fontSize:12,color:'var(--md)'}},
+              (ntype==='sms'?'📱 SMS to ':'📧 Email to ')+(curA?(ntype==='email'?(curA.email||'no email'):(curA.phone||'no phone')):'')
+            )
           ),
-          h('div',{className:'npv'},preview),
-          h('div',{style:{fontSize:11,color:'var(--lt)',marginTop:7}},preview.length+' chars · ~'+Math.ceil(preview.length/160)+' SMS segment(s)')
+          ntype==='email'&&tmpl!=='custom'&&curA
+            ? h('div',{className:'npv npv-email',style:{borderRadius:10}},
+                h('iframe',{
+                  srcDoc: buildNotifHTML(tmpl,curA),
+                  sandbox:'allow-same-origin',
+                  style:{width:'100%',border:'none',borderRadius:10,minHeight:460,display:'block'}
+                })
+              )
+            : h('div',{className:'notif-card-preview'},
+                h('div',{className:'notif-card-header'},
+                  h('div',null,
+                    h('div',{className:'notif-card-header-title'},'🦷 Simplified Dental Clinic'),
+                    h('div',{className:'notif-card-header-sub'},'Management System')
+                  )
+                ),
+                h('div',{className:'notif-card-body'},
+                  h('pre',{style:{margin:0,fontFamily:'inherit',fontSize:12.5,lineHeight:1.65,whiteSpace:'pre-wrap',wordBreak:'break-word',color:'var(--dk)'}},preview)
+                ),
+                h('div',{className:'notif-card-footer'},
+                  h('span',{className:'notif-card-footer-brand'},'CYRABELL'),
+                  h('span',{className:'notif-card-footer-tag'},'Systems Engineering Solutions')
+                )
+              ),
+          h('div',{style:{fontSize:11,color:'var(--lt)',marginTop:6,display:'flex',gap:12}},
+            h('span',null,preview.length+' chars'),
+            ntype==='sms'&&h('span',null,'~'+Math.ceil(preview.length/160)+' SMS segment(s)')
+          )
         ):h('div',{className:'empty'},'💬\nSelect an appointment and template to preview')
       ))
     ),
@@ -10577,11 +10768,27 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
         notifications.length===0&&h('div',{className:'empty'},'No notifications yet'),
         pagedNotifs.map(n=>h('div',{key:n.id,className:'mc'},
           h('div',{className:'mc-top'},
-            h('div',null,h('div',{className:'mc-nm'},n.recipient),h('div',{className:'mc-sb'},n.sentAt)),
-            h('span',{className:'tag',style:{background:n.type==='sms'?'#e8f5f3':'#e8eeff',color:n.type==='sms'?'var(--t)':'var(--bl)'}},n.type==='sms'?'📱':'📧')
+            h('div',null,
+              h('div',{className:'mc-nm'},n.recipient),
+              h('div',{className:'mc-sb'},n.sentAt+' · '+(n.type==='sms'?'📱 SMS':'📧 Email'))
+            ),
+            h(SBadge,{status:n.status})
           ),
-          h('div',{style:{fontSize:12,color:'var(--md)',marginTop:6,lineHeight:1.5}},n.message.slice(0,80)+'…'),
-          h('div',{style:{marginTop:8}},h(SBadge,{status:n.status}))
+          h('div',{className:'notif-card-preview',style:{margin:'8px 0 0'}},
+            h('div',{className:'notif-card-header'},
+              h('div',null,
+                h('div',{className:'notif-card-header-title'},'🦷 Simplified Dental Clinic'),
+                h('div',{className:'notif-card-header-sub'},'Management System')
+              )
+            ),
+            h('div',{className:'notif-card-body'},
+              h('pre',{style:{margin:0,fontFamily:'inherit',fontSize:11.5,lineHeight:1.6,whiteSpace:'pre-wrap',wordBreak:'break-word',color:'var(--dk)',maxHeight:120,overflow:'hidden'}},n.message)
+            ),
+            h('div',{className:'notif-card-footer'},
+              h('span',{className:'notif-card-footer-brand'},'CYRABELL'),
+              h('span',{className:'notif-card-footer-tag'},'Systems Engineering Solutions')
+            )
+          )
         ))
       )
     )
@@ -12200,7 +12407,7 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
     const msgs={confirmed:'Confirmed! Auto-SMS sent.',completed:'Marked complete.',cancelled:'Appointment cancelled.'};
     addToast(msgs[status]||'Updated.',status==='cancelled'?'error':'success');
     if(status==='confirmed'&&a){
-      setNotifications(prev=>[{id:'N'+uid(),type:'sms',recipient:a.patientName,phone:a.phone||'—',email:a.email||'—',message:'Hi '+a.patientName+'! Your '+svcStr(a)+' on '+fmtDateLong(a.date)+' at '+fmtTime(a.time)+' is CONFIRMED. See you at Cyrabell Dental! 🦷',sentAt:new Date().toLocaleString(),status:'sent'},...prev]);
+      setNotifications(prev=>[{id:'N'+uid(),type:'sms',recipient:a.patientName,phone:a.phone||'—',email:a.email||'—',message:TMPL.confirmation(a),sentAt:new Date().toLocaleString(),status:'sent'},...prev]);
       if (setPayments && a.fee > 0) {
         const refTag = 'auto-' + a.id;
         setPayments(prev => {
