@@ -3385,6 +3385,19 @@ const CONFIG = Object.freeze({
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
+// 🔧  APP CONFIGURATION DEFAULTS
+//
+// Set APP_DEFAULT_GAS_URL once after you deploy your Apps Script.
+// Any browser that opens this file will auto-fill the Sync URL from here
+// if localStorage has no saved URL — eliminating manual reconfiguration.
+//
+// Leave empty ('') if you want users to enter it manually.
+// ══════════════════════════════════════════════════════════════════════════════
+const APP_DEFAULTS = Object.freeze({
+  GAS_URL: '',  // ← paste your Apps Script /exec URL here after first deploy
+});
+
 // 🗝️  LOCALSTORAGE KEY CONSTANTS
 //
 // DATA FLOW: All localStorage reads and writes MUST use these constants.
@@ -13709,13 +13722,14 @@ function ServicesPage({addToast}){
 }
 
 function SyncPage({patients, appointments, payments, notifications, reminders, reminderLog, services, setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, setServices, addToast}){
-  const [url, setUrl] = useState(()=>lsGet(LS_KEYS.SYNC_URL, ''));
+  const [url, setUrl] = useState(()=>lsGet(LS_KEYS.SYNC_URL,'') || APP_DEFAULTS.GAS_URL);
   const [autoSync, setAutoSync] = useState(()=>lsGet(LS_KEYS.AUTO_SYNC,'true')!=='false');
   const [lastSync, setLastSync] = useState(()=>lsGet(LS_KEYS.LAST_SYNC,''));
   const [busy, setBusy] = useState(null);
   const [log, setLog] = useState([]);
   const [geminiKey, setGeminiKey] = useState(()=>lsGet(LS_KEYS.GEMINI_KEY,''));
   const [showKey, setShowKey]     = useState(false);
+  const [serverConfig, setServerConfig] = useState(null); // {hasGeminiKey, hasGasUrl, ...}
   const fileInputRef = useRef(null);
 
   const saveGeminiKey = (v) => {
@@ -13755,7 +13769,8 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
       let data;
       try { data = JSON.parse(text); } catch(e) { throw new Error('Invalid response (not JSON). Did you deploy as "Anyone"?'); }
       if (data.ok && data.pong) {
-        addLog('✅ Connected successfully', 'ok');
+        if (data.config) setServerConfig(data.config);
+        addLog('✅ Connected successfully' + (data.config && data.config.hasGeminiKey ? ' · Gemini key on server ✓' : ''), 'ok');
         addToast('Connection OK!', 'success');
       } else {
         throw new Error(data.error || 'Unknown error');
@@ -14064,27 +14079,61 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
                   'aistudio.google.com/app/apikey'),
                 ' — free tier: 15 scans/min, 1,500/day'
               ),
-          geminiKey && h('button',{
-            className:'btn bgh bsm',
-            style:{width:'100%',justifyContent:'center'},
-            onClick: async () => {
-              addToast('Testing Gemini key…','info');
-              try {
-                // Use models list endpoint — does NOT consume any quota
-                const url = 'https://generativelanguage.googleapis.com/v1beta/models?key=' + geminiKey.trim() + '&pageSize=5';
-                const res = await fetch(url);
-                if (res.ok) {
+          serverConfig && serverConfig.hasGeminiKey && h('div',{style:{fontSize:12,color:'#22c55e',fontWeight:600,marginTop:-4,marginBottom:10,display:'flex',alignItems:'center',gap:6}},
+            '🔒 Gemini key is saved on the server — OCR works without a local key'
+          ),
+
+          h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+            geminiKey && h('button',{
+              className:'btn bgh bsm',
+              onClick: async () => {
+                addToast('Testing Gemini key…','info');
+                try {
+                  const keyUrl = 'https://generativelanguage.googleapis.com/v1beta/models?key=' + geminiKey.trim() + '&pageSize=5';
+                  const res = await fetch(keyUrl);
+                  if (res.ok) {
+                    const d = await res.json();
+                    const hasFlash = (d.models||[]).some(m => m.name && m.name.includes('flash'));
+                    addToast('✅ Gemini key valid!' + (hasFlash ? ' Gemini Flash ready.' : ''), 'success');
+                  } else {
+                    const t = await res.text();
+                    const msg = res.status === 400 ? 'Invalid API key' : res.status === 403 ? 'API not enabled for this key' : 'Error ' + res.status;
+                    addToast('❌ ' + msg + ': ' + t.substring(0,80), 'error');
+                  }
+                } catch(e) { addToast('❌ Test failed: ' + e.message,'error'); }
+              },
+            }, '🔬 Test Key'),
+
+            geminiKey && isValidUrl && !isLocalUrl && h('button',{
+              className:'btn bp bsm',
+              title:'Save Gemini key to Apps Script properties — after this you no longer need it in localStorage',
+              onClick: async () => {
+                if (!confirm('Save your Gemini API key to the Apps Script server?\n\nIt will be stored in Script Properties (only visible to script editors, never returned to the browser). After saving, you can clear the local copy.')) return;
+                setBusy('savekey');
+                try {
+                  const res = await fetch(url, {
+                    method:'POST',
+                    headers:{'Content-Type':'text/plain;charset=utf-8'},
+                    body: JSON.stringify({ action:'saveConfig', geminiKey: geminiKey.trim(), gasUrl: url.trim() }),
+                    redirect:'follow',
+                  });
                   const d = await res.json();
-                  const hasFlash = (d.models||[]).some(m => m.name && m.name.includes('flash'));
-                  addToast('✅ Gemini key valid!' + (hasFlash ? ' Gemini Flash ready.' : ''), 'success');
-                } else {
-                  const t = await res.text();
-                  const msg = res.status === 400 ? 'Invalid API key' : res.status === 403 ? 'API not enabled for this key' : 'Error ' + res.status;
-                  addToast('❌ ' + msg + ': ' + t.substring(0,80), 'error');
-                }
-              } catch(e) { addToast('❌ Test failed: ' + e.message,'error'); }
-            },
-          }, '🔬 Test Gemini Key')
+                  if (d.ok) {
+                    setServerConfig(sc=>({...(sc||{}), hasGeminiKey:true, hasGasUrl:true}));
+                    addLog('✅ Gemini key saved to server', 'ok');
+                    addToast('Key saved to server — safe to clear local copy', 'success');
+                  } else { throw new Error(d.error||'Save failed'); }
+                } catch(e) { addToast('❌ '+e.message,'error'); }
+                finally { setBusy(null); }
+              },
+            }, busy==='savekey'?'…':'☁️ Save to Server'),
+
+            geminiKey && isValidUrl && !isLocalUrl && serverConfig && serverConfig.hasGeminiKey && h('button',{
+              className:'btn bd2 bsm',
+              title:'Clear Gemini key from localStorage (server copy is kept)',
+              onClick:()=>{ if(confirm('Remove the local copy? (Server copy is kept and will be used for OCR.)')){ saveGeminiKey(''); addToast('Local key cleared — server copy is active','info'); } },
+            }, '🗑 Clear Local Copy')
+          )
         )
       ),
 
@@ -14136,6 +14185,13 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
           ),
           url && !isValidUrl && h('div', {style:{fontSize:12,color:'var(--re)',marginTop:-6,marginBottom:10}},
             '⚠ URL should look like: https://script.google.com/macros/s/.../exec  or  http://localhost:PORT'
+          ),
+          url && isValidUrl && !isLocalUrl && APP_DEFAULTS.GAS_URL !== url && h('div',{style:{fontSize:11.5,color:'#7bc47b',background:'rgba(46,125,50,.1)',padding:'7px 10px',borderRadius:6,marginTop:-4,marginBottom:10,lineHeight:1.6}},
+            '💡 To auto-fill this URL in every browser without re-entering it, open ',
+            h('code',{style:{background:'rgba(0,0,0,.2)',padding:'1px 5px',borderRadius:3}},'cyrabelldental_v2.html'),
+            ' in a text editor and set ',
+            h('code',{style:{background:'rgba(0,0,0,.2)',padding:'1px 5px',borderRadius:3}},"APP_DEFAULTS.GAS_URL = '"+url.slice(0,60)+(url.length>60?'…':'')+"'"),
+            ' near the top — then push to GitHub.'
           ),
 
           h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}},

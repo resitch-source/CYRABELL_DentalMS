@@ -61,6 +61,27 @@ function writeTable(name, rows) {
   fs.writeFileSync(path.join(DATA_DIR, name + '.json'), JSON.stringify(rows, null, 2));
 }
 
+const CONFIG_FILE = path.join(DATA_DIR, '_config.json');
+
+function readConfig() {
+  try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch { return {}; }
+}
+
+function writeConfig(cfg) {
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
+}
+
+function getConfigStatus() {
+  const cfg = readConfig();
+  return {
+    ok: true,
+    hasGasUrl:       !!(cfg.GAS_URL           || '').trim(),
+    hasGeminiKey:    !!(cfg.GEMINI_API_KEY     || '').trim(),
+    hasOpenaiKey:    !!(cfg.OPENAI_API_KEY     || '').trim(),
+    hasAnthropicKey: !!(cfg.ANTHROPIC_API_KEY  || '').trim(),
+  };
+}
+
 function appendLog(level, source, message, detail) {
   const logs = readTable('serverLogs');
   logs.push({
@@ -87,7 +108,11 @@ app.get('/', (req, res) => {
   const action = req.query.action;
 
   if (!action || action === 'ping') {
-    return res.json({ ok: true, pong: true, mode: 'local', version: '1.0.0' });
+    return res.json({ ok: true, pong: true, mode: 'local', version: '1.0.0', config: getConfigStatus() });
+  }
+
+  if (action === 'getConfig') {
+    return res.json(getConfigStatus());
   }
 
   if (action === 'pull') {
@@ -154,6 +179,22 @@ app.post('/', upload.single('file'), (req, res) => {
     const rows = readTable(table || 'patients');
     const dup  = rows.find(r => r[field] === value && r.id !== excludeId);
     return res.json({ ok: true, found: !!dup, existing: dup || null });
+  }
+
+  // ── saveConfig ───────────────────────────────────────────────────────────
+  if (action === 'saveConfig') {
+    const cfg = readConfig();
+    const saved = [];
+    if (body.gasUrl)        { cfg.GAS_URL           = body.gasUrl.trim();       saved.push('gasUrl'); }
+    if (body.geminiKey)     { cfg.GEMINI_API_KEY     = body.geminiKey.trim();    saved.push('geminiKey'); }
+    if (body.openaiKey)     { cfg.OPENAI_API_KEY     = body.openaiKey.trim();    saved.push('openaiKey'); }
+    if (body.anthropicKey)  { cfg.ANTHROPIC_API_KEY  = body.anthropicKey.trim(); saved.push('anthropicKey'); }
+    if (body.clearGeminiKey)   { delete cfg.GEMINI_API_KEY;   saved.push('cleared:geminiKey'); }
+    if (body.clearOpenaiKey)   { delete cfg.OPENAI_API_KEY;   saved.push('cleared:openaiKey'); }
+    if (body.clearAnthropicKey){ delete cfg.ANTHROPIC_API_KEY;saved.push('cleared:anthropicKey'); }
+    writeConfig(cfg);
+    console.log('[config] saved:', saved.join(', '));
+    return res.json({ ok: true, saved });
   }
 
   // ── uploadPhoto ───────────────────────────────────────────────────────────

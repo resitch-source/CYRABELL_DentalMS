@@ -89,7 +89,7 @@ var JSON_COLS = {
 function doGet(e) {
   try {
     var action = (e && e.parameter && e.parameter.action) || 'pull';
-    if (action === 'ping')     return jsonOut({ ok:true, pong:true, version:'5.0', time:new Date().toISOString() });
+    if (action === 'ping')     return jsonOut({ ok:true, pong:true, version:'5.0', time:new Date().toISOString(), config:handleGetConfig() });
     if (action === 'pull')     return jsonOut({ ok:true, data:pullAll() });
     if (action === 'init') {
       ensureSheets();
@@ -135,6 +135,10 @@ function doPost(e) {
 
     // ── Append client-side log entries to serverLogs sheet ───────────────
     if (action === 'appendLogs')      return jsonOut(handleAppendLogs(payload));
+
+    // ── Config: save/retrieve GAS URL + Gemini key securely ──────────────
+    if (action === 'saveConfig')      return jsonOut(handleSaveConfig(payload));
+    if (action === 'getConfig')       return jsonOut(handleGetConfig());
 
     // ── Default: push all data ────────────────────────────────────────────
     if (!payload.data) return jsonOut({ ok:false, error:'Missing "data" field' });
@@ -441,6 +445,67 @@ function handleAppendLogs(payload) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// CONFIG — save & retrieve GAS URL + API keys via PropertiesService
+//
+// Keys are stored in Script Properties (never in the spreadsheet).
+// The client receives only boolean flags ("has key?"), never the values.
+//
+// Saved properties:
+//   GAS_URL          — this deployment's own web-app URL (for reference)
+//   GEMINI_API_KEY   — Gemini key (also used by handleOcr above)
+//   OPENAI_API_KEY   — optional
+//   ANTHROPIC_API_KEY — optional
+//
+// Action: saveConfig
+//   payload: { gasUrl?, geminiKey?, openaiKey?, anthropicKey? }
+//   Returns: { ok:true, saved:['geminiKey',...] }
+//
+// Action: getConfig
+//   No payload needed.
+//   Returns: { ok:true, hasGasUrl, hasGeminiKey, hasOpenaiKey, hasAnthropicKey }
+// ═══════════════════════════════════════════════════════════════════════════
+
+function handleSaveConfig(payload) {
+  var props  = PropertiesService.getScriptProperties();
+  var saved  = [];
+
+  if (payload.gasUrl && payload.gasUrl.trim()) {
+    props.setProperty('GAS_URL', payload.gasUrl.trim());
+    saved.push('gasUrl');
+  }
+  if (payload.geminiKey && payload.geminiKey.trim()) {
+    props.setProperty('GEMINI_API_KEY', payload.geminiKey.trim());
+    saved.push('geminiKey');
+  }
+  if (payload.openaiKey && payload.openaiKey.trim()) {
+    props.setProperty('OPENAI_API_KEY', payload.openaiKey.trim());
+    saved.push('openaiKey');
+  }
+  if (payload.anthropicKey && payload.anthropicKey.trim()) {
+    props.setProperty('ANTHROPIC_API_KEY', payload.anthropicKey.trim());
+    saved.push('anthropicKey');
+  }
+  // Allow clearing a key by passing an explicit empty string with a _clear flag
+  if (payload.clearGeminiKey)   { props.deleteProperty('GEMINI_API_KEY');   saved.push('cleared:geminiKey'); }
+  if (payload.clearOpenaiKey)   { props.deleteProperty('OPENAI_API_KEY');   saved.push('cleared:openaiKey'); }
+  if (payload.clearAnthropicKey){ props.deleteProperty('ANTHROPIC_API_KEY');saved.push('cleared:anthropicKey'); }
+
+  serverLog('INFO', 'saveConfig', 'Config updated: ' + saved.join(', '));
+  return { ok:true, saved:saved };
+}
+
+function handleGetConfig() {
+  var props = PropertiesService.getScriptProperties();
+  return {
+    ok:               true,
+    hasGasUrl:        !!(props.getProperty('GAS_URL')           || '').trim(),
+    hasGeminiKey:     !!(props.getProperty('GEMINI_API_KEY')    || '').trim(),
+    hasOpenaiKey:     !!(props.getProperty('OPENAI_API_KEY')    || '').trim(),
+    hasAnthropicKey:  !!(props.getProperty('ANTHROPIC_API_KEY') || '').trim(),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PATIENT PHOTOS — Google Drive
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -564,9 +629,10 @@ function handleDeleteAttachment(payload) {
 
 function handleOcr(payload) {
   var props        = PropertiesService.getScriptProperties();
-  var geminiKey    = props.getProperty('GEMINI_API_KEY');
-  var openaiKey    = props.getProperty('OPENAI_API_KEY');
-  var anthropicKey = props.getProperty('ANTHROPIC_API_KEY');
+  // Client-supplied key (browser fast-path) takes precedence over stored key
+  var geminiKey    = (payload.geminiKey    || props.getProperty('GEMINI_API_KEY')    || '');
+  var openaiKey    = (payload.openaiKey    || props.getProperty('OPENAI_API_KEY')    || '');
+  var anthropicKey = (payload.anthropicKey || props.getProperty('ANTHROPIC_API_KEY') || '');
 
   if (geminiKey)    geminiKey    = geminiKey.trim().replace(/\s/g,'');
   if (openaiKey)    openaiKey    = openaiKey.trim().replace(/\s/g,'');
