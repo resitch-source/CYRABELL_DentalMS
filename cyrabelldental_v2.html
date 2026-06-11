@@ -3084,7 +3084,7 @@ const CONFIG = Object.freeze({
   /** Default appointment slot duration in minutes. */
   DEFAULT_SLOT_MIN: 45,
   /** Available appointment times. */
-  APPOINTMENT_TIMES: ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'],
+  APPOINTMENT_TIMES: ['09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'],
   /** Dentists available for scheduling. */
   DENTISTS: ['Dr. Arnold Colao'],
 
@@ -4573,7 +4573,7 @@ async function sendNotification(channel, patient, message, syncUrl) {
 // ─── SCHEDULING AI ─────────────────────────────────────────────────────────
 // Given appointments + a target date range, suggests optimal slots based on:
 //   - Existing bookings (no conflicts)
-//   - Clinic hours (08:00–17:00)
+//   - Clinic hours (09:00–17:00)
 //   - Even distribution (don't bunch all morning)
 //   - Service duration estimates
 const SERVICE_DURATIONS = {
@@ -4629,7 +4629,7 @@ const SERVICE_DURATIONS = {
   'Orthodontic Braces — Consultation': 30,
   'Orthodontic Braces — Monthly Adjustment': 30,
 };
-const SLOT_TIMES = ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
+const SLOT_TIMES = ['09:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'];
 
 function aiSuggestSlots(appointments, service, fromDate, daysAhead) {
   daysAhead = daysAhead || 7;
