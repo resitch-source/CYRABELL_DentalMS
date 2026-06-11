@@ -242,6 +242,9 @@ function pullAll() {
 // SHEETS — PUSH (accept JSON → overwrite all sheets)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Tables that are written by the server itself and must never be cleared by a client push
+var READONLY_TABLES = { serverLogs: true };
+
 function pushAll(data) {
   ensureSheets();
   var ss    = SpreadsheetApp.getActiveSpreadsheet();
@@ -251,6 +254,12 @@ function pushAll(data) {
     var headers  = TABLES[tableName];
     var sheet    = ss.getSheetByName(tableName);
     var jsonCols = JSON_COLS[tableName] || [];
+
+    // Never let a client push overwrite server-managed tables (e.g. serverLogs)
+    if (READONLY_TABLES[tableName]) {
+      stats[tableName] = -1;
+      continue;
+    }
 
     // Skip tables not present in the payload — avoids wiping sheets on partial syncs
     if (!Object.prototype.hasOwnProperty.call(data, tableName)) {
