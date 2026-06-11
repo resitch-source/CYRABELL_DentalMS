@@ -2762,6 +2762,28 @@ textarea.hist-field-input{resize:vertical;min-height:48px;}
 }
 .appt-patient-photo{width:40px;height:40px;border-radius:8px;object-fit:cover;border:2px solid var(--t);flex-shrink:0;}
 .appt-patient-info{flex:1;min-width:0;}
+.queue-panel{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0;}
+@media(max-width:600px){.queue-panel{grid-template-columns:1fr;}}
+.queue-col{background:var(--cr);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;}
+.queue-col-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--md);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.queue-row{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd);font-size:12.5px;}
+.queue-row:last-child{border-bottom:none;}
+.queue-time{font-weight:700;color:var(--t);min-width:48px;font-size:12px;padding-top:1px;}
+.queue-num{background:#00c8ff22;color:#00b8e0;border:1px solid #00c8ff44;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;min-width:32px;text-align:center;flex-shrink:0;}
+.queue-late{color:#f39c12;font-size:10.5px;font-weight:600;white-space:nowrap;}
+.queue-noshow-txt{color:#e74c3c;font-size:10.5px;font-weight:600;}
+.checkin-btn{font-size:10.5px;padding:2px 9px;background:#27ae6018;color:#27ae60;border:1px solid #27ae6044;border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.checkin-btn:hover{background:#27ae6030;}
+.checkedin-badge{font-size:10.5px;color:#27ae60;font-weight:600;white-space:nowrap;}
+.standby-badge{background:#9b59b618;color:#9b59b6;border:1px solid #9b59b644;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:700;}
+.noshow-badge{background:#e74c3c18;color:#e74c3c;border:1px solid #e74c3c33;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:700;}
+.noshow-btn{font-size:10px;padding:2px 7px;background:#e74c3c18;color:#e74c3c;border:1px solid #e74c3c44;border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.noshow-btn:hover{background:#e74c3c28;}
+.standby-toggle{display:flex;gap:0;border:1px solid var(--bd);border-radius:8px;overflow:hidden;margin-bottom:12px;}
+.standby-toggle button{flex:1;padding:9px 10px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--bg2);color:var(--md);transition:background .15s,color .15s;}
+.standby-toggle button.active{background:var(--t);color:#fff;}
+.standby-note{background:#00c8ff0d;border:1px solid #00c8ff33;border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--dk);margin:8px 0;line-height:1.6;}
+.standby-full{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#dc2626;margin:8px 0;}
 </style>
 </head>
 <body>
@@ -11546,7 +11568,103 @@ function runAutoConfirm(appointments) {
 // ═══════════════════════════════════════════════════════════════════════════
 // 📊 DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════
-function Dashboard({appointments,patients,payments,onGoKiosk}){
+function TodayQueue({appointments, setAppointments, syncUrl, addToast}){
+  const [tick, setTick] = useState(0);
+  useEffect(()=>{ const t=setInterval(()=>setTick(x=>x+1),60000); return ()=>clearInterval(t); },[]);
+  const today = localToday();
+  const now = new Date();
+
+  const scheduled = appointments.filter(a=>a.date===today && a.appointmentType!=='standby' && a.status!=='cancelled' && !a.noShow)
+    .sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  const standby = appointments.filter(a=>a.date===today && a.appointmentType==='standby' && a.status!=='cancelled' && !a.noShow)
+    .sort((a,b)=>(a.queueNumber||99)-(b.queueNumber||99));
+
+  const checkIn = (appt) => {
+    const updated = {...appt, checkedIn:true, checkedInAt:new Date().toISOString()};
+    setAppointments(prev=>prev.map(a=>a.id===appt.id?updated:a));
+    syncOneRecord('appointments', updated, syncUrl);
+    addToast(appt.patientName+' checked in','success');
+  };
+  const markNoShow = (appt) => {
+    const updated = {...appt, noShow:true, status:'cancelled'};
+    setAppointments(prev=>prev.map(a=>a.id===appt.id?updated:a));
+    syncOneRecord('appointments', updated, syncUrl);
+    addToast(appt.patientName+' marked no-show — next standby patient can be called','info');
+  };
+
+  const minsLate = (appt) => {
+    if(!appt.time) return 0;
+    const [hh,mm] = appt.time.split(':').map(Number);
+    const slotTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm);
+    return Math.floor((now - slotTime) / 60000);
+  };
+
+  return h('div',{className:'card',style:{marginBottom:16}},
+    h('div',{className:'ch'},
+      h('div',{className:'ct'},"Today's Queue"),
+      h('div',{style:{fontSize:11,color:'var(--md)'}},
+        scheduled.length+' scheduled · '+standby.length+' standby'
+      )
+    ),
+    h('div',{className:'cb'},
+      h('div',{className:'queue-panel'},
+        // Scheduled column
+        h('div',{className:'queue-col'},
+          h('div',{className:'queue-col-title'},
+            h(Svg,{d:IC.cal,size:13,color:'var(--t)'}), 'Scheduled'
+          ),
+          scheduled.length===0
+            ? h('div',{style:{fontSize:12,color:'var(--md)',padding:'6px 0'}},'No scheduled appointments today')
+            : scheduled.map(a=>{
+                const late = !a.checkedIn ? minsLate(a) : 0;
+                return h('div',{key:a.id,className:'queue-row'},
+                  h('div',{className:'queue-time'},a.time?fmtTime(a.time):'—'),
+                  h('div',{style:{flex:1,minWidth:0}},
+                    h('div',{style:{fontWeight:600,fontSize:12.5,color:'var(--dk)',display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}},
+                      a.patientName,
+                      a.checkedIn && h('span',{className:'checkedin-badge'},'✓ In'),
+                      !a.checkedIn && late>=15 && h('span',{className:'noshow-badge'},'⚠ LATE'),
+                      !a.checkedIn && late>0 && late<15 && h('span',{className:'queue-late'},late+'m late'),
+                    ),
+                    h('div',{style:{fontSize:11,color:'var(--md)',marginTop:1}},svcStr(a))
+                  ),
+                  !a.checkedIn && a.status!=='cancelled' && late<15
+                    ? h('button',{className:'checkin-btn',onClick:()=>checkIn(a)},'Check In')
+                    : !a.checkedIn && late>=15
+                      ? h('button',{className:'noshow-btn',onClick:()=>markNoShow(a)},'No-show')
+                      : null
+                );
+              })
+        ),
+        // Standby column
+        h('div',{className:'queue-col'},
+          h('div',{className:'queue-col-title'},
+            h(Svg,{d:IC.users,size:13,color:'#9b59b6'}), 'Standby Queue'
+          ),
+          standby.length===0
+            ? h('div',{style:{fontSize:12,color:'var(--md)',padding:'6px 0'}},'No standby patients today')
+            : standby.map(a=>
+                h('div',{key:a.id,className:'queue-row'},
+                  h('span',{className:'queue-num'},'Q'+a.queueNumber),
+                  h('div',{style:{flex:1,minWidth:0}},
+                    h('div',{style:{fontWeight:600,fontSize:12.5,color:'var(--dk)',display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}},
+                      a.patientName,
+                      a.checkedIn && h('span',{className:'checkedin-badge'},'✓ In'),
+                    ),
+                    h('div',{style:{fontSize:11,color:'var(--md)',marginTop:1}},svcStr(a))
+                  ),
+                  !a.checkedIn
+                    ? h('button',{className:'checkin-btn',onClick:()=>checkIn(a)},'Check In')
+                    : null
+                )
+              )
+        )
+      )
+    )
+  );
+}
+
+function Dashboard({appointments,setAppointments,patients,payments,onGoKiosk,syncUrl,addToast}){
   const [showAI, setShowAI] = useState(false);
   const addToast2 = (m,t) => {};
   const pending=appointments.filter(a=>a.status==='pending').length;
@@ -11578,6 +11696,7 @@ function Dashboard({appointments,patients,payments,onGoKiosk}){
         h('div',{style:{minWidth:0}},h('div',{className:'sv'},s.v),h('div',{className:'sl'},s.l))
       ))
     ),
+    h(TodayQueue,{appointments,setAppointments,syncUrl:syncUrl||'',addToast:addToast||(()=>{})}),
     h('div',{className:'dg'},
       h('div',{className:'card'},
         h('div',{className:'ch'},h('div',{className:'ct'},"Today's Schedule")),
@@ -12470,54 +12589,93 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
           h('th', null, 'Actions')
         )),
         h('tbody',null,filtered.length===0?h('tr',null,h('td',{colSpan:6},h('div',{className:'empty'},'No appointments found'))):
-          pagedAppts.map(a=>h('tr',{key:a.id},
-            h('td',null,
-              h('strong',null,a.patientName),
-              a.arrived&&h('span',{className:'kiosk-arrived-badge',style:{marginLeft:6,fontSize:9}},'🪑'),
-              h('div',{style:{fontSize:11,color:'var(--lt)'}},a.dentist)
-            ),
-            h('td',null,svcStr(a)),
-            h('td',{style:{whiteSpace:'nowrap'}},
-              h('div',{style:{fontWeight:600,fontSize:13}}, fmtDateWithDay(a.date)),
-              h('div',{style:{fontSize:11,color:'var(--md)'}}, fmtTime(a.time) + ' · ' + fmtDateRelative(a.date))
-            ),
-            h('td',null,'₱'+p$(a.fee)),
-            h('td',null,a.arrived?h('span',{className:'kiosk-arrived-badge'},'✓ In Clinic'):h(SBadge,{status:a.status})),
-            h('td',null,h('div',{className:'gap8'},
-              h('button',{className:'btn bgh bsm',onClick:()=>setDetail(a)},h(Svg,{d:IC.eye,size:13})),
-              a.status==='pending'&&!a.arrived&&h('button',{className:'btn bs bsm',onClick:()=>action(a.id,'confirmed')},'Confirm'),
-              (a.status==='confirmed'||a.arrived)&&a.status!=='completed'&&h('button',{className:'btn bp bsm',onClick:()=>action(a.id,'completed')},'✓ Complete'),
-              (a.status==='pending'||a.status==='confirmed')&&!a.arrived&&h('button',{className:'btn bd2 bsm',onClick:()=>action(a.id,'cancelled')},'Cancel')
-            ))
-          ))
+          pagedAppts.map(a=>{
+            const isToday2 = a.date===localToday();
+            const doCheckIn2 = () => {
+              const updated={...a,checkedIn:true,checkedInAt:new Date().toISOString()};
+              setAppointments(prev=>prev.map(x=>x.id===a.id?updated:x));
+              syncOneRecord('appointments',updated,syncUrl);
+              addToast(a.patientName+' checked in','success');
+            };
+            return h('tr',{key:a.id},
+              h('td',null,
+                h('div',{style:{display:'flex',alignItems:'center',gap:5,flexWrap:'wrap'}},
+                  h('strong',null,a.patientName),
+                  a.appointmentType==='standby'&&h('span',{className:'standby-badge'},'Q'+a.queueNumber),
+                  a.noShow&&h('span',{className:'noshow-badge'},'No-show'),
+                  a.checkedIn&&h('span',{className:'checkedin-badge'},'✓ In'),
+                  a.arrived&&!a.checkedIn&&h('span',{className:'kiosk-arrived-badge',style:{fontSize:9}},'🪑')
+                ),
+                h('div',{style:{fontSize:11,color:'var(--lt)'}},a.dentist)
+              ),
+              h('td',null,svcStr(a)),
+              h('td',{style:{whiteSpace:'nowrap'}},
+                h('div',{style:{fontWeight:600,fontSize:13}}, fmtDateWithDay(a.date)),
+                a.appointmentType==='standby'
+                  ? h('span',{className:'standby-badge',style:{fontSize:10}},'Standby — No Fixed Time')
+                  : h('div',{style:{fontSize:11,color:'var(--md)'}}, fmtTime(a.time) + ' · ' + fmtDateRelative(a.date))
+              ),
+              h('td',null,'₱'+p$(a.fee)),
+              h('td',null,a.arrived?h('span',{className:'kiosk-arrived-badge'},'✓ In Clinic'):h(SBadge,{status:a.status})),
+              h('td',null,h('div',{className:'gap8'},
+                h('button',{className:'btn bgh bsm',onClick:()=>setDetail(a)},h(Svg,{d:IC.eye,size:13})),
+                isToday2&&!a.checkedIn&&(a.status==='confirmed'||a.status==='pending')&&!a.noShow&&
+                  h('button',{className:'checkin-btn',onClick:doCheckIn2},'✓ In'),
+                a.status==='pending'&&!a.arrived&&h('button',{className:'btn bs bsm',onClick:()=>action(a.id,'confirmed')},'Confirm'),
+                (a.status==='confirmed'||a.arrived)&&a.status!=='completed'&&h('button',{className:'btn bp bsm',onClick:()=>action(a.id,'completed')},'✓ Complete'),
+                (a.status==='pending'||a.status==='confirmed')&&!a.arrived&&h('button',{className:'btn bd2 bsm',onClick:()=>action(a.id,'cancelled')},'Cancel')
+              ))
+            );
+          })
         )
       )),h(ApptsPager)),
       h('div',{className:'ml'},
         filtered.length===0&&h('div',{className:'empty'},'No appointments found'),
-        pagedAppts.map(a=>h('div',{key:a.id,className:'mc'},
-          h('div',{className:'mc-top'},
-            h('div',null,
-              h('div',{className:'mc-nm'},a.patientName,a.arrived&&h('span',{style:{marginLeft:6,fontSize:13}},'🪑')),
-              h('div',{className:'mc-sb'},svcStr(a)+' · '+a.dentist)
+        pagedAppts.map(a=>{
+          const isToday = a.date===localToday();
+          const doCheckIn = () => {
+            const updated={...a,checkedIn:true,checkedInAt:new Date().toISOString()};
+            setAppointments(prev=>prev.map(x=>x.id===a.id?updated:x));
+            syncOneRecord('appointments',updated,syncUrl);
+            addToast(a.patientName+' checked in','success');
+          };
+          return h('div',{key:a.id,className:'mc'},
+            h('div',{className:'mc-top'},
+              h('div',null,
+                h('div',{className:'mc-nm',style:{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}},
+                  a.patientName,
+                  a.appointmentType==='standby'&&h('span',{className:'standby-badge'},'Q'+a.queueNumber),
+                  a.noShow&&h('span',{className:'noshow-badge'},'No-show'),
+                  a.checkedIn&&h('span',{className:'checkedin-badge'},'✓ Checked In'),
+                  a.arrived&&!a.checkedIn&&h('span',{style:{fontSize:13}},'🪑')
+                ),
+                h('div',{className:'mc-sb'},svcStr(a)+' · '+a.dentist)
+              ),
+              a.arrived?h('span',{className:'kiosk-arrived-badge'},'In Clinic'):h(SBadge,{status:a.status})
             ),
-            a.arrived?h('span',{className:'kiosk-arrived-badge'},'In Clinic'):h(SBadge,{status:a.status})
-          ),
-          h('div',{className:'mc-row'},
-            h('span',{className:'mc-lbl'},'Date'),
-            h('span',{className:'mc-val'}, fmtDateWithDay(a.date))
-          ),
-          h('div',{className:'mc-row'},
-            h('span',{className:'mc-lbl'},'Time'),
-            h('span',{className:'mc-val'}, fmtTime(a.time) + ' · ' + fmtDateRelative(a.date))
-          ),
-          h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Fee'),h('span',{className:'mc-val',style:{color:'var(--t)',fontWeight:700}},'₱'+p$(a.fee))),
-          h('div',{className:'mc-act'},
-            h('button',{className:'btn bgh bsm',style:{flex:1},onClick:()=>setDetail(a)},'View'),
-            a.status==='pending'&&!a.arrived&&h('button',{className:'btn bs bsm',style:{flex:2},onClick:()=>action(a.id,'confirmed')},'✓ Confirm'),
-            (a.status==='confirmed'||a.arrived)&&a.status!=='completed'&&h('button',{className:'btn bp bsm',style:{flex:2},onClick:()=>action(a.id,'completed')},'✓ Complete'),
-            (a.status==='pending'||a.status==='confirmed')&&!a.arrived&&h('button',{className:'btn bd2 bsm',style:{flex:1},onClick:()=>action(a.id,'cancelled')},'Cancel')
-          )
-        ))
+            h('div',{className:'mc-row'},
+              h('span',{className:'mc-lbl'},'Date'),
+              h('span',{className:'mc-val'}, fmtDateWithDay(a.date))
+            ),
+            h('div',{className:'mc-row'},
+              h('span',{className:'mc-lbl'},a.appointmentType==='standby'?'Type':'Time'),
+              h('span',{className:'mc-val'},
+                a.appointmentType==='standby'
+                  ? h('span',{className:'standby-badge'},'Standby — No Fixed Time')
+                  : fmtTime(a.time) + ' · ' + fmtDateRelative(a.date)
+              )
+            ),
+            h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Fee'),h('span',{className:'mc-val',style:{color:'var(--t)',fontWeight:700}},'₱'+p$(a.fee))),
+            h('div',{className:'mc-act'},
+              h('button',{className:'btn bgh bsm',style:{flex:1},onClick:()=>setDetail(a)},'View'),
+              isToday&&!a.checkedIn&&(a.status==='confirmed'||a.status==='pending')&&!a.noShow&&
+                h('button',{className:'checkin-btn',style:{flex:1},onClick:doCheckIn},'✓ Check In'),
+              a.status==='pending'&&!a.arrived&&h('button',{className:'btn bs bsm',style:{flex:2},onClick:()=>action(a.id,'confirmed')},'✓ Confirm'),
+              (a.status==='confirmed'||a.arrived)&&a.status!=='completed'&&h('button',{className:'btn bp bsm',style:{flex:2},onClick:()=>action(a.id,'completed')},'✓ Complete'),
+              (a.status==='pending'||a.status==='confirmed')&&!a.arrived&&h('button',{className:'btn bd2 bsm',style:{flex:1},onClick:()=>action(a.id,'cancelled')},'Cancel')
+            )
+          );
+        })
       )
     ),
 
@@ -13617,6 +13775,7 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
   const si = (k,v) => setInfo(x=>({...x,[k]:v}));
 
   // ── Service + Schedule state ─────────────────────────────────────────
+  const [bookMode, setBookMode] = useState('scheduled'); // 'scheduled' | 'standby'
   const [sched, setSched] = useState({
     service:'', fee:'', date:'', time:'09:00',
     dentist:'Dr. Arnold Colao', notes:'',
@@ -13657,12 +13816,25 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
   const submit = () => {
     setErr('');
     if (!info.name.trim() || !info.phone.trim()) { setErr('Name and phone number are required.'); return; }
-    if (!sched.service || !sched.date || !sched.time) { setErr('Please select a service, date, and time slot.'); return; }
-    const check = checkAvailability(existingAppointments||[], sched.date, sched.time, sched.service);
-    if (!check.available) { setErr('This slot is no longer available: '+check.message+'. Please pick another.'); return; }
+    if (!sched.service || !sched.date) { setErr('Please select a service and date.'); return; }
+    if (bookMode==='scheduled' && !sched.time) { setErr('Please select a time slot.'); return; }
+
+    const today = sched.date;
+    const isStandby = bookMode==='standby';
+
+    if (isStandby) {
+      const existingStandby = (existingAppointments||[]).filter(a=>a.date===today && a.appointmentType==='standby' && a.status!=='cancelled');
+      if (existingStandby.length >= 4) { setErr('The standby queue is full for this day (max 4). Please choose a specific time slot or select another date.'); return; }
+    } else {
+      const check = checkAvailability(existingAppointments||[], sched.date, sched.time, sched.service);
+      if (!check.available) { setErr('This slot is no longer available: '+check.message+'. Please pick another.'); return; }
+    }
+
+    const existingStandbyCount = (existingAppointments||[]).filter(a=>a.date===today && a.appointmentType==='standby' && a.status!=='cancelled').length;
     const patientId = selectedPat ? selectedPat.id : ('P'+uid());
     const appt = {
       ...sched,
+      time: isStandby ? '' : sched.time,
       id:          'A'+uid(),
       patientId,
       patientName: info.name.trim(),
@@ -13671,6 +13843,11 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
       status:      'pending',
       arrived:     false,
       attachments: [...bookingAtts],
+      appointmentType: isStandby ? 'standby' : 'scheduled',
+      queueNumber: isStandby ? existingStandbyCount+1 : null,
+      checkedIn:   false,
+      checkedInAt: null,
+      noShow:      false,
     };
     // If new patient, save to records
     if (!selectedPat && onAddPatient) {
@@ -13711,20 +13888,26 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
     h('div',{className:'pwc'},
       h('div',{className:'pwsuc'},
         h('div',{className:'pwck'}, h(Svg,{d:IC.check,color:'white',size:28})),
-        h('h2',{style:{fontFamily:"'Playfair Display',serif",fontSize:20,marginBottom:8}}, 'Appointment Requested!'),
+        h('h2',{style:{fontFamily:"'Playfair Display',serif",fontSize:20,marginBottom:8}},
+          done.appointmentType==='standby' ? 'Added to Standby Queue!' : 'Appointment Requested!'
+        ),
+        done.appointmentType==='standby' && h('div',{style:{fontSize:28,fontWeight:900,color:'#00b8e0',margin:'6px 0',letterSpacing:2}},'Queue #'+done.queueNumber),
         h('p',{style:{color:'var(--md)',fontSize:13,marginBottom:18,lineHeight:1.6}},
-          'Thank you, '+done.patientName+'! Our team will confirm your booking shortly.'
+          done.appointmentType==='standby'
+            ? 'Thank you, '+done.patientName+'! Please arrive by 9:00 AM on your chosen date and wait to be called. Your position is confirmed as Queue #'+done.queueNumber+'.'
+            : 'Thank you, '+done.patientName+'! Our team will confirm your booking shortly.'
         ),
         h('div',{className:'rc',style:{textAlign:'left',marginBottom:16}},
           h('div',{className:'rh'}, h('div',{className:'rl'},'🦷 Booking Summary')),
           [
             ['Patient',   done.patientName],
+            ['Type',      done.appointmentType==='standby'?'Standby Queue (No Fixed Time)':'Scheduled'],
+            done.appointmentType==='standby' ? ['Queue No.', 'Q'+done.queueNumber] : ['Time', done.time],
             ['Service',   done.service],
             ['Date',      done.date],
-            ['Time',      done.time],
             ['Dentist',   done.dentist],
             ['Est. Fee',  '₱'+p$(done.fee||0)],
-          ].map(([l,v]) => h('div',{key:l,className:'rr'},
+          ].filter(Boolean).map(([l,v]) => h('div',{key:l,className:'rr'},
             h('span',{className:'rr-l'},l),
             h('span',{className:'rr-v'},v)
           ))
@@ -13848,8 +14031,28 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
     // STEP 2 — SERVICE & SCHEDULE
     // ══════════════════════════════════════════════════════════════════
     step===2 && h('div',null,
-      h('div',{style:{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,marginBottom:16}},
+      h('div',{style:{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,marginBottom:12}},
         'Service & Schedule'
+      ),
+
+      // ── Booking mode toggle ──────────────────────────────────────────
+      h('div',{style:{marginBottom:14}},
+        h('div',{style:{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px',color:'var(--md)',marginBottom:6}},'Booking Type'),
+        h('div',{className:'standby-toggle'},
+          h('button',{className:bookMode==='scheduled'?'active':'',onClick:()=>setBookMode('scheduled')},
+            '📅 Schedule a Specific Time'
+          ),
+          h('button',{className:bookMode==='standby'?'active':'',onClick:()=>setBookMode('standby')},
+            '🪑 Join Standby Queue'
+          )
+        ),
+        bookMode==='standby' && h('div',{className:'standby-note'},
+          '🕐 No fixed time slot. Please arrive by ',h('strong',null,'9:00 AM'),
+          ' on your chosen date and wait to be called in order.',
+          h('br'),
+          'Up to ',h('strong',null,'4 standby patients'),
+          ' are accepted per day. If the queue is full, please choose a specific time.'
+        )
       ),
 
       // ── Service selector (grouped by category, same as ApptForm) ────
@@ -13902,8 +14105,8 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
         )
       ),
 
-      // ── Time Slot Grid ──────────────────────────────────────────────
-      sched.date && h('div',{style:{marginBottom:12}},
+      // ── Time Slot Grid (scheduled only) ────────────────────────────
+      bookMode==='scheduled' && sched.date && h('div',{style:{marginBottom:12}},
         h('label',{style:{display:'block',fontWeight:600,fontSize:12,marginBottom:6,color:'var(--md)',textTransform:'uppercase',letterSpacing:'.5px'}},
           'Available Time Slots'+(sched.service?' · '+(SERVICE_DURATIONS[sched.service]||DEFAULT_SLOT_MIN)+' min':'')
         ),
@@ -13916,8 +14119,18 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
         })
       ),
 
-      // ── Availability banner ─────────────────────────────────────────
-      sched.date && sched.time && sched.service && h(AvailabilityBanner,{
+      // ── Standby queue counter ────────────────────────────────────────
+      bookMode==='standby' && sched.date && (()=>{
+        const cnt = (existingAppointments||[]).filter(a=>a.date===sched.date && a.appointmentType==='standby' && a.status!=='cancelled').length;
+        if(cnt>=4) return h('div',{className:'standby-full'},'⛔ Standby queue is full for this date (4/4). Please choose a specific time slot or select another date.');
+        return h('div',{className:'standby-note',style:{marginTop:0}},
+          '✅ Queue spots available: ',h('strong',null,(4-cnt)+' of 4 remaining'),
+          '. You will be assigned ',h('strong',null,'Queue #'+(cnt+1)),'.'
+        );
+      })(),
+
+      // ── Availability banner (scheduled only) ────────────────────────
+      bookMode==='scheduled' && sched.date && sched.time && sched.service && h(AvailabilityBanner,{
         appointments: existingAppointments||[],
         date:sched.date, time:sched.time, service:sched.service,
       }),
@@ -13954,7 +14167,11 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
       h('div',{style:{display:'flex',gap:10,marginTop:16}},
         h('button',{className:'btn bgh',style:{flex:1},onClick:()=>setStep(1)},'← Back'),
         h('button',{className:'btn bp',style:{flex:2},
-          onClick:()=>{ if(!sched.service||!sched.date){setErr('Please select a service and date.');return;} setErr('');setStep(3); },
+          onClick:()=>{
+            if(!sched.service||!sched.date){setErr('Please select a service and date.');return;}
+            if(bookMode==='scheduled'&&!sched.time){setErr('Please select a time slot.');return;}
+            setErr('');setStep(3);
+          },
           disabled:!sched.service||!sched.date
         },'Review Booking →')
       )
@@ -13976,9 +14193,10 @@ function PublicBooking({onBook, onBack, existingAppointments, patients, onAddPat
           ['Date of Birth',info.dob||'—'],
           ['Blood Type',   info.bloodType||'—'],
           ['Allergies',    info.allergies||'—'],
+          ['Booking Type',  bookMode==='standby'?'Standby Queue (No Fixed Time)':'Scheduled Appointment'],
           ['Service',      sched.service],
           ['Date',         sched.date],
-          ['Time',         sched.time],
+          bookMode==='scheduled' ? ['Time', sched.time] : ['Queue Position', 'Q'+((existingAppointments||[]).filter(a=>a.date===sched.date&&a.appointmentType==='standby'&&a.status!=='cancelled').length+1)+' (Arrive by 9:00 AM)'],
           ['Dentist',      sched.dentist],
           ['Est. Fee',     '₱'+p$(sched.fee||0)],
           ['Notes',        sched.notes||'—'],
@@ -14250,7 +14468,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
   const safe = (arr) => Array.isArray(arr) ? arr : [];
   const renderPage = () => {
     try {
-      if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments),onGoKiosk});
+      if(page==='dashboard')return h(Dashboard,{appointments:safe(appointments),setAppointments,patients:safe(patients),payments:safe(payments),onGoKiosk,syncUrl,addToast});
       if(page==='appointments')return h(Appointments,{appointments:safe(appointments),setAppointments,patients:safe(patients),setPatients,setNotifications,setPayments,addToast,syncUrl});
       if(page==='patients')return h(Patients,{patients:safe(patients),setPatients,appointments:safe(appointments),setAppointments,payments:safe(payments),setPayments,addToast,syncUrl,user});
       if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),appointments:safe(appointments),setAppointments,addToast,syncUrl});
