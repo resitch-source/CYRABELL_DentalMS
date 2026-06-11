@@ -1821,12 +1821,12 @@ th:hover .sort-icon{opacity:.9}
   color:var(--tl);font-weight:700;
 }
 .nexarch-logo-sm{
-  width:48px;height:48px;
+  width:80px;height:80px;
   object-fit:contain;
   filter:drop-shadow(0 0 4px rgba(0,200,255,.5));
 }
 .nexarch-logo-xs{
-  width:28px;height:28px;
+  width:60px;height:60px;
   object-fit:contain;
   filter:drop-shadow(0 0 3px rgba(0,200,255,.5));
 }
@@ -5260,7 +5260,7 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
         ),
         h('div',{className:'nexarch-badge',style:{marginTop:20}},
           h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',className:'nexarch-logo-sm'}),
-          h('span',null,'Powered by ',h('strong',null,'CYRABELL'))
+          h('span',null,'Powered by')
         )
       )
     );
@@ -5300,7 +5300,7 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
       ),
       h('div',{className:'nexarch-badge',style:{marginTop:12}},
         h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',className:'nexarch-logo-sm'}),
-        h('span',null,'Powered by ',h('strong',null,'CYRABELL'))
+        h('span',null,'Powered by')
       )
     )
   );
@@ -12647,8 +12647,8 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
           ),
           // NexArch power badge
           h('div',{className:'nexarch-sb-badge'},
-            h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',style:{width:44,height:44,objectFit:'contain',borderRadius:4}}),
-            h('span',null,'Powered by CYRABELL')
+            h('img',{src:CYRABELL_LOGO,alt:'Cyrabell',style:{width:72,height:72,objectFit:'contain',borderRadius:4}}),
+            h('span',null,'Powered by')
           )
         )
       ),
@@ -13482,7 +13482,7 @@ function App(){
         h('div', {className: 'boot-hint'}, 'Google Sheets is the source of truth'),
         h('div', {className: 'nexarch-badge', style: {marginTop: 16}},
           h('img', {src: CYRABELL_LOGO, alt: 'Cyrabell', className: 'nexarch-logo-sm'}),
-          h('span', null, 'Powered by ', h('strong', null, 'CYRABELL'))
+          h('span', null, 'Powered by')
         )
       )
     );
@@ -13515,7 +13515,7 @@ function App(){
         ),
         h('div', {className: 'nexarch-badge', style: {marginTop: 16}},
           h('img', {src: CYRABELL_LOGO, alt: 'Cyrabell', className: 'nexarch-logo-sm'}),
-          h('span', null, 'Powered by ', h('strong', null, 'CYRABELL'))
+          h('span', null, 'Powered by')
         )
       )
     );
