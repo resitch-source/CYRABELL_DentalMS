@@ -7301,9 +7301,20 @@ function AttachmentViewer({file, onClose}) {
         setDataUrl(url || '');
         setLoading(false);
       }).catch(() => setLoading(false));
-    } else if (file.storage === 'drive' && file.driveEmbedUrl) {
-      // For Drive files the embed URL is used for display
-      setDataUrl(file.driveEmbedUrl);
+    } else if (file.storage === 'drive') {
+      // Reconstruct drive URLs from fileId if any drive URL field is missing
+      const fid = file.driveFileId ||
+        (file.dataUrl && file.dataUrl.includes('/file/d/')
+          ? file.dataUrl.replace(/.*\/file\/d\/([^/]+).*/, '$1') : '') ||
+        (file.driveEmbedUrl && file.driveEmbedUrl.includes('/file/d/')
+          ? file.driveEmbedUrl.replace(/.*\/file\/d\/([^/]+).*/, '$1') : '');
+      if (fid) {
+        if (!file.driveFileId)       file.driveFileId       = fid;
+        if (!file.driveEmbedUrl)     file.driveEmbedUrl     = 'https://drive.google.com/file/d/' + fid + '/preview';
+        if (!file.driveViewUrl)      file.driveViewUrl      = 'https://drive.google.com/file/d/' + fid + '/view';
+        if (!file.driveDownloadUrl)  file.driveDownloadUrl  = 'https://drive.google.com/uc?id=' + fid + '&export=download';
+      }
+      setDataUrl(file.driveEmbedUrl || file.dataUrl || '');
     }
   }, [file.id]);
 
@@ -7315,10 +7326,13 @@ function AttachmentViewer({file, onClose}) {
     : file.type || '';
   const isImage  = effectiveType.startsWith('image/');
   const isPdf    = effectiveType === 'application/pdf';
-  const isDrive  = file.storage === 'drive' && file.driveEmbedUrl;
+  const isDrive  = file.storage === 'drive' && (file.driveEmbedUrl || file.driveFileId);
   const [zoom, setZoom] = useState(1);
 
-  const downloadHref = file.driveDownloadUrl || dataUrl || '';
+  const driveFileId   = file.driveFileId || '';
+  const driveViewUrl  = file.driveViewUrl  || (driveFileId ? 'https://drive.google.com/file/d/'+driveFileId+'/view' : '');
+  const driveDownUrl  = file.driveDownloadUrl || (driveFileId ? 'https://drive.google.com/uc?id='+driveFileId+'&export=download' : '');
+  const downloadHref  = driveDownUrl || dataUrl || '';
 
   return h('div', {className:'att-viewer-ov', onClick:onClose},
     h('div', {className:'att-viewer-modal', onClick:e=>e.stopPropagation()},
@@ -7331,8 +7345,8 @@ function AttachmentViewer({file, onClose}) {
           isImage && !isDrive && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(z=>Math.max(0.3,z-0.2))},'−'),
           isImage && !isDrive && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(1)},'1:1'),
           isImage && !isDrive && h('button',{type:'button',className:'btn bgh bsm',onClick:()=>setZoom(z=>Math.min(4,z+0.2))},'+'),
-          downloadHref && h('a',{href:downloadHref,download:file.driveDownloadUrl?undefined:(file.name||'attachment'),target:file.driveDownloadUrl?'_blank':undefined,className:'btn bg2 bsm'},'⬇ Download'),
-          file.driveViewUrl && h('a',{href:file.driveViewUrl,target:'_blank',className:'btn bgh bsm'},'🔗 Open in Drive'),
+          downloadHref && h('a',{href:downloadHref,download:driveDownUrl?undefined:(file.name||'attachment'),target:driveDownUrl?'_blank':undefined,className:'btn bg2 bsm'},'⬇ Download'),
+          driveViewUrl && h('a',{href:driveViewUrl,target:'_blank',className:'btn bgh bsm'},'🔗 Open in Drive'),
           h('button',{type:'button',className:'btn bgh bsm',onClick:onClose},'✕ Close')
         )
       ),
@@ -7354,7 +7368,7 @@ function AttachmentViewer({file, onClose}) {
                 e.target.src='https://lh3.googleusercontent.com/d/'+id+'=w1600';
               } else {
                 e.target.style.display='none';
-                e.target.insertAdjacentHTML('afterend','<div style="color:#aaa;padding:20px;text-align:center;font-size:13px">Preview unavailable — <a href="'+(file.driveViewUrl||'#')+'" target="_blank" style="color:#4dd">Open in Drive</a></div>');
+                e.target.insertAdjacentHTML('afterend','<div style="color:#aaa;padding:20px;text-align:center;font-size:13px">Preview unavailable — <a href="'+(driveViewUrl||'#')+'" target="_blank" style="color:#4dd">Open in Drive</a></div>');
               }
             }
           })
@@ -7363,7 +7377,7 @@ function AttachmentViewer({file, onClose}) {
           h('div',{style:{fontSize:52,marginBottom:12}},isPdf?'📑':'📄'),
           h('div',{style:{color:'#fff',fontWeight:700,fontSize:15,marginBottom:8}},file.name),
           h('div',{style:{color:'#aaa',fontSize:13,marginBottom:16}},'Preview requires opening in Google Drive.'),
-          file.driveViewUrl && h('a',{href:file.driveViewUrl,target:'_blank',className:'btn bg2'},'🔗 Open in Drive')
+          driveViewUrl && h('a',{href:driveViewUrl,target:'_blank',className:'btn bg2'},'🔗 Open in Drive')
         ),
         !loading && !isDrive && !dataUrl && h('div',{className:'att-viewer-nopreview'},
           h('div',{style:{fontSize:40,marginBottom:8}},'⚠️'),
@@ -12643,7 +12657,71 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
       let data;
       try { data = JSON.parse(text); } catch(e) { throw new Error('Invalid response'); }
       if (data.ok) {
-        applyDataBlob(data.data, {setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, setServices});
+        // Merge Sheets data with local data to restore attachment images/Drive URLs
+        // that were stripped before pushing (same logic as boot pull)
+        const d = data.data || {};
+        if (Array.isArray(d.patients)) {
+          let localPatients = [];
+          try { const ls = localStorage.getItem(LS_KEYS.PATIENTS); if (ls) localPatients = JSON.parse(ls) || []; } catch(e) {}
+          const localById = {};
+          localPatients.forEach(p => { localById[p.id] = p; });
+          d.patients = d.patients.map(sp => {
+            const lp = localById[sp.id];
+            if (!lp) return sp;
+            // Restore attachment dataUrls and drive fields that Sheets may have stripped
+            const sheetAttIds = new Set((sp.attachments || []).map(a => a.id));
+            const mergedAtts = (sp.attachments || []).map(sa => {
+              const la = (lp.attachments || []).find(a => a.id === sa.id);
+              if (!la) return sa;
+              return {
+                ...la,   // start with local (has all drive* fields + dataUrl)
+                ...sa,   // overlay Sheets metadata (name, note, date, storage, etc.)
+                // Prefer local dataUrl if Sheets stripped it, else keep Sheets value
+                dataUrl: sa.dataUrl || la.dataUrl || '',
+                // Restore drive fields from local if missing in Sheets copy
+                driveFileId:       sa.driveFileId       || la.driveFileId       || '',
+                driveEmbedUrl:     sa.driveEmbedUrl     || la.driveEmbedUrl     || '',
+                driveViewUrl:      sa.driveViewUrl      || la.driveViewUrl      || '',
+                driveThumbnailUrl: sa.driveThumbnailUrl || la.driveThumbnailUrl || '',
+                driveDownloadUrl:  sa.driveDownloadUrl  || la.driveDownloadUrl  || '',
+              };
+            });
+            const localOnlyAtts = (lp.attachments || []).filter(a => !sheetAttIds.has(a.id));
+            // Same for history attachments
+            const sheetHistIds = new Set((sp.history || []).map(h => h.id));
+            const mergedHist = (sp.history || []).map(sh => {
+              const lh = (lp.history || []).find(h => h.id === sh.id);
+              if (!lh) return sh;
+              const restoredAtts = (sh.attachments || []).map(sa => {
+                const la = (lh.attachments || []).find(a => a.id === sa.id);
+                if (!la) return sa;
+                return {
+                  ...la, ...sa,
+                  dataUrl:           sa.dataUrl           || la.dataUrl           || '',
+                  driveFileId:       sa.driveFileId       || la.driveFileId       || '',
+                  driveEmbedUrl:     sa.driveEmbedUrl     || la.driveEmbedUrl     || '',
+                  driveViewUrl:      sa.driveViewUrl      || la.driveViewUrl      || '',
+                  driveThumbnailUrl: sa.driveThumbnailUrl || la.driveThumbnailUrl || '',
+                  driveDownloadUrl:  sa.driveDownloadUrl  || la.driveDownloadUrl  || '',
+                };
+              });
+              const localOnlyHistAtts = (lh.attachments || []).filter(a => !(sh.attachments||[]).some(x=>x.id===a.id));
+              return {
+                ...sh,
+                scanImageUrl: sh.scanImageUrl || lh.scanImageUrl || '',
+                attachments: [...restoredAtts, ...localOnlyHistAtts],
+              };
+            });
+            const localOnlyHist = (lp.history || []).filter(h => !sheetHistIds.has(h.id));
+            return {
+              ...sp,
+              photoDataUrl: sp.photoDataUrl || lp.photoDataUrl || '',
+              attachments: [...mergedAtts, ...localOnlyAtts],
+              history: [...mergedHist, ...localOnlyHist],
+            };
+          });
+        }
+        applyDataBlob(d, {setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, setServices});
         const now = new Date().toLocaleString();
         setLastSync(now);
         lsSet(LS_KEYS.LAST_SYNC, now);
