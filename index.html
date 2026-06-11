@@ -5584,17 +5584,19 @@ const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 const RSS_FEEDS=[
   {url:'https://www.pna.gov.ph/feed',label:'PH',cat:'ph'},
-  {url:'https://mb.com.ph/feed',label:'PH',cat:'ph'},
-  {url:'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',label:'WORLD',cat:'int'},
-  {url:'https://feeds.reuters.com/reuters/topNews',label:'WORLD',cat:'int'},
+  {url:'https://newsinfo.inquirer.net/feed',label:'PH',cat:'ph'},
+  {url:'https://feeds.bbci.co.uk/news/world/rss.xml',label:'WORLD',cat:'int'},
+  {url:'https://www.aljazeera.com/xml/rss/all.xml',label:'WORLD',cat:'int'},
 ];
-const ALLORIGINS='https://api.allorigins.win/raw?url=';
+// allorigins /get returns {contents, status} with proper CORS headers
+const ALLORIGINS='https://api.allorigins.win/get?url=';
 async function fetchRSSFeed(feed){
   try{
     const r=await fetch(ALLORIGINS+encodeURIComponent(feed.url));
     if(!r.ok) return [];
-    const txt=await r.text();
-    const xml=new DOMParser().parseFromString(txt,'text/xml');
+    const json=await r.json();
+    if(!json||!json.contents) return [];
+    const xml=new DOMParser().parseFromString(json.contents,'text/xml');
     return [...xml.querySelectorAll('item')].slice(0,8).map(it=>{
       const raw=it.querySelector('title')?.textContent||'';
       return {title:raw.replace(/<!\[CDATA\[|\]\]>/g,'').replace(/<[^>]+>/g,'').trim(),cat:feed.cat,label:feed.label};
