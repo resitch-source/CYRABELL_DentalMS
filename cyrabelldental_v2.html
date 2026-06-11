@@ -582,6 +582,35 @@ textarea{resize:vertical;min-height:80px}
   display:flex;gap:10px;
 }
 .kiosk-confirm-actions .btn{flex:1;padding:13px;font-size:14px}
+/* Kiosk Nav Tabs */
+.kiosk-nav{display:flex;gap:0;background:rgba(255,255,255,.7);backdrop-filter:blur(10px);border-bottom:1px solid var(--bd);padding:0 16px;}
+.kiosk-nav-btn{flex:1;padding:13px 8px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;color:var(--md);border-bottom:3px solid transparent;font-family:inherit;transition:all .2s;}
+.kiosk-nav-btn.active{color:var(--t);border-bottom-color:var(--t);}
+/* Kiosk Ad Banner */
+.kiosk-ad-bar{background:linear-gradient(90deg,#0a1628,#0a3050,#0a1628);padding:10px 20px;text-align:center;min-height:40px;display:flex;align-items:center;justify-content:center;gap:10px;flex-direction:column;}
+.kiosk-ad-text{color:#e0f0ff;font-size:14px;font-weight:500;letter-spacing:.3px;line-height:1.4;}
+.kiosk-ad-dots{display:flex;gap:5px;justify-content:center;}
+.kiosk-ad-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.3);display:inline-block;}
+.kiosk-ad-dot.on{background:#00c8ff;}
+/* Kiosk Queue Grid */
+.kiosk-queue-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
+.kiosk-queue-card{background:#fff;border:2px solid var(--bd);border-radius:16px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;transition:all .2s;box-shadow:0 2px 10px rgba(0,0,0,.04);}
+.kiosk-queue-card.kqc-in{border-color:#27ae60;background:linear-gradient(135deg,#fff,#e8f8f0);}
+.kiosk-queue-seq{font-size:11px;font-weight:800;color:var(--md);letter-spacing:1px;text-transform:uppercase;}
+.kiosk-queue-photo{width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid var(--t);}
+.kiosk-queue-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--t),var(--tl));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;}
+.kiosk-queue-info{width:100%;}
+.kiosk-queue-name{font-weight:700;font-size:14px;color:var(--dk);margin-bottom:2px;}
+.kiosk-queue-time{font-size:12px;color:var(--t);font-weight:600;}
+.kiosk-queue-svc{font-size:11px;color:var(--md);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kiosk-queue-status{margin-top:4px;}
+.kiosk-waiting-badge{display:inline-flex;align-items:center;gap:4px;background:#fff8e6;color:#92400e;border:1px solid #f59e0b44;padding:3px 8px;border-radius:20px;font-size:10.5px;font-weight:700;}
+.kiosk-q-badge{background:#00c8ff22;color:#0090b8;border:1px solid #00c8ff44;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;}
+/* Kiosk photo avatar */
+.kiosk-avatar-photo{width:54px;height:54px;border-radius:14px;object-fit:cover;border:2px solid var(--t);flex-shrink:0;}
+/* Walk-in inputs */
+.kiosk-wi-input{width:100%;box-sizing:border-box;padding:12px 14px;font-size:14px;border:2px solid var(--bd);border-radius:12px;background:#fff;color:var(--dk);font-family:inherit;outline:none;}
+.kiosk-wi-input:focus{border-color:var(--t);box-shadow:0 0 0 3px rgba(10,124,110,.1);}
 .kiosk-arrived-badge{
   display:inline-flex;align-items:center;gap:5px;
   background:linear-gradient(135deg,#fff7e6,#fef3c7);
@@ -5472,155 +5501,276 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
 // ═══════════════════════════════════════════════════════════════════════════
 // KIOSK MODE — Patient self check-in
 // ═══════════════════════════════════════════════════════════════════════════
-function KioskMode({appointments,onCheckIn,onExit,addToast}){
-  const [step,setStep]=useState('list'); // 'list' | 'confirm' | 'success'
+// ── Kiosk Ad Slide Manager (stored in localStorage) ─────────────────────────
+const ADS_KEY = 'cyrabell_kiosk_ads';
+function getKioskAds(){ try{ return JSON.parse(localStorage.getItem(ADS_KEY)||'[]'); }catch(e){ return []; } }
+function saveKioskAds(ads){ try{ localStorage.setItem(ADS_KEY,JSON.stringify(ads)); }catch(e){} }
+
+function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patients,syncUrl}){
+  const [step,setStep]=useState('queue'); // 'queue'|'checkin'|'walkin'|'confirm'|'success'
   const [search,setSearch]=useState('');
   const [picked,setPicked]=useState(null);
   const [clock,setClock]=useState(new Date());
   const [exitPin,setExitPin]=useState('');
   const [showExit,setShowExit]=useState(false);
+  const [adSlide,setAdSlide]=useState(0);
+  const [ads,setAds]=useState(getKioskAds);
+  const [showAdMgr,setShowAdMgr]=useState(false);
+  const [newAdText,setNewAdText]=useState('');
+  const [walkinMode,setWalkinMode]=useState('scheduled'); // 'scheduled'|'standby'
+  const [walkinInfo,setWalkinInfo]=useState({name:'',phone:'',service:'',date:localToday(),time:''});
+  const [walkinDone,setWalkinDone]=useState(null);
+  const [walkinErr,setWalkinErr]=useState('');
+  const wi=(k,v)=>setWalkinInfo(x=>({...x,[k]:v}));
 
-  // Live clock
+  useEffect(()=>{ const t=setInterval(()=>setClock(new Date()),30000); return ()=>clearInterval(t); },[]);
+  // Ad rotation
   useEffect(()=>{
-    const t=setInterval(()=>setClock(new Date()),30000);
+    if(ads.length<2)return;
+    const t=setInterval(()=>setAdSlide(i=>(i+1)%ads.length),6000);
     return ()=>clearInterval(t);
-  },[]);
+  },[ads.length]);
 
-  // Today's appointments only (confirmed or pending)
-  const today = localToday();
-  const todayAppts = appointments.filter(a =>
-    a.date===today && (a.status==='confirmed'||a.status==='pending')
-  );
+  const today=localToday();
+  const todayAppts=appointments.filter(a=>a.date===today&&(a.status==='confirmed'||a.status==='pending')).sort((a,b)=>{
+    if(a.appointmentType==='standby'&&b.appointmentType!=='standby')return 1;
+    if(a.appointmentType!=='standby'&&b.appointmentType==='standby')return -1;
+    return (a.time||'').localeCompare(b.time||'');
+  });
+  const filtered=todayAppts.filter(a=>!search||S(a.patientName).toLowerCase().includes(search.toLowerCase()));
 
-  const filtered = todayAppts.filter(a =>
-    !search ||
-    S(a.patientName).toLowerCase().includes(search.toLowerCase()) ||
-    S(a.phone).includes(search)
-  );
-
-  const handlePick = (appt)=>{
-    if(appt.arrived){
-      addToast('Already checked in!','info');
-      return;
-    }
-    setPicked(appt);
-    setStep('confirm');
-  };
-
-  const handleConfirm = ()=>{
+  const handlePick=(appt)=>{ if(appt.arrived){addToast('Already checked in!','info');return;} setPicked(appt);setStep('confirm'); };
+  const handleConfirm=()=>{
     onCheckIn(picked.id);
-    setStep('success');
-    // Auto-return to list after 6 seconds
-    setTimeout(()=>{
-      setPicked(null);
-      setStep('list');
-      setSearch('');
-    },6000);
-  };
-
-  const tryExit = ()=>{
-    if(exitPin===KIOSK_EXIT_PIN){
-      onExit();
-    } else {
-      setExitPin('');
-      addToast('Wrong PIN','error');
+    // Also set checkedIn flag
+    if(setAppointments){
+      setAppointments(prev=>prev.map(a=>a.id===picked.id?{...a,arrived:true,checkedIn:true,checkedInAt:new Date().toISOString()}:a));
     }
+    setStep('success');
+    setTimeout(()=>{ setPicked(null);setStep('queue');setSearch(''); },7000);
+  };
+  const tryExit=()=>{ if(exitPin===KIOSK_EXIT_PIN){onExit();}else{setExitPin('');addToast('Wrong PIN','error');} };
+  const initials=(name)=>name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const formatTime=(d)=>d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+
+  const submitWalkin=()=>{
+    setWalkinErr('');
+    if(!walkinInfo.name.trim()||!walkinInfo.phone.trim()){setWalkinErr('Name and phone are required.');return;}
+    if(!walkinInfo.service){setWalkinErr('Please select a service.');return;}
+    if(walkinMode==='scheduled'&&!walkinInfo.time){setWalkinErr('Please select a time slot.');return;}
+    const todayStandby=(appointments||[]).filter(a=>a.date===today&&a.appointmentType==='standby'&&a.status!=='cancelled');
+    if(walkinMode==='standby'&&todayStandby.length>=4){setWalkinErr('Standby queue is full today (4/4). Please choose a specific time slot.');return;}
+    const sv=getActiveSvcs().find(x=>x.name===walkinInfo.service);
+    const qNum=walkinMode==='standby'?todayStandby.length+1:null;
+    const appt={
+      id:'A'+uid(),patientId:'P'+uid(),patientName:walkinInfo.name.trim(),
+      phone:walkinInfo.phone.trim(),email:'',
+      service:walkinInfo.service,services:[walkinInfo.service],fee:sv?sv.fee:0,
+      date:walkinInfo.date,time:walkinMode==='scheduled'?walkinInfo.time:'',
+      dentist:'Dr. Arnold Colao',notes:'Walk-in booking via Kiosk',
+      status:'confirmed',arrived:true,checkedIn:true,checkedInAt:new Date().toISOString(),
+      appointmentType:walkinMode,queueNumber:qNum,noShow:false,attachments:[],
+    };
+    if(setAppointments) setAppointments(prev=>[appt,...prev]);
+    if(syncUrl) syncOneRecord('appointments',appt,syncUrl);
+    setWalkinDone(appt);
   };
 
-  const initials = (name)=>name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  const formatTime = (d)=>d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  // Add/remove ads
+  const addAd=()=>{
+    if(!newAdText.trim())return;
+    const updated=[...ads,{id:uid(),text:newAdText.trim()}];
+    setAds(updated);saveKioskAds(updated);setNewAdText('');
+  };
+  const removeAd=(id)=>{
+    const updated=ads.filter(a=>a.id!==id);
+    setAds(updated);saveKioskAds(updated);setAdSlide(0);
+  };
+
+  const checkedInCount=todayAppts.filter(a=>a.arrived||a.checkedIn).length;
 
   return h('div',{className:'kiosk-wrap'},
-    // Header
+    // ── Header ────────────────────────────────────────────────────────────────
     h('div',{className:'kiosk-header'},
-      h('button',{
-        className:'kiosk-exit',
-        onClick:()=>setShowExit(true),
-        title:'Exit kiosk (staff only)'
-      },h(Svg,{d:IC.lock,size:14,color:'white'})),
-      h('div',{className:'kiosk-clock'},'🕐 '+formatTime(clock)),
-      h('div',{className:'kiosk-logo-row'},
-        h(BrandLogo,{dark:true,width:220})
+      h('button',{className:'kiosk-exit',onClick:()=>setShowExit(true),title:'Exit kiosk (staff only)'},
+        h(Svg,{d:IC.lock,size:14,color:'white'})
       ),
-      h('div',{className:'kiosk-tag'},'Welcome — Please Check In')
+      h('div',{className:'kiosk-clock'},'🕐 '+formatTime(clock)),
+      h('div',{className:'kiosk-logo-row'},h(BrandLogo,{dark:true,width:220})),
+      h('div',{className:'kiosk-tag'},'Welcome — Please Check In or Register Walk-in')
     ),
 
-    // Content
+    // ── Ad Banner ─────────────────────────────────────────────────────────────
+    ads.length>0 && h('div',{className:'kiosk-ad-bar'},
+      h('div',{className:'kiosk-ad-text'},ads[adSlide%ads.length]?.text||''),
+      ads.length>1 && h('div',{className:'kiosk-ad-dots'},
+        ads.map((_,i)=>h('span',{key:i,className:'kiosk-ad-dot'+(i===adSlide%ads.length?' on':'')},))
+      )
+    ),
+
+    // ── Nav Tabs ──────────────────────────────────────────────────────────────
+    h('div',{className:'kiosk-nav'},
+      h('button',{className:'kiosk-nav-btn'+(step==='queue'?' active':''),onClick:()=>setStep('queue')},'📋 Queue'),
+      h('button',{className:'kiosk-nav-btn'+(step==='checkin'?' active':''),onClick:()=>setStep('checkin')},'✓ Check In'),
+      h('button',{className:'kiosk-nav-btn'+(step==='walkin'?' active':''),onClick:()=>{setStep('walkin');setWalkinDone(null);setWalkinErr('');}},walkinMode==='standby'?'🪑 Join Queue':'➕ Walk-In')
+    ),
+
+    // ── Content ───────────────────────────────────────────────────────────────
     h('div',{className:'kiosk-content'},
-      step==='list' && h(Fragment,null,
-        h('div',{className:'kiosk-step-title'},"Today's Appointments"),
-        h('div',{className:'kiosk-step-sub'},'Tap your name to check in'),
 
-        todayAppts.length > 0 && h('div',{className:'kiosk-search-bar'},
+      // ── QUEUE DISPLAY ──
+      step==='queue' && h(Fragment,null,
+        h('div',{className:'kiosk-step-title'},"Today's Queue"),
+        h('div',{className:'kiosk-step-sub'},checkedInCount+' of '+todayAppts.length+' checked in'),
+        todayAppts.length===0
+          ? h('div',{className:'kiosk-empty'},
+              h('div',{className:'kiosk-empty-icon'},'📅'),
+              h('div',{className:'kiosk-empty-title'},'No appointments today'),
+              h('div',{className:'kiosk-empty-desc'},'Please ask the receptionist for assistance.')
+            )
+          : h('div',{className:'kiosk-queue-grid'},
+              todayAppts.map((a,idx)=>{
+                const isIn=a.arrived||a.checkedIn;
+                const photo=a.photoDataUrl||(patients&&patients.find(p=>p.id===a.patientId)?.photoDataUrl)||'';
+                return h('div',{key:a.id,className:'kiosk-queue-card'+(isIn?' kqc-in':'')},
+                  h('div',{className:'kiosk-queue-seq'},
+                    a.appointmentType==='standby'?h('span',{className:'kiosk-q-badge'},'Q'+a.queueNumber):(idx+1)
+                  ),
+                  photo
+                    ? h('img',{src:photo,className:'kiosk-queue-photo',alt:a.patientName})
+                    : h('div',{className:'kiosk-queue-avatar'},initials(a.patientName)),
+                  h('div',{className:'kiosk-queue-info'},
+                    h('div',{className:'kiosk-queue-name'},a.patientName),
+                    h('div',{className:'kiosk-queue-time'},
+                      a.appointmentType==='standby'?'Standby':('🕐 '+fmtTime(a.time))
+                    ),
+                    h('div',{className:'kiosk-queue-svc'},svcStr(a))
+                  ),
+                  h('div',{className:'kiosk-queue-status'},
+                    isIn
+                      ? h('span',{className:'kiosk-arrived-badge'},'✓ Checked In')
+                      : h('span',{className:'kiosk-waiting-badge'},'⏳ Waiting')
+                  )
+                );
+              })
+            )
+      ),
+
+      // ── CHECK IN ──
+      step==='checkin' && step!=='confirm' && step!=='success' && h(Fragment,null,
+        h('div',{className:'kiosk-step-title'},'Check In'),
+        h('div',{className:'kiosk-step-sub'},'Tap your name below'),
+        todayAppts.length>0 && h('div',{className:'kiosk-search-bar'},
           h(Svg,{d:IC.search,size:18,color:'var(--lt)'}),
-          h('input',{
-            placeholder:'Search by name or phone…',
-            value:search,
-            onChange:e=>setSearch(e.target.value),
-          })
+          h('input',{placeholder:'Search your name…',value:search,onChange:e=>setSearch(e.target.value)})
         ),
-
-        filtered.length === 0
+        filtered.length===0
           ? h('div',{className:'kiosk-empty'},
               h('div',{className:'kiosk-empty-icon'},'📅'),
               h('div',{className:'kiosk-empty-title'},todayAppts.length===0?'No appointments today':'No matches'),
-              h('div',{className:'kiosk-empty-desc'},
-                todayAppts.length===0
-                  ? 'Please ask the receptionist for assistance.'
-                  : "Try searching with a different name or phone number."
-              )
+              h('div',{className:'kiosk-empty-desc'},'Please ask the receptionist for assistance.')
             )
           : h('div',{className:'kiosk-appt-list'},
-              filtered.map(a=>h('div',{
-                key:a.id,
-                className:'kiosk-appt-card'+(a.arrived?' checked':''),
-                onClick:()=>handlePick(a)
-              },
-                h('div',{className:'kiosk-avatar'},initials(a.patientName)),
-                h('div',{className:'kiosk-info'},
-                  h('div',{className:'kiosk-pname'},a.patientName),
-                  h('div',{className:'kiosk-pdetails'},
-                    h('span',null,'🕐 '+a.time),
-                    h('span',null,'• '+svcStr(a)),
-                    h('span',null,'• '+a.dentist)
-                  )
-                ),
-                a.arrived
-                  ? h('div',{className:'kiosk-arrived-badge'},'✓ Checked In')
-                  : h('div',{className:'kiosk-arrow'},'→')
-              ))
-            ),
-
-        h('div',{style:{textAlign:'center',marginTop:24,color:'var(--md)',fontSize:13}},
-          h('strong',null,todayAppts.filter(a=>a.arrived).length),' of ',
-          h('strong',null,todayAppts.length),' patients checked in today'
-        )
+              filtered.map(a=>{
+                const photo=a.photoDataUrl||(patients&&patients.find(p=>p.id===a.patientId)?.photoDataUrl)||'';
+                return h('div',{key:a.id,className:'kiosk-appt-card'+((a.arrived||a.checkedIn)?' checked':''),onClick:()=>handlePick(a)},
+                  photo
+                    ? h('img',{src:photo,className:'kiosk-avatar-photo',alt:a.patientName})
+                    : h('div',{className:'kiosk-avatar'},initials(a.patientName)),
+                  h('div',{className:'kiosk-info'},
+                    h('div',{className:'kiosk-pname'},a.patientName),
+                    h('div',{className:'kiosk-pdetails'},
+                      a.appointmentType==='standby'
+                        ? h('span',{className:'standby-badge'},'Q'+a.queueNumber+' — Standby')
+                        : h('span',null,'🕐 '+fmtTime(a.time)),
+                      h('span',null,'• '+svcStr(a))
+                    )
+                  ),
+                  (a.arrived||a.checkedIn)
+                    ? h('div',{className:'kiosk-arrived-badge'},'✓ Checked In')
+                    : h('div',{className:'kiosk-arrow'},'→')
+                );
+              })
+            )
       ),
 
-      step==='success' && picked && h('div',{className:'kiosk-success'},
-        h('div',{className:'kiosk-check-anim'},
-          h(Svg,{d:IC.check,size:54,color:'white'})
-        ),
-        h('div',{className:'kiosk-success-title'},'Welcome, ' + picked.patientName.split(' ')[0] + '! 👋'),
-        h('div',{className:'kiosk-success-name'},'You\'re checked in.'),
+      // ── WALK-IN BOOKING ──
+      step==='walkin' && h(Fragment,null,
+        walkinDone
+          ? h('div',{className:'kiosk-success'},
+              h('div',{className:'kiosk-check-anim'},h(Svg,{d:IC.check,size:54,color:'white'})),
+              h('div',{className:'kiosk-success-title'},'Welcome, '+walkinDone.patientName.split(' ')[0]+'! 👋'),
+              h('div',{className:'kiosk-success-name'},
+                walkinDone.appointmentType==='standby'
+                  ? 'You are Queue #'+walkinDone.queueNumber+'. Please take a seat.'
+                  : 'Your walk-in appointment is confirmed!'
+              ),
+              h('div',{className:'kiosk-success-msg'},'🪑 Please take a seat in the waiting area.',h('br'),'Our staff has been notified.'),
+              h('button',{className:'btn bp',style:{marginTop:16,fontSize:14,padding:'10px 28px'},
+                onClick:()=>{setWalkinDone(null);setStep('queue');}
+              },'Done')
+            )
+          : h('div',{style:{maxWidth:400,margin:'0 auto'}},
+              h('div',{className:'kiosk-step-title'},'Walk-In Registration'),
+              // Mode toggle
+              h('div',{className:'standby-toggle',style:{marginBottom:14}},
+                h('button',{className:walkinMode==='scheduled'?'active':'',onClick:()=>setWalkinMode('scheduled')},'📅 Specific Time'),
+                h('button',{className:walkinMode==='standby'?'active':'',onClick:()=>setWalkinMode('standby')},'🪑 Join Standby Queue')
+              ),
+              walkinMode==='standby' && h('div',{className:'standby-note',style:{marginBottom:10,fontSize:12}},
+                'You will be added to the standby queue and called when a slot opens.',h('br'),
+                'Available: ',h('strong',null,4-(appointments.filter(a=>a.date===today&&a.appointmentType==='standby'&&a.status!=='cancelled').length)),' of 4 spots'
+              ),
+              h('div',{style:{display:'flex',flexDirection:'column',gap:10}},
+                h('input',{className:'kiosk-wi-input',placeholder:'Full Name *',value:walkinInfo.name,onChange:e=>wi('name',e.target.value)}),
+                h('input',{className:'kiosk-wi-input',placeholder:'Phone Number *',value:walkinInfo.phone,onChange:e=>wi('phone',e.target.value)}),
+                h('select',{className:'kiosk-wi-input',value:walkinInfo.service,onChange:e=>wi('service',e.target.value)},
+                  h('option',{value:''},'— Select Service —'),
+                  Object.entries(getActiveSvcsByCat()).map(([cat,svcs])=>
+                    h('optgroup',{key:cat,label:cat},
+                      svcs.map(sv=>h('option',{key:sv.name,value:sv.name},sv.name+' — ₱'+p$(sv.fee)))
+                    )
+                  )
+                ),
+                h('input',{className:'kiosk-wi-input',type:'date',value:walkinInfo.date,min:localToday(),onChange:e=>wi('date',e.target.value)}),
+                walkinMode==='scheduled' && h('div',null,
+                  h('label',{style:{fontSize:11,color:'#aaa',display:'block',marginBottom:4}},'Available Time Slots'),
+                  h(TimeSlotGrid,{
+                    appointments:appointments||[],
+                    selectedDate:walkinInfo.date,
+                    selectedService:walkinInfo.service,
+                    selectedTime:walkinInfo.time,
+                    onTimeChange:t=>wi('time',t),
+                  })
+                ),
+                walkinErr && h('div',{style:{color:'#e74c3c',fontSize:12,background:'#fef2f2',padding:'6px 10px',borderRadius:6}},walkinErr),
+                h('button',{className:'btn bp',style:{fontSize:14,padding:'11px'},onClick:submitWalkin},
+                  walkinMode==='standby'?'🪑 Join Standby Queue':'✓ Confirm Walk-In'
+                )
+              )
+            )
+      ),
 
+      // ── SUCCESS ──
+      step==='success' && picked && h('div',{className:'kiosk-success'},
+        h('div',{className:'kiosk-check-anim'},h(Svg,{d:IC.check,size:54,color:'white'})),
+        h('div',{className:'kiosk-success-title'},'Welcome, '+picked.patientName.split(' ')[0]+'! 👋'),
+        h('div',{className:'kiosk-success-name'},'You\'re checked in.'),
         h('div',{className:'kiosk-success-card'},
           h('div',{className:'kiosk-confirm-info'},
             h('div',{className:'row'},h('span',null,'Appointment'),h('span',null,svcStr(picked))),
-            h('div',{className:'row'},h('span',null,'Time'),h('span',null,picked.time)),
+            picked.appointmentType==='standby'
+              ? h('div',{className:'row'},h('span',null,'Queue'),h('span',null,'#'+picked.queueNumber))
+              : h('div',{className:'row'},h('span',null,'Time'),h('span',null,fmtTime(picked.time))),
             h('div',{className:'row'},h('span',null,'Dentist'),h('span',null,picked.dentist))
           )
         ),
-
-        h('div',{className:'kiosk-success-msg'},
-          '🪑 Please take a seat in the waiting area.',h('br'),
-          'Our staff has been notified that you\'ve arrived.'
-        ),
+        h('div',{className:'kiosk-success-msg'},'🪑 Please take a seat in the waiting area.',h('br'),'Our staff has been notified that you\'ve arrived.'),
         h('div',{className:'kiosk-countdown'},'This screen will reset in a few seconds…')
       )
     ),
 
-    // Confirm modal
+    // ── Confirm modal ─────────────────────────────────────────────────────────
     step==='confirm' && picked && h('div',{className:'ov'},
       h('div',{className:'kiosk-confirm-modal'},
         h('div',{className:'kiosk-confirm-icon'},'🦷'),
@@ -5628,50 +5778,64 @@ function KioskMode({appointments,onCheckIn,onExit,addToast}){
         h('div',{className:'kiosk-confirm-name'},picked.patientName),
         h('div',{className:'kiosk-confirm-info'},
           h('div',{className:'row'},h('span',null,'Service'),h('span',null,svcStr(picked))),
-          h('div',{className:'row'},h('span',null,'Time'),h('span',null,picked.time)),
+          picked.appointmentType==='standby'
+            ? h('div',{className:'row'},h('span',null,'Queue'),h('span',null,'#'+picked.queueNumber))
+            : h('div',{className:'row'},h('span',null,'Time'),h('span',null,fmtTime(picked.time))),
           h('div',{className:'row'},h('span',null,'Dentist'),h('span',null,picked.dentist))
         ),
-        h('p',{style:{fontSize:12.5,color:'var(--md)',marginBottom:16,lineHeight:1.5}},
-          'Is this you? Tap "Yes, that\'s me" to notify the front desk.'),
+        h('p',{style:{fontSize:12.5,color:'var(--md)',marginBottom:16,lineHeight:1.5}},'Is this you? Tap "Yes, that\'s me" to notify the front desk.'),
         h('div',{className:'kiosk-confirm-actions'},
-          h('button',{
-            className:'btn bgh',
-            onClick:()=>{setPicked(null);setStep('list');}
-          },'No, go back'),
-          h('button',{
-            className:'btn bp',
-            onClick:handleConfirm
-          },'✓ Yes, that\'s me')
+          h('button',{className:'btn bgh',onClick:()=>{setPicked(null);setStep('checkin');}},'No, go back'),
+          h('button',{className:'btn bp',onClick:handleConfirm},'✓ Yes, that\'s me')
         )
       )
     ),
 
-    // Exit PIN modal
+    // ── Ad Manager modal (staff only — opened via long-press on header) ───────
+    showAdMgr && h('div',{className:'ov'},
+      h('div',{className:'kiosk-confirm-modal',style:{maxWidth:420}},
+        h('div',{className:'kiosk-confirm-title'},'📢 Manage Ads / Announcements'),
+        h('div',{style:{display:'flex',gap:8,marginBottom:12}},
+          h('input',{style:{flex:1,padding:'8px 10px',borderRadius:8,border:'1px solid var(--bd)',fontSize:13,background:'var(--bg2)',color:'var(--fg)'},
+            placeholder:'Enter ad text or announcement…',value:newAdText,onChange:e=>setNewAdText(e.target.value),
+            onKeyDown:e=>{if(e.key==='Enter')addAd();}
+          }),
+          h('button',{className:'btn bp bsm',onClick:addAd},'Add')
+        ),
+        ads.length===0
+          ? h('div',{style:{color:'var(--md)',fontSize:12,padding:'8px 0'}},'No ads yet. Add one above.')
+          : h('div',{style:{display:'flex',flexDirection:'column',gap:6,maxHeight:200,overflowY:'auto'}},
+              ads.map(ad=>h('div',{key:ad.id,style:{display:'flex',alignItems:'center',gap:8,background:'var(--bg2)',borderRadius:8,padding:'7px 10px'}},
+                h('span',{style:{flex:1,fontSize:12.5,color:'var(--dk)'}},ad.text),
+                h('button',{className:'btn bd2 bsm',onClick:()=>removeAd(ad.id)},'×')
+              ))
+            ),
+        h('div',{className:'kiosk-confirm-actions',style:{marginTop:14}},
+          h('button',{className:'btn bp',onClick:()=>setShowAdMgr(false)},'Done')
+        )
+      )
+    ),
+
+    // ── Exit PIN modal ────────────────────────────────────────────────────────
     showExit && h('div',{className:'ov'},
       h('div',{className:'kiosk-confirm-modal'},
         h('div',{className:'kiosk-confirm-icon'},'🔒'),
         h('div',{className:'kiosk-confirm-title'},'Staff Access'),
-        h('p',{style:{fontSize:12.5,color:'var(--md)',marginBottom:16,marginTop:6}},
-          'Enter the 4-digit PIN to exit kiosk mode'),
+        h('p',{style:{fontSize:12.5,color:'var(--md)',marginBottom:10,marginTop:6}},'Enter the 4-digit PIN to exit kiosk mode'),
+        h('button',{style:{fontSize:11,color:'#00c8ff',background:'none',border:'none',cursor:'pointer',marginBottom:12},
+          onClick:()=>{setShowExit(false);setShowAdMgr(true);}
+        },'📢 Manage Ads / Announcements'),
         h('input',{
-          type:'password',
-          inputMode:'numeric',
-          maxLength:4,
-          value:exitPin,
-          autoFocus:true,
+          type:'password',inputMode:'numeric',maxLength:4,value:exitPin,autoFocus:true,
           onChange:e=>setExitPin(e.target.value.replace(/\D/g,'')),
           onKeyDown:e=>{if(e.key==='Enter'&&exitPin.length===4)tryExit();},
           style:{fontSize:24,textAlign:'center',letterSpacing:'12px',marginBottom:14},
           placeholder:'• • • •'
         }),
         h('div',{className:'kiosk-confirm-actions'},
-          h('button',{
-            className:'btn bgh',
-            onClick:()=>{setShowExit(false);setExitPin('');}
+          h('button',{className:'btn bgh',onClick:()=>{setShowExit(false);setExitPin('');}
           },'Cancel'),
-          h('button',{
-            className:'btn bp',
-            onClick:tryExit,
+          h('button',{className:'btn bp',onClick:tryExit,
             disabled:exitPin.length!==4
           },'Exit Kiosk')
         ),
@@ -12027,9 +12191,7 @@ function PatientSearchInput({patients: patientsProp, value, onSelect, placeholde
             })()
           ),
           h('div', {className:'psi-sub'},
-            h('span', null, S(p.phone)||S(p.id)),
-            p.dob && h('span', null, ' · Age '+(new Date().getFullYear()-new Date(p.dob).getFullYear())),
-            p.bloodType && h('span', {style:{marginLeft:6,background:'#fee2e2',color:'#991b1b',borderRadius:4,padding:'0 5px',fontSize:10,fontWeight:700}}, p.bloodType),
+            p.dob && h('span', null, 'Age '+(new Date().getFullYear()-new Date(p.dob).getFullYear())),
             p.allergies && h('span', {style:{marginLeft:4,background:'#fef3c7',color:'#92400e',borderRadius:4,padding:'0 5px',fontSize:10}}, '⚠ '+S(p.allergies).slice(0,20))
           )
         ),
@@ -15423,9 +15585,12 @@ function App(){
   if(view==='kiosk') return h(Fragment,null,
     h(KioskMode,{
       appointments,
+      setAppointments,
       onCheckIn:handleCheckIn,
       onExit:()=>setView(user?'admin':'login'),
-      addToast
+      addToast,
+      patients,
+      syncUrl,
     }),
     h(Toast,{toasts,rm:id=>setToasts(p=>p.filter(t=>t.id!==id))})
   );
