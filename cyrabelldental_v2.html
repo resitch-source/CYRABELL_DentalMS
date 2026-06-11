@@ -1962,8 +1962,7 @@ th:hover .sort-icon{opacity:.9}
   display:grid;
   grid-template-columns:260px 1fr;
   gap:18px;
-  min-height:460px;
-  max-height:72vh;
+  height:65vh;
   overflow:hidden;
 }
 .ocr-review-img-col{
@@ -1971,6 +1970,7 @@ th:hover .sort-icon{opacity:.9}
   gap:10px;
   overflow-y:auto;
   min-width:0;
+  height:100%;
 }
 .ocr-review-img-label{
   font-size:11px;font-weight:700;
@@ -2002,7 +2002,7 @@ th:hover .sort-icon{opacity:.9}
 .ocr-img-viewport{
   position:relative;
   width:100%;
-  height:380px;
+  flex:1;min-height:260px;max-height:420px;
   overflow:hidden;
   border-radius:10px;
   border:1.5px solid var(--bd);
@@ -2043,8 +2043,9 @@ th:hover .sort-icon{opacity:.9}
   gap:8px;
   overflow-y:auto;
   overflow-x:hidden;
-  padding-right:4px;
-  padding-bottom:12px;
+  padding-right:6px;
+  padding-bottom:20px;
+  height:100%;
 }
 .ocr-review-form-header{
   padding:10px 12px;
@@ -7114,6 +7115,9 @@ function PatForm({patient, onClose, onSave, syncUrl, addToast, onPhotoUploaded, 
       h(Field,{label:'Date of Birth'}, h('input',{type:'date',value:f.dob||'',onChange:e=>set('dob',e.target.value)}))
     ),
     h('div', {className:'fg2'},
+      h(Field,{label:'Age'}, h('input',{type:'number',value:f.age||'',placeholder:'e.g. 35',min:0,max:150,onChange:e=>set('age',e.target.value)}))
+    ),
+    h('div', {className:'fg2'},
       h(Field,{label:'Phone *'}, h('input',{value:f.phone,placeholder:'09171234567',onChange:e=>set('phone',e.target.value)})),
       h(Field,{label:'Email'}, h('input',{type:'email',value:f.email||'',placeholder:'patient@email.com',onChange:e=>set('email',e.target.value)}))
     ),
@@ -7144,7 +7148,8 @@ function PatForm({patient, onClose, onSave, syncUrl, addToast, onPhotoUploaded, 
     ),
     h('div', {className:'fg2'},
       h(Field,{label:'Allergies'}, h('input',{value:f.allergies||'',placeholder:'e.g. Penicillin — or "None"',onChange:e=>set('allergies',e.target.value)}))
-    )
+    ),
+    h(Field,{label:'Chief Complaint'}, h('input',{value:f.chiefComplaint||'',placeholder:'e.g. Toothache, bleeding gums',onChange:e=>set('chiefComplaint',e.target.value)}))
   );
 }
 
@@ -8994,8 +8999,9 @@ async function extractPatientDataFromCard(imageBase64, mimeType, syncUrl, scanTy
       '  "name":"full patient name","dob":"YYYY-MM-DD","age":"numeric age","sex":"Male or Female",',
       '  "phone":"primary phone","email":"email","address":"complete address","occupation":"occupation",',
       '  "maritalStatus":"Single/Married/Widowed/Separated","bloodType":"A+/A-/B+/B-/O+/O-/AB+/AB-",',
-      '  "allergies":"known allergies","lastVisit":"YYYY-MM-DD","balance":"0",',
-      '  "physician":"physician name","emergencyContact":"contact name and number"',
+      '  "age":"numeric age","sex":"Male or Female","maritalStatus":"Single/Married/Widowed/Separated",',
+      '  "occupation":"occupation","allergies":"known allergies","chiefComplaint":"chief complaint or reason for visit",',
+      '  "lastVisit":"YYYY-MM-DD","balance":"0","physician":"physician name","emergencyContact":"contact name and number"',
       '}',
       'ALSO extract any appointment or visit history entries as an array "_appointments":',
       '[{"date":"YYYY-MM-DD","time":"HH:MM","service":"procedure done","notes":"","fee":""}]',
@@ -9491,13 +9497,18 @@ function RecordCardScanner({onExtracted, onBatchExtracted, onClose}) {
   // ── STEP: REVIEW ───────────────────────────────────────────────────
   if (step === 'review') {
     const fields = [
-      {k:'name',      l:'Full Name *',    t:'text',   ph:'Juan Dela Cruz'},
-      {k:'dob',       l:'Date of Birth',  t:'date',   ph:''},
-      {k:'phone',     l:'Phone *',        t:'text',   ph:'09171234567'},
-      {k:'email',     l:'Email',          t:'email',  ph:'patient@email.com'},
-      {k:'address',   l:'Address',        t:'text',   ph:'Street, City'},
-      {k:'bloodType', l:'Blood Type',     t:'select', opts:['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown']},
-      {k:'allergies', l:'Allergies',      t:'text',   ph:'None'},
+      {k:'name',          l:'Full Name *',      t:'text',   ph:'Juan Dela Cruz'},
+      {k:'dob',           l:'Date of Birth',    t:'date',   ph:''},
+      {k:'age',           l:'Age',              t:'number', ph:''},
+      {k:'sex',           l:'Sex',              t:'select', opts:['','Male','Female','Other']},
+      {k:'maritalStatus', l:'Status',           t:'select', opts:['','Single','Married','Widowed','Separated']},
+      {k:'occupation',    l:'Occupation',       t:'text',   ph:'e.g. Teacher'},
+      {k:'phone',         l:'Phone *',          t:'text',   ph:'09171234567'},
+      {k:'email',         l:'Email',            t:'email',  ph:'patient@email.com'},
+      {k:'address',       l:'Address',          t:'text',   ph:'Street, City'},
+      {k:'bloodType',     l:'Blood Type',       t:'select', opts:['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown']},
+      {k:'allergies',     l:'Allergies',        t:'text',   ph:'None'},
+      {k:'chiefComplaint',l:'Chief Complaint',  t:'text',   ph:'e.g. Toothache, bleeding gums'},
     ];
 
     const learnCount = loadOcrLearning().length;
