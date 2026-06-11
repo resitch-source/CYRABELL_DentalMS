@@ -605,6 +605,17 @@ textarea{resize:vertical;min-height:80px}
 .kiosk-queue-svc{font-size:11px;color:var(--md);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .kiosk-queue-status{margin-top:4px;}
 .kiosk-waiting-badge{display:inline-flex;align-items:center;gap:4px;background:#fff8e6;color:#92400e;border:1px solid #f59e0b44;padding:3px 8px;border-radius:20px;font-size:10.5px;font-weight:700;}
+.kiosk-ns-badge{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#00c8ff,#0077cc);color:#fff;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:.5px;animation:nspulse 1.5s ease infinite;box-shadow:0 0 0 0 rgba(0,200,255,.5);}
+@keyframes nspulse{0%,100%{box-shadow:0 0 0 0 rgba(0,200,255,.5)}50%{box-shadow:0 0 8px 4px rgba(0,200,255,.0)}}
+.kiosk-done-badge{display:inline-flex;align-items:center;gap:4px;background:#e8f8f0;color:#1a7a4a;border:1px solid #27ae6033;padding:3px 8px;border-radius:20px;font-size:10.5px;font-weight:700;}
+.kiosk-queue-card.kqc-serving{border-color:#00c8ff;background:linear-gradient(135deg,#e8f9ff,#f0fcff);box-shadow:0 0 0 3px rgba(0,200,255,.2);}
+.kiosk-queue-card.kqc-done{border-color:#27ae6055;background:linear-gradient(135deg,#f0faf5,#fff);opacity:.75;}
+.kiosk-queue-avatar.kqa-serving{background:linear-gradient(135deg,#00c8ff,#0077cc);}
+.kiosk-queue-btns{width:100%;display:flex;gap:5px;margin-top:6px;}
+.kiosk-ns-btn{flex:1;padding:6px 4px;font-size:11px;font-weight:700;background:linear-gradient(135deg,#00c8ff,#0077cc);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;}
+.kiosk-ns-btn:hover{opacity:.88;}
+.kiosk-done-btn{flex:1;padding:6px 4px;font-size:11px;font-weight:700;background:linear-gradient(135deg,#27ae60,#1a7a4a);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;}
+.kiosk-done-btn:hover{opacity:.88;}
 .kiosk-q-badge{background:#00c8ff22;color:#0090b8;border:1px solid #00c8ff44;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800;}
 /* Kiosk photo avatar */
 .kiosk-avatar-photo{width:54px;height:54px;border-radius:14px;object-fit:cover;border:2px solid var(--t);flex-shrink:0;}
@@ -5545,6 +5556,54 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
   const wi=(k,v)=>setWalkinInfo(x=>({...x,[k]:v}));
 
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date()),30000); return ()=>clearInterval(t); },[]);
+
+  // Auto-update Now Serving / Completed based on time every minute
+  useEffect(()=>{
+    if(!setAppointments) return;
+    const tick=()=>{
+      const now=new Date();
+      const today2=localToday();
+      setAppointments(prev=>{
+        let changed=false;
+        const next=prev.map(a=>{
+          if(a.date!==today2||a.appointmentType==='standby') return a;
+          if(!(a.arrived||a.checkedIn)) return a;
+          if(a.status==='cancelled'||a.status==='completed') return a;
+          const [hh,mm]=(a.time||'00:00').split(':').map(Number);
+          const slotMs=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm).getTime();
+          const durMin=SERVICE_DURATIONS[a.service]||DEFAULT_SLOT_MIN||30;
+          const endMs=slotMs+durMin*60000;
+          let upd={...a};
+          // Auto Now Serving: checked in + time has arrived
+          if(!a.nowServing && now.getTime()>=slotMs){ upd.nowServing=true; changed=true; }
+          // Auto Completed: now serving + duration elapsed
+          if(a.nowServing && now.getTime()>=endMs && a.status!=='completed'){
+            upd.status='completed'; upd.nowServing=false; changed=true;
+            syncOneRecord('appointments',upd,syncUrl);
+          }
+          return upd;
+        });
+        return changed?next:prev;
+      });
+    };
+    tick(); // run immediately on mount
+    const t=setInterval(tick,60000);
+    return ()=>clearInterval(t);
+  },[]);
+
+  // Manual status helpers
+  const setNowServing=(a)=>{
+    const upd={...a,nowServing:true,arrived:true,checkedIn:true,checkedInAt:a.checkedInAt||new Date().toISOString()};
+    setAppointments(prev=>prev.map(x=>x.id===a.id?upd:x));
+    syncOneRecord('appointments',upd,syncUrl);
+    addToast(a.patientName+' — Now Serving','success');
+  };
+  const setDone=(a)=>{
+    const upd={...a,nowServing:false,status:'completed'};
+    setAppointments(prev=>prev.map(x=>x.id===a.id?upd:x));
+    syncOneRecord('appointments',upd,syncUrl);
+    addToast(a.patientName+' — Completed','success');
+  };
   // Ad rotation
   useEffect(()=>{
     if(ads.length<2)return;
@@ -5553,7 +5612,7 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
   },[ads.length]);
 
   const today=localToday();
-  const todayAppts=appointments.filter(a=>a.date===today&&(a.status==='confirmed'||a.status==='pending')).sort((a,b)=>{
+  const todayAppts=appointments.filter(a=>a.date===today&&a.status!=='cancelled').sort((a,b)=>{
     if(a.appointmentType==='standby'&&b.appointmentType!=='standby')return 1;
     if(a.appointmentType!=='standby'&&b.appointmentType==='standby')return -1;
     return (a.time||'').localeCompare(b.time||'');
@@ -5652,13 +5711,19 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
           : h('div',{className:'kiosk-queue-grid'},
               todayAppts.map((a,idx)=>{
                 const isIn=a.arrived||a.checkedIn;
+                const isNS=a.nowServing;
+                const isDone=a.status==='completed';
                 const pat=patients&&patients.find(p=>p.id===a.patientId);
-                return h('div',{key:a.id,className:'kiosk-queue-card'+(isIn?' kqc-in':'')},
+                let cardCls='kiosk-queue-card';
+                if(isNS) cardCls+=' kqc-serving';
+                else if(isDone) cardCls+=' kqc-done';
+                else if(isIn) cardCls+=' kqc-in';
+                return h('div',{key:a.id,className:cardCls},
                   h('div',{className:'kiosk-queue-seq'},
                     a.appointmentType==='standby'?h('span',{className:'kiosk-q-badge'},'Q'+a.queueNumber):(idx+1)
                   ),
                   h(KioskPatientPhoto,{patient:pat,syncUrl,className:'kiosk-queue-photo',
-                    fallback:h('div',{className:'kiosk-queue-avatar'},initials(a.patientName))
+                    fallback:h('div',{className:'kiosk-queue-avatar'+(isNS?' kqa-serving':'')},initials(a.patientName))
                   }),
                   h('div',{className:'kiosk-queue-info'},
                     h('div',{className:'kiosk-queue-name'},a.patientName),
@@ -5667,10 +5732,22 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
                     ),
                     h('div',{className:'kiosk-queue-svc'},svcStr(a))
                   ),
+                  // Status badge
                   h('div',{className:'kiosk-queue-status'},
-                    isIn
-                      ? h('span',{className:'kiosk-arrived-badge'},'✓ Checked In')
-                      : h('span',{className:'kiosk-waiting-badge'},'⏳ Waiting')
+                    isNS  ? h('span',{className:'kiosk-ns-badge'},'🔔 NOW SERVING') :
+                    isDone? h('span',{className:'kiosk-done-badge'},'✓ Done') :
+                    isIn  ? h('span',{className:'kiosk-arrived-badge'},'✓ Checked In') :
+                            h('span',{className:'kiosk-waiting-badge'},'⏳ Waiting')
+                  ),
+                  // Manual staff buttons
+                  isIn && !isDone && h('div',{className:'kiosk-queue-btns'},
+                    !isNS && h('button',{className:'kiosk-ns-btn',onClick:e=>{e.stopPropagation();setNowServing(a);}},'▶ Now Serving'),
+                    isNS  && h('button',{className:'kiosk-done-btn',onClick:e=>{e.stopPropagation();setDone(a);}},'✓ Mark Done')
+                  ),
+                  !isIn && !isDone && h('div',{className:'kiosk-queue-btns'},
+                    h('button',{className:'kiosk-ns-btn',style:{background:'#9b59b6'},onClick:e=>{e.stopPropagation();setNowServing(a);}},
+                      '▶ Call Now'
+                    )
                   )
                 );
               })
