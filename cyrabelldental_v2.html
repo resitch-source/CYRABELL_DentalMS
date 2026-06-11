@@ -1174,47 +1174,17 @@ th:hover .sort-icon{opacity:.9}
 /* Per-tooth 3D detail modal */
 .tooth-detail-grid{
   display:grid;
-  grid-template-columns:380px 1fr;
+  grid-template-columns:260px 1fr;
   gap:20px;
-  min-height:480px;
+  min-height:440px;
 }
 .tooth-detail-3d{
-  display:flex;flex-direction:column;
-  background:linear-gradient(135deg,#fafbfc,#e8eeff 80%);
-  border-radius:14px;border:1px solid var(--bd);
-  padding:14px;
+  display:flex;flex-direction:column;align-items:center;
+  background:linear-gradient(160deg,#f4fbf9,#eaf5f2 80%);
+  border-radius:14px;border:1px solid #c8e0d8;
+  padding:14px 10px;
   position:relative;
-  overflow:hidden;
-}
-.tooth-detail-stage{
-  flex:1;
-  perspective:1000px;
-  display:flex;align-items:center;justify-content:center;
-  min-height:300px;
-  position:relative;
-}
-.tooth-detail-scene{
-  transform-style:preserve-3d;
-  position:relative;
-  width:120px;height:200px;
-  transition:transform .1s linear;
-}
-.tooth-3d-layer{
-  position:absolute;
-  top:50%;left:50%;
-  transform-origin:center;
-  margin-left:-60px;margin-top:-90px;
-  display:flex;align-items:center;justify-content:center;
-  backface-visibility:visible;
-}
-.tooth-detail-ctrls{
-  display:flex;gap:6px;justify-content:center;
-  margin-top:10px;
-}
-.tooth-detail-hint{
-  text-align:center;
-  font-size:11px;color:var(--md);
-  margin-top:6px;
+  overflow:visible;
 }
 .tooth-detail-info{
   display:flex;flex-direction:column;
@@ -5806,12 +5776,308 @@ function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMod
   );
 }
 
-// Per-tooth 3D detail viewer — opens when a tooth is selected
+// ── 5-Surface 2D Realistic Tooth Diagram ─────────────────────────────────────
+function Tooth5SurfaceView({meta, condition, surfaceData, onSurfaceChange, onConditionChange, fdi}) {
+  surfaceData = surfaceData || {};
+  const [activeSurf, setActiveSurf] = useState(null); // which surface picker is open
+  const type = meta.type;
+  const isUpper = isUpperTooth(fdi);
+  const cond = CONDITIONS[condition || 'healthy'];
+  const isFront = type === 'incisor' || type === 'canine';
+  const occSurf = isFront ? 'incisal' : 'occlusal';
+  const buccSurf = isFront ? 'labial' : 'buccal';
+  const occLabel = isFront ? 'Incisal' : 'Occlusal';
+  const buccLabel = isFront ? 'Labial' : 'Buccal';
+
+  const surfCond = (s) => CONDITIONS[surfaceData[s]] || CONDITIONS.healthy;
+  const surfColor = (s) => surfaceData[s] && surfaceData[s] !== 'healthy' ? surfCond(s).color : '#f8fffe';
+  const surfStroke = (s) => surfaceData[s] && surfaceData[s] !== 'healthy' ? surfCond(s).stroke : '#94a3b8';
+
+  const pickCondition = (surf, k) => { onSurfaceChange(fdi, surf, k); setActiveSurf(null); };
+
+  // Mini condition picker popup
+  const CondPicker = ({surf}) => h('div', {
+    style: {position: 'absolute', zIndex: 50, top: '100%', left: '50%', transform: 'translateX(-50%)',
+      background: '#fff', border: '1.5px solid var(--t)', borderRadius: 10, padding: 8,
+      boxShadow: '0 8px 28px rgba(0,0,0,.18)', minWidth: 160, marginTop: 4}
+  },
+    h('div', {style: {fontSize: 10, fontWeight: 700, color: 'var(--md)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5}}, 'Set condition'),
+    CONDITION_KEYS.map(k => {
+      const c = CONDITIONS[k];
+      return h('div', {
+        key: k,
+        onClick: e => { e.stopPropagation(); pickCondition(surf, k); },
+        style: {display: 'flex', alignItems: 'center', gap: 7, padding: '5px 6px',
+          borderRadius: 6, cursor: 'pointer', background: surfaceData[surf] === k ? c.color : 'transparent',
+          border: surfaceData[surf] === k ? '1px solid '+c.stroke : '1px solid transparent',
+          marginBottom: 2, transition: 'all .1s'}
+      },
+        h('span', {style: {width: 14, height: 14, borderRadius: 3, background: c.color, border: '1.5px solid '+c.stroke,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}},
+          h('span', {style: {fontSize: 8, color: k === 'cavity' ? '#fff' : '#1a2332', fontWeight: 700}}, c.symbol || '')
+        ),
+        h('span', {style: {fontSize: 11, fontWeight: surfaceData[surf] === k ? 700 : 500, color: '#1e293b'}}, c.label)
+      );
+    })
+  );
+
+  // Surface tile builder — realistic SVG per surface
+  const SurfTile = ({surf, label, svgContent, w, h: tileH, topRadius, bottomRadius}) => {
+    const isActive = activeSurf === surf;
+    const sc = surfCond(surf);
+    const cKey = surfaceData[surf] || 'healthy';
+    return h('div', {
+      style: {position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', width: w}
+    },
+      h('div', {
+        onClick: e => { e.stopPropagation(); setActiveSurf(isActive ? null : surf); },
+        style: {
+          width: w, height: tileH, cursor: 'pointer', position: 'relative', overflow: 'hidden',
+          borderRadius: (topRadius ? '10px 10px' : '0 0') + ' ' + (bottomRadius ? '10px 10px' : '0 0'),
+          border: '2px solid ' + (isActive ? 'var(--t)' : surfStroke(surf)),
+          background: surfColor(surf),
+          boxShadow: isActive ? '0 0 0 3px rgba(10,124,110,.25)' : '0 2px 6px rgba(0,0,0,.08)',
+          transition: 'all .15s',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        }
+      },
+        svgContent,
+        h('div', {style: {
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(2px)',
+          padding: '3px 4px', textAlign: 'center'
+        }},
+          h('div', {style: {fontSize: 9, fontWeight: 700, color: 'var(--dk)', textTransform: 'uppercase', letterSpacing: .5}}, label),
+          h('div', {style: {fontSize: 9.5, fontWeight: 600, color: cKey !== 'healthy' ? sc.stroke : '#64748b',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3}},
+            cKey !== 'healthy' && h('span', {style: {width: 8, height: 8, borderRadius: 2, background: sc.color, border: '1px solid '+sc.stroke, flexShrink: 0, display: 'inline-block'}}),
+            sc.label
+          )
+        )
+      ),
+      isActive && h(CondPicker, {surf})
+    );
+  };
+
+  // SVG helpers for each surface view
+  const enamel = cond.color !== '#ffffff' ? cond.color : '#faf6f0';
+  const enamelDark = '#d8c8a8';
+  const rootCol = '#e8d5b8';
+  const flipY = isUpper ? 1 : -1;
+
+  // BUCCAL/LABIAL SVG — front crown + root view
+  const BuccalSVG = () => h('svg', {viewBox: '-22 -38 44 72', width: 80, height: 110, style: {overflow: 'visible', flexShrink: 0}},
+    h('defs', null,
+      h('linearGradient', {id: 'bs-'+fdi, x1:'30%', y1:'0%', x2:'100%', y2:'100%'},
+        h('stop', {offset: '0%', stopColor: '#ffffff', stopOpacity: .95}),
+        h('stop', {offset: '40%', stopColor: enamel}),
+        h('stop', {offset: '100%', stopColor: enamelDark})
+      ),
+      h('radialGradient', {id: 'bsg-'+fdi, cx:'30%', cy:'25%', r:'55%'},
+        h('stop', {offset: '0%', stopColor: '#fff', stopOpacity: .7}),
+        h('stop', {offset: '100%', stopColor: '#fff', stopOpacity: 0})
+      )
+    ),
+    h('g', {transform: 'scale(1,' + flipY + ')'},
+      // Root
+      type === 'molar'
+        ? h('g', null,
+            h('path', {d:'M -11 7 Q -14 18 -10 26 Q -6 30 -3 29 L -1 8 Z', fill: rootCol, stroke: '#c4a98a', strokeWidth: .8}),
+            h('path', {d:'M 11 7 Q 14 18 10 26 Q 6 30 3 29 L 1 8 Z', fill: rootCol, stroke: '#c4a98a', strokeWidth: .8}),
+            h('path', {d:'M -1 8 Q 0 25 1 8', fill: '#ddc9a8', stroke: '#c4a98a', strokeWidth: .5})
+          )
+        : h('path', {d: type==='canine' ? 'M -7 7 Q -9 22 -4 30 Q 0 33 4 30 Q 9 22 7 7 Z'
+                      : type==='incisor' ? 'M -8 6 Q -10 20 -5 27 Q 0 30 5 27 Q 10 20 8 6 Z'
+                      : 'M -9 7 Q -11 21 -6 28 Q 0 31 6 28 Q 11 21 9 7 Z',
+            fill: rootCol, stroke: '#c4a98a', strokeWidth: .8}),
+      // Crown
+      type === 'incisor' && h('g', null,
+        h('path', {d:'M -13 -28 Q -14 -30 0 -33 Q 14 -30 13 -28 Q 15 -12 13 6 Q 6 8 0 8 Q -6 8 -13 6 Q -15 -12 -13 -28 Z', fill:'url(#bs-'+fdi+')', stroke: '#b0a090', strokeWidth:1.2}),
+        h('path', {d:'M -13 -28 Q -14 -30 0 -33 Q 14 -30 13 -28 Q 15 -12 13 6 Q 6 8 0 8 Q -6 8 -13 6 Q -15 -12 -13 -28 Z', fill:'url(#bsg-'+fdi+')', pointerEvents:'none'}),
+        h('path', {d:'M -8 -30 Q 0 -31 8 -30', fill:'none', stroke:'#c8b8a0', strokeWidth:.8, opacity:.6})
+      ),
+      type === 'canine' && h('g', null,
+        h('path', {d:'M 0 -34 Q -4 -29 -13 -18 Q -14 -4 -12 6 Q -5 9 0 9 Q 5 9 12 6 Q 14 -4 13 -18 Q 4 -29 0 -34 Z', fill:'url(#bs-'+fdi+')', stroke:'#b0a090', strokeWidth:1.2}),
+        h('path', {d:'M 0 -34 Q -4 -29 -13 -18 Q -14 -4 -12 6 Q -5 9 0 9 Q 5 9 12 6 Q 14 -4 13 -18 Q 4 -29 0 -34 Z', fill:'url(#bsg-'+fdi+')', pointerEvents:'none'}),
+        h('circle', {cx:0, cy:-31, r:1.5, fill:'#fff', opacity:.7})
+      ),
+      type === 'premolar' && h('g', null,
+        h('path', {d:'M -14 -24 Q -13 -29 -7 -28 L -2 -22 L 2 -22 L 7 -28 Q 13 -29 14 -24 Q 16 -8 13 7 Q 6 9 0 9 Q -6 9 -13 7 Q -16 -8 -14 -24 Z', fill:'url(#bs-'+fdi+')', stroke:'#b0a090', strokeWidth:1.2}),
+        h('path', {d:'M -14 -24 Q -13 -29 -7 -28 L -2 -22 L 2 -22 L 7 -28 Q 13 -29 14 -24 Q 16 -8 13 7 Q 6 9 0 9 Q -6 9 -13 7 Q -16 -8 -14 -24 Z', fill:'url(#bsg-'+fdi+')', pointerEvents:'none'}),
+        h('circle', {cx:-5, cy:-26, r:1.8, fill:'none', stroke: enamelDark, strokeWidth:.7, opacity:.7}),
+        h('circle', {cx:5, cy:-26, r:1.8, fill:'none', stroke: enamelDark, strokeWidth:.7, opacity:.7})
+      ),
+      type === 'molar' && h('g', null,
+        h('path', {d:'M -17 -20 Q -16 -27 -10 -26 L -5 -20 L 0 -24 L 5 -20 L 10 -26 Q 16 -27 17 -20 Q 19 -5 15 7 Q 7 10 0 10 Q -7 10 -15 7 Q -19 -5 -17 -20 Z', fill:'url(#bs-'+fdi+')', stroke:'#b0a090', strokeWidth:1.2}),
+        h('path', {d:'M -17 -20 Q -16 -27 -10 -26 L -5 -20 L 0 -24 L 5 -20 L 10 -26 Q 16 -27 17 -20 Q 19 -5 15 7 Q 7 10 0 10 Q -7 10 -15 7 Q -19 -5 -17 -20 Z', fill:'url(#bsg-'+fdi+')', pointerEvents:'none'}),
+        h('circle', {cx:-9, cy:-15, r:2.2, fill:'none', stroke: enamelDark, strokeWidth:.8, opacity:.6}),
+        h('circle', {cx:9, cy:-15, r:2.2, fill:'none', stroke: enamelDark, strokeWidth:.8, opacity:.6}),
+        h('path', {d:'M -14 -10 Q 0 -6 14 -10', fill:'none', stroke:'#9a8a7a', strokeWidth:.6, opacity:.4})
+      ),
+      // CEJ line
+      h('path', {d: type==='molar' ? 'M -15 7 Q 0 10 15 7' : type==='canine' ? 'M -12 6 Q 0 9 12 6' : type==='incisor' ? 'M -13 6 Q 0 9 13 6' : 'M -13 7 Q 0 10 13 7',
+        fill:'none', stroke:'#b09070', strokeWidth:.9, opacity:.6}),
+      // Condition symbol if applicable
+      cond.symbol && condition !== 'healthy' && h('text', {x:0, y:-10, fontSize:12, textAnchor:'middle',
+        fill: condition==='cavity'?'#fff':'#1a2332', fontWeight:700, style:{transform:'scaleY('+flipY+')'}}, cond.symbol)
+    )
+  );
+
+  // LINGUAL SVG — back view (same shape, slightly different curvature emphasis)
+  const LingualSVG = () => h('svg', {viewBox: '-22 -38 44 72', width: 80, height: 110, style: {overflow:'visible', flexShrink:0}},
+    h('defs', null,
+      h('linearGradient', {id:'ls-'+fdi, x1:'70%', y1:'0%', x2:'0%', y2:'100%'},
+        h('stop', {offset:'0%', stopColor:'#ffffff', stopOpacity:.9}),
+        h('stop', {offset:'45%', stopColor: enamel}),
+        h('stop', {offset:'100%', stopColor: enamelDark})
+      )
+    ),
+    h('g', {transform: 'scale(1,' + flipY + ')'},
+      // Root (same as buccal)
+      type === 'molar'
+        ? h('g', null,
+            h('path', {d:'M -11 7 Q -14 18 -10 26 Q -6 30 -3 29 L -1 8 Z', fill: rootCol, stroke:'#c4a98a', strokeWidth:.8}),
+            h('path', {d:'M 11 7 Q 14 18 10 26 Q 6 30 3 29 L 1 8 Z', fill: rootCol, stroke:'#c4a98a', strokeWidth:.8})
+          )
+        : h('path', {d: type==='canine' ? 'M -7 7 Q -9 22 -4 30 Q 0 33 4 30 Q 9 22 7 7 Z'
+                      : type==='incisor' ? 'M -8 6 Q -10 20 -5 27 Q 0 30 5 27 Q 10 20 8 6 Z'
+                      : 'M -9 7 Q -11 21 -6 28 Q 0 31 6 28 Q 11 21 9 7 Z',
+            fill: rootCol, stroke:'#c4a98a', strokeWidth:.8}),
+      // Lingual crown — slightly concave (cingulum for incisors/canines, oblique ridge for molars)
+      type === 'incisor' && h('g', null,
+        h('path', {d:'M -11 -27 Q -12 -30 0 -31 Q 12 -30 11 -27 Q 12 -12 10 6 Q 5 8 0 8 Q -5 8 -10 6 Q -12 -12 -11 -27 Z', fill:'url(#ls-'+fdi+')', stroke:'#b0a090', strokeWidth:1.2}),
+        h('ellipse', {cx:0, cy:-18, rx:4, ry:3, fill:'none', stroke: enamelDark, strokeWidth:.7, opacity:.5})
+      ),
+      type === 'canine' && h('g', null,
+        h('path', {d:'M 0 -32 Q -3 -28 -11 -18 Q -12 -4 -11 6 Q -5 9 0 9 Q 5 9 11 6 Q 12 -4 11 -18 Q 3 -28 0 -32 Z', fill:'url(#ls-'+fdi+')', stroke:'#b0a090', strokeWidth:1.2}),
+        h('ellipse', {cx:0, cy:-20, rx:3, ry:2.5, fill:'none', stroke: enamelDark, strokeWidth:.7, opacity:.5})
+      ),
+      type === 'premolar' && h('g', null,
+        h('path', {d:'M -12 -24 Q -11 -28 -6 -27 L -2 -22 L 2 -22 L 6 -27 Q 11 -28 12 -24 Q 14 -8 11 7 Q 5 9 0 9 Q -5 9 -11 7 Q -14 -8 -12 -24 Z', fill:'url(#ls-'+fdi+')', stroke:'#b0a090', strokeWidth:1.2}),
+        h('path', {d:'M -8 -18 Q 0 -14 8 -18', fill:'none', stroke: enamelDark, strokeWidth:.7, opacity:.5})
+      ),
+      type === 'molar' && h('g', null,
+        h('path', {d:'M -15 -20 Q -14 -26 -9 -25 L -4 -19 L 0 -23 L 4 -19 L 9 -25 Q 14 -26 15 -20 Q 17 -5 13 7 Q 6 10 0 10 Q -6 10 -13 7 Q -17 -5 -15 -20 Z', fill:'url(#ls-'+fdi+')', stroke:'#b0a090', strokeWidth:1.2}),
+        h('path', {d:'M -10 -15 Q 0 -8 10 -15', fill:'none', stroke: enamelDark, strokeWidth:.8, opacity:.5}),
+        h('path', {d:'M -5 -5 Q 0 -2 5 -5', fill:'none', stroke: enamelDark, strokeWidth:.6, opacity:.4})
+      ),
+      h('path', {d: type==='molar' ? 'M -13 7 Q 0 10 13 7' : type==='canine' ? 'M -11 6 Q 0 9 11 6' : type==='incisor' ? 'M -10 6 Q 0 9 10 6' : 'M -11 7 Q 0 10 11 7',
+        fill:'none', stroke:'#b09070', strokeWidth:.9, opacity:.6})
+    )
+  );
+
+  // MESIAL/DISTAL SVG — narrow proximal view
+  const ProxSVG = ({flipped}) => h('svg', {viewBox: '-12 -38 24 72', width: 44, height: 110, style: {overflow:'visible', flexShrink:0}},
+    h('defs', null,
+      h('linearGradient', {id:'ps-'+fdi+(flipped?'d':'m'), x1:'0%', y1:'0%', x2:'100%', y2:'0%'},
+        h('stop', {offset:'0%', stopColor:'#ffffff', stopOpacity:.9}),
+        h('stop', {offset:'55%', stopColor: enamel}),
+        h('stop', {offset:'100%', stopColor: enamelDark})
+      )
+    ),
+    h('g', {transform: 'scale('+(flipped?-1:1)+','+flipY+')'},
+      // Root — narrow side
+      h('path', {d:'M -5 7 Q -7 22 -3 30 Q 0 33 3 30 Q 7 22 5 7 Z', fill: rootCol, stroke:'#c4a98a', strokeWidth:.8}),
+      // Crown — narrow proximal profile
+      type === 'incisor' && h('path', {d:'M -9 -28 Q -10 -30 0 -31 Q 2 -15 1 6 Q -1 8 0 8 Q -3 8 -8 6 Q -10 -12 -9 -28 Z', fill:'url(#ps-'+fdi+(flipped?'d':'m')+')', stroke:'#b0a090', strokeWidth:1}),
+      type === 'canine' && h('path', {d:'M 0 -33 Q -3 -24 -9 -14 Q -10 -3 -9 6 Q -4 9 0 8 Q -3 8 -8 6 Q -10 -3 -9 -14 Q -3 -24 0 -33 Z', fill:'url(#ps-'+fdi+(flipped?'d':'m')+')', stroke:'#b0a090', strokeWidth:1}),
+      type === 'premolar' && h('path', {d:'M -5 -28 Q -3 -30 0 -29 Q 3 -26 4 -20 Q 9 -12 8 6 Q 4 9 0 8 Q -5 9 -9 6 Q -10 -8 -8 -20 Q -7 -26 -5 -28 Z', fill:'url(#ps-'+fdi+(flipped?'d':'m')+')', stroke:'#b0a090', strokeWidth:1}),
+      type === 'molar' && h('path', {d:'M -5 -26 Q -3 -29 0 -28 Q 4 -25 7 -18 Q 10 -8 9 7 Q 5 10 0 9 Q -5 10 -9 7 Q -10 -8 -8 -18 Q -6 -25 -5 -26 Z', fill:'url(#ps-'+fdi+(flipped?'d':'m')+')', stroke:'#b0a090', strokeWidth:1}),
+      // Contact area highlight (convex region)
+      h('ellipse', {cx:0, cy:-14, rx:4, ry:5, fill:'none', stroke:'#c8b8a0', strokeWidth:.6, opacity:.5}),
+      // CEJ
+      h('path', {d:'M -8 6 Q 0 9 8 6', fill:'none', stroke:'#b09070', strokeWidth:.8, opacity:.6})
+    )
+  );
+
+  // OCCLUSAL/INCISAL SVG — top-down view with realistic fissure pattern
+  const OccSVG = () => {
+    const w = type==='molar' ? 88 : type==='premolar' ? 72 : 60;
+    const h_ = type==='molar' ? 72 : type==='premolar' ? 56 : 36;
+    return h('svg', {viewBox: '-18 -14 36 28', width: w, height: h_, style: {overflow:'visible', flexShrink:0}},
+      h('defs', null,
+        h('radialGradient', {id:'os-'+fdi, cx:'40%', cy:'35%', r:'65%'},
+          h('stop', {offset:'0%', stopColor:'#ffffff', stopOpacity:.95}),
+          h('stop', {offset:'55%', stopColor: enamel}),
+          h('stop', {offset:'100%', stopColor: enamelDark})
+        )
+      ),
+      // Outline
+      type === 'incisor' && h('path', {d:'M -12 -4 Q -13 0 -12 4 Q -8 6 0 6 Q 8 6 12 4 Q 13 0 12 -4 Q 8 -6 0 -6 Q -8 -6 -12 -4 Z', fill:'url(#os-'+fdi+')', stroke:'#b0a090', strokeWidth:1.2}),
+      type === 'canine' && h('path', {d:'M 0 -10 Q -5 -6 -11 0 Q -6 6 0 8 Q 6 6 11 0 Q 5 -6 0 -10 Z', fill:'url(#os-'+fdi+')', stroke:'#b0a090', strokeWidth:1.2}),
+      type === 'premolar' && h('ellipse', {cx:0, cy:0, rx:13, ry:8, fill:'url(#os-'+fdi+')', stroke:'#b0a090', strokeWidth:1.2}),
+      type === 'molar' && h('path', {d:'M -15 -10 Q -14 -13 -10 -13 Q 0 -13 10 -13 Q 14 -13 15 -10 Q 16 0 15 10 Q 14 13 10 13 Q 0 13 -10 13 Q -14 13 -15 10 Q -16 0 -15 -10 Z', fill:'url(#os-'+fdi+')', stroke:'#b0a090', strokeWidth:1.2}),
+      // Anatomical detail
+      type === 'incisor' && h('path', {d:'M -12 -4 Q 0 -5 12 -4', fill:'none', stroke:'#9a8a7a', strokeWidth:.5, opacity:.5}),
+      type === 'canine' && h('g', null,
+        h('path', {d:'M 0 -10 L 0 8', fill:'none', stroke:'#9a8a7a', strokeWidth:.6, opacity:.5}),
+        h('circle', {cx:0, cy:-8, r:1.2, fill:'#8a7a6a', opacity:.5})
+      ),
+      type === 'premolar' && h('g', null,
+        h('circle', {cx:-5, cy:0, r:2.5, fill:'#8a7a6a', opacity:.5}),
+        h('circle', {cx:5, cy:0, r:2, fill:'#8a7a6a', opacity:.45}),
+        h('path', {d:'M -5 -7 L -5 7 M 0 -7 L 0 7', fill:'none', stroke:'#7a6a5a', strokeWidth:.5, opacity:.4})
+      ),
+      type === 'molar' && h('g', null,
+        h('circle', {cx:-9, cy:-7, r:2.8, fill:'#8a7a6a', opacity:.5}),
+        h('circle', {cx:9, cy:-7, r:2.8, fill:'#8a7a6a', opacity:.5}),
+        h('circle', {cx:-9, cy:7, r:2.5, fill:'#8a7a6a', opacity:.48}),
+        h('circle', {cx:9, cy:7, r:2.5, fill:'#8a7a6a', opacity:.48}),
+        h('circle', {cx:0, cy:0, r:1.8, fill:'#7a6a5a', opacity:.4}),
+        h('path', {d:'M -7 -11 L -3 -2 L 3 -2 L 7 -11', fill:'none', stroke:'#7a6a5a', strokeWidth:.6, opacity:.45}),
+        h('path', {d:'M -7 11 L -3 2 L 3 2 L 7 11', fill:'none', stroke:'#7a6a5a', strokeWidth:.6, opacity:.45}),
+        h('path', {d:'M -13 0 L -3 0 L 3 0 L 13 0', fill:'none', stroke:'#7a6a5a', strokeWidth:.5, opacity:.35})
+      )
+    );
+  };
+
+  const oW = type==='molar' ? 88 : type==='premolar' ? 72 : 60;
+
+  return h('div', {
+    style: {padding: '0 0 8px', minWidth: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4},
+    onClick: () => setActiveSurf(null)
+  },
+    h('div', {style: {fontWeight: 700, fontSize: 12, color: 'var(--md)', letterSpacing: .5, marginBottom: 4, textAlign: 'center', textTransform: 'uppercase'}},
+      '5-Surface Diagram · Tooth #' + fdi
+    ),
+
+    // Row 1: Buccal/Labial (full width)
+    h('div', {style: {display:'flex', alignItems:'flex-end', gap:0}},
+      h('div', {style:{width:44}}), // spacer for mesial
+      h(SurfTile, {surf: buccSurf, label: buccLabel, svgContent: h(BuccalSVG), w: oW + 4, h: 136, topRadius: true, bottomRadius: false}),
+      h('div', {style:{width:44}}) // spacer for distal
+    ),
+
+    // Row 2: Mesial | Occlusal/Incisal | Distal
+    h('div', {style:{display:'flex', alignItems:'stretch', gap:0}},
+      h(SurfTile, {surf:'mesial', label:'Mesial', svgContent: h(ProxSVG, {flipped:false}), w:44, h: type==='molar'?96:80, topRadius:false, bottomRadius:false}),
+      h(SurfTile, {surf: occSurf, label: occLabel, svgContent: h(OccSVG), w: oW + 4, h: type==='molar'?96:80, topRadius:false, bottomRadius:false}),
+      h(SurfTile, {surf:'distal', label:'Distal', svgContent: h(ProxSVG, {flipped:true}), w:44, h: type==='molar'?96:80, topRadius:false, bottomRadius:false})
+    ),
+
+    // Row 3: Lingual (full width)
+    h('div', {style:{display:'flex', alignItems:'flex-start', gap:0}},
+      h('div', {style:{width:44}}),
+      h(SurfTile, {surf:'lingual', label:'Lingual', svgContent: h(LingualSVG), w: oW + 4, h: 136, topRadius: false, bottomRadius: true}),
+      h('div', {style:{width:44}})
+    ),
+
+    // Whole-tooth condition row
+    h('div', {style:{marginTop:6, padding:'6px 10px', background:'#f0faf8', borderRadius:8, border:'1px solid #d0e8e4', width:'100%', boxSizing:'border-box', display:'flex', alignItems:'center', gap:8}},
+      h('span', {style:{fontSize:11, fontWeight:600, color:'var(--md)'}}, 'Whole tooth:'),
+      h('span', {style:{width:16, height:16, borderRadius:4, background: cond.color, border:'1.5px solid '+cond.stroke, display:'inline-flex', alignItems:'center', justifyContent:'center'}},
+        h('span', {style:{fontSize:9, color: condition==='cavity'?'#fff':'#1a2332', fontWeight:700}}, cond.symbol || '')
+      ),
+      h('span', {style:{fontSize:12, fontWeight:700, color:'var(--dk)'}}, cond.label)
+    ),
+
+    // Hint
+    h('div', {style:{fontSize:10, color:'#64748b', textAlign:'center', marginTop:2}}, '👆 Click any surface to assign a condition')
+  );
+}
+
+// Per-tooth detail modal — opens when a tooth is selected
 function ToothDetailModal({fdi, condition, surfaceData, onClose, onConditionChange, onSurfaceChange}){
-  const [rotX, setRotX] = useState(-10);
-  const [rotY, setRotY] = useState(0);
-  const [zoom, setZoom] = useState(1);
-  const [drag, setDrag] = useState(null);
   const [view, setView] = useState('overview'); // 'overview' | 'surfaces' | 'history'
 
   const meta = toothMetadata(fdi);
@@ -5819,43 +6085,6 @@ function ToothDetailModal({fdi, condition, surfaceData, onClose, onConditionChan
   const isUpper = isUpperTooth(fdi);
   surfaceData = surfaceData || {};
 
-  const handlePointerDown = e => {
-    const p = e.touches ? e.touches[0] : e;
-    setDrag({startX: p.clientX, startY: p.clientY, baseRX: rotX, baseRY: rotY});
-  };
-  const handlePointerMove = e => {
-    if (!drag) return; e.preventDefault();
-    const p = e.touches ? e.touches[0] : e;
-    setRotY(drag.baseRY + (p.clientX - drag.startX) * 0.6);
-    setRotX(Math.max(-90, Math.min(90, drag.baseRX - (p.clientY - drag.startY) * 0.4)));
-  };
-  const handlePointerUp = () => setDrag(null);
-
-  useEffect(() => {
-    if (drag) {
-      window.addEventListener('mousemove', handlePointerMove);
-      window.addEventListener('mouseup', handlePointerUp);
-      window.addEventListener('touchmove', handlePointerMove, {passive: false});
-      window.addEventListener('touchend', handlePointerUp);
-      return () => {
-        window.removeEventListener('mousemove', handlePointerMove);
-        window.removeEventListener('mouseup', handlePointerUp);
-        window.removeEventListener('touchmove', handlePointerMove);
-        window.removeEventListener('touchend', handlePointerUp);
-      };
-    }
-  }, [drag]);
-
-  // Auto-rotate when not dragging
-  useEffect(() => {
-    if (drag) return;
-    const id = setInterval(() => {
-      setRotY(r => r + 0.4);
-    }, 50);
-    return () => clearInterval(id);
-  }, [drag]);
-
-  const path = toothSvgPath(meta.type, isUpper);
   const baseColor = cond.color;
 
   return h(Modal, {
@@ -5865,49 +6094,9 @@ function ToothDetailModal({fdi, condition, surfaceData, onClose, onConditionChan
     footer: h('button', {className: 'btn bgh', onClick: onClose}, 'Close')
   },
     h('div', {className: 'tooth-detail-grid'},
-      // ─── Left: 3D viewer ────────────────────────────────────────────────
+      // ─── Left: 5-surface 2D realistic diagram ─────────────────────────────
       h('div', {className: 'tooth-detail-3d'},
-        h('div', {className: 'tooth-detail-stage',
-          onMouseDown: handlePointerDown,
-          onTouchStart: handlePointerDown,
-          style: { cursor: drag ? 'grabbing' : 'grab' }
-        },
-          h('div', {className: 'tooth-detail-scene',
-            style: {
-              transform: 'scale(' + zoom + ') rotateX(' + rotX + 'deg) rotateY(' + rotY + 'deg)'
-            }
-          },
-            // Render multiple "layers" to fake true 3D depth
-            // Front face
-            h('div', {className: 'tooth-3d-layer', style: {transform: 'translateZ(8px)'}},
-              h(SingleTooth3D, {meta, condition, baseColor})
-            ),
-            // Side face (rotated 90deg)
-            h('div', {className: 'tooth-3d-layer', style: {transform: 'rotateY(90deg) translateZ(8px)'}},
-              h(SingleTooth3D, {meta, condition, baseColor, narrow: true})
-            ),
-            // Back face
-            h('div', {className: 'tooth-3d-layer', style: {transform: 'rotateY(180deg) translateZ(8px)'}},
-              h(SingleTooth3D, {meta, condition, baseColor})
-            ),
-            // Other side
-            h('div', {className: 'tooth-3d-layer', style: {transform: 'rotateY(-90deg) translateZ(8px)'}},
-              h(SingleTooth3D, {meta, condition, baseColor, narrow: true})
-            ),
-            // Top (occlusal/incisal view)
-            h('div', {className: 'tooth-3d-layer', style: {transform: 'rotateX(90deg) translateZ(' + (meta.type === 'incisor' ? 28 : 24) + 'px)'}},
-              h(SingleToothTop, {meta, condition, baseColor})
-            )
-          )
-        ),
-        h('div', {className: 'tooth-detail-ctrls'},
-          h('button', {type: 'button', className: 'dc-btn', onClick: () => setRotY(r => r - 30)}, '⟲'),
-          h('button', {type: 'button', className: 'dc-btn', onClick: () => setZoom(z => Math.max(0.5, z - 0.2))}, '−'),
-          h('button', {type: 'button', className: 'dc-btn', onClick: () => { setRotX(-10); setRotY(0); setZoom(1); }}, h(Svg, {d: IC.reset, size: 13})),
-          h('button', {type: 'button', className: 'dc-btn', onClick: () => setZoom(z => Math.min(3, z + 0.2))}, '+'),
-          h('button', {type: 'button', className: 'dc-btn', onClick: () => setRotY(r => r + 30)}, '⟳'),
-        ),
-        h('div', {className: 'tooth-detail-hint'}, '🖱️ Drag to rotate · Auto-rotates when idle')
+        h(Tooth5SurfaceView, {meta, condition, surfaceData, onSurfaceChange, onConditionChange, fdi})
       ),
 
       // ─── Right: Info & controls ────────────────────────────────────────
