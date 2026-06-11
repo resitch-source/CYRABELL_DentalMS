@@ -9898,7 +9898,8 @@ function Patients({patients,setPatients,appointments,setAppointments,payments,se
       setAppointments(prev => {
         let updated = [...prev];
         data._appointments.forEach(appt => {
-          if (!appt.date) return;
+          // require at least a date OR a service to save the row
+          if (!appt.date && !S(appt.service)) return;
           const newId = 'A' + String(Date.now() + Math.random() * 1000 | 0).slice(-7);
           updated = [...updated, {
             id: newId,
@@ -9924,19 +9925,21 @@ function Patients({patients,setPatients,appointments,setAppointments,payments,se
       setPayments(prev => {
         let updated = [...prev];
         data._payments.forEach(pay => {
-          if (!pay.amount && !pay.credit) return;
-          const amount = parseFloat(pay.credit || pay.debit || pay.amount) || 0;
-          if (!amount) return;
+          const debit  = parseFloat(pay.debit)  || 0;
+          const credit = parseFloat(pay.credit) || 0;
+          const amount = parseFloat(pay.amount) || credit || debit;
+          // include the row as long as any monetary value is present OR a service is chosen
+          if (!amount && !S(pay.service)) return;
           const newId = 'PAY' + String(Date.now() + Math.random() * 1000 | 0).slice(-7);
           updated = [...updated, {
             id: newId,
             patientId,
             patientName: pname,
-            amount,
+            amount: amount || 0,
             method: S(pay.method) || 'Cash',
             service: S(pay.service) || 'Dental Visit',
             date: S(pay.date) || localToday(),
-            status: pay.debit ? 'debit' : 'paid',
+            status: debit && !credit ? 'debit' : 'paid',
             ref: 'SCAN-' + newId,
             balance: parseFloat(pay.balance) || 0,
             note: S(pay.note) || '',
