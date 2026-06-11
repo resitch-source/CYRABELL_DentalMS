@@ -13474,13 +13474,16 @@ function App(){
   if (bootState === 'pulling') {
     return h('div', {className: 'boot-screen'},
       h('div', {className: 'boot-card'},
-        h('div', {className: 'boot-logo'},
-          h(Svg, {d: IC.tooth, size: 36, color: '#fff'})
+        h('div', {className: 'login-logo'},
+          h(BrandLogo, {dark: false, width: 220})
         ),
-        h('div', {className: 'boot-title'}, 'Cyrabell Dental'),
         h('div', {className: 'boot-spinner'}),
         h('div', {className: 'boot-status'}, '☁️ Loading data from Google Sheets…'),
-        h('div', {className: 'boot-hint'}, 'Google Sheets is the source of truth')
+        h('div', {className: 'boot-hint'}, 'Google Sheets is the source of truth'),
+        h('div', {className: 'nexarch-badge', style: {marginTop: 16}},
+          h('img', {src: CYRABELL_LOGO, alt: 'Cyrabell', className: 'nexarch-logo-sm'}),
+          h('span', null, 'Powered by ', h('strong', null, 'CYRABELL'))
+        )
       )
     );
   }
@@ -13488,8 +13491,8 @@ function App(){
   if (bootState === 'pull-failed') {
     return h('div', {className: 'boot-screen'},
       h('div', {className: 'boot-card'},
-        h('div', {className: 'boot-logo', style: {background: '#fdeaea'}},
-          h('span', {style: {fontSize: 36}}, '⚠')
+        h('div', {className: 'login-logo'},
+          h(BrandLogo, {dark: false, width: 220})
         ),
         h('div', {className: 'boot-title'}, 'Cannot reach Google Sheets'),
         h('div', {className: 'boot-status', style: {color: '#e05252'}}, bootError || 'Network error'),
@@ -13509,6 +13512,10 @@ function App(){
               setBootState('no-sync');
             }
           }, 'Use local data (offline mode)')
+        ),
+        h('div', {className: 'nexarch-badge', style: {marginTop: 16}},
+          h('img', {src: CYRABELL_LOGO, alt: 'Cyrabell', className: 'nexarch-logo-sm'}),
+          h('span', null, 'Powered by ', h('strong', null, 'CYRABELL'))
         )
       )
     );
