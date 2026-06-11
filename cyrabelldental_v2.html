@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://api.allorigins.win; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://api.allorigins.win https://corsproxy.io https://api.codetabs.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com;">
 <!-- Performance: preconnect to font origin so the browser opens the TCP/TLS connection early -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -5584,19 +5584,25 @@ const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 const RSS_FEEDS=[
   {url:'https://www.pna.gov.ph/feed',label:'PH',cat:'ph'},
-  {url:'https://newsinfo.inquirer.net/feed',label:'PH',cat:'ph'},
   {url:'https://feeds.bbci.co.uk/news/world/rss.xml',label:'WORLD',cat:'int'},
-  {url:'https://www.aljazeera.com/xml/rss/all.xml',label:'WORLD',cat:'int'},
+  {url:'https://rss.dw.com/rdf/rss-en-all',label:'WORLD',cat:'int'},
+  {url:'https://rss.dw.com/rdf/rss-en-asia',label:'ASIA',cat:'int'},
 ];
-// allorigins /get returns {contents, status} with proper CORS headers
-const ALLORIGINS='https://api.allorigins.win/get?url=';
+// Try multiple CORS proxies in order; return text or null
+async function proxyFetch(url){
+  const proxies=[
+    async u=>{ const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(u)); if(!r.ok) throw 0; return r.text(); },
+    async u=>{ const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(u)); if(!r.ok) throw 0; const j=await r.json(); return j.contents||''; },
+    async u=>{ const r=await fetch('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u)); if(!r.ok) throw 0; return r.text(); },
+  ];
+  for(const p of proxies){ try{ const t=await p(url); if(t) return t; }catch(e){} }
+  return null;
+}
 async function fetchRSSFeed(feed){
   try{
-    const r=await fetch(ALLORIGINS+encodeURIComponent(feed.url));
-    if(!r.ok) return [];
-    const json=await r.json();
-    if(!json||!json.contents) return [];
-    const xml=new DOMParser().parseFromString(json.contents,'text/xml');
+    const txt=await proxyFetch(feed.url);
+    if(!txt) return [];
+    const xml=new DOMParser().parseFromString(txt,'text/xml');
     return [...xml.querySelectorAll('item')].slice(0,8).map(it=>{
       const raw=it.querySelector('title')?.textContent||'';
       return {title:raw.replace(/<!\[CDATA\[|\]\]>/g,'').replace(/<[^>]+>/g,'').trim(),cat:feed.cat,label:feed.label};
