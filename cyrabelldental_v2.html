@@ -6,8 +6,23 @@
 <meta name="theme-color" content="#0a7c6e"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Cyrabell"/>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a1628'/%3E%3Ccircle cx='256' cy='256' r='190' fill='none' stroke='%2300b4d8' stroke-width='40'/%3E%3Cpath d='M340 160 A120 120 0 1 0 340 352' fill='none' stroke='%2300b4d8' stroke-width='52' stroke-linecap='round'/%3E%3Ccircle cx='340' cy='160' r='22' fill='%23d4a017'/%3E%3Ccircle cx='340' cy='352' r='22' fill='%23d4a017'/%3E%3C/svg%3E"/>
+<script>
+// Register inline manifest as blob for PWA installability
+(function(){
+  const icon='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="#0a1628"/><circle cx="256" cy="256" r="190" fill="none" stroke="#00b4d8" stroke-width="40"/><path d="M340 160 A120 120 0 1 0 340 352" fill="none" stroke="#00b4d8" stroke-width="52" stroke-linecap="round"/><circle cx="340" cy="160" r="22" fill="#d4a017"/><circle cx="340" cy="352" r="22" fill="#d4a017"/></svg>');
+  const manifest={name:'Cyrabell Dental MS',short_name:'Cyrabell',description:'Complete Dental Practice Management System',start_url:location.href,display:'standalone',orientation:'portrait',background_color:'#0a1628',theme_color:'#00b4d8',icons:[{src:icon,sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}]};
+  const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('link');
+  link.rel='manifest'; link.href=url;
+  document.head.appendChild(link);
+})();
+</script>
 <!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://api.allorigins.win https://corsproxy.io https://api.codetabs.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com https://www.youtube.com https://www.youtube-nocookie.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' blob: http://localhost:* http://127.0.0.1:* https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://api.allorigins.win https://corsproxy.io https://api.codetabs.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com https://www.youtube.com https://www.youtube-nocookie.com;">
 <!-- Performance: preconnect to font origin so the browser opens the TCP/TLS connection early -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

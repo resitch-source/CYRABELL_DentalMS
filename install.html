@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Install Cyrabell Dental MS</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a1628;color:#e8eaf0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.card{background:#111e36;border:1px solid rgba(0,180,216,.2);border-radius:20px;padding:36px 40px;max-width:520px;width:100%;text-align:center;box-shadow:0 8px 48px rgba(0,0,0,.5);}
+.logo{width:80px;height:80px;margin:0 auto 20px;border-radius:18px;background:#0a1628;border:2px solid rgba(0,180,216,.3);display:flex;align-items:center;justify-content:center;}
+h1{font-size:1.6rem;font-weight:800;color:#fff;margin-bottom:6px;}
+.tagline{font-size:13px;color:#a0aec0;margin-bottom:28px;}
+#qr-wrap{background:#fff;border-radius:16px;padding:16px;display:inline-block;margin-bottom:24px;box-shadow:0 4px 20px rgba(0,180,216,.15);}
+canvas,#qr-wrap svg{display:block;}
+.url-box{background:rgba(0,180,216,.08);border:1px solid rgba(0,180,216,.2);border-radius:10px;padding:12px 16px;font-size:13px;color:#00b4d8;word-break:break-all;margin-bottom:24px;cursor:pointer;transition:background .2s;}
+.url-box:hover{background:rgba(0,180,216,.15);}
+.steps{text-align:left;margin-bottom:28px;}
+.step{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.06);}
+.step:last-child{border-bottom:none;}
+.step-num{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#00b4d8,#0096b7);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;margin-top:1px;}
+.step h3{font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;}
+.step p{font-size:13px;color:#a0aec0;line-height:1.5;}
+.os-tabs{display:flex;gap:10px;justify-content:center;margin-bottom:20px;}
+.os-tab{padding:7px 20px;border-radius:50px;font-size:13px;font-weight:600;cursor:pointer;border:2px solid rgba(255,255,255,.15);color:#a0aec0;background:transparent;transition:all .2s;}
+.os-tab.active{border-color:#00b4d8;color:#00b4d8;background:rgba(0,180,216,.1);}
+.os-steps{display:none;}
+.os-steps.active{display:block;}
+.footer{margin-top:24px;font-size:12px;color:#475569;text-align:center;}
+.footer a{color:#00b4d8;text-decoration:none;}
+.copy-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#22c55e;color:#fff;padding:10px 24px;border-radius:50px;font-size:14px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;}
+.copy-toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">
+    <svg viewBox="0 0 60 60" width="52" height="52" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="30" cy="30" r="26" fill="none" stroke="#00b4d8" stroke-width="5"/>
+      <path d="M42 14 A18 18 0 1 0 42 46" fill="none" stroke="#00b4d8" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="42" cy="14" r="3.5" fill="#d4a017"/>
+      <circle cx="42" cy="46" r="3.5" fill="#d4a017"/>
+    </svg>
+  </div>
+  <h1>Cyrabell Dental MS</h1>
+  <p class="tagline">Scan to install on your phone • Works like a native app</p>
+
+  <div id="qr-wrap">
+    <canvas id="qr" width="200" height="200"></canvas>
+  </div>
+
+  <div class="url-box" onclick="copyUrl()" title="Tap to copy">
+    <span id="app-url">Loading URL…</span>
+  </div>
+
+  <div class="os-tabs">
+    <button class="os-tab active" onclick="showOS('android',this)">🤖 Android</button>
+    <button class="os-tab" onclick="showOS('ios',this)">🍎 iPhone / iPad</button>
+  </div>
+
+  <div class="steps">
+    <div class="os-steps active" id="android-steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div><h3>Open in Chrome</h3><p>Scan the QR code or tap the URL above. The app will open in Chrome.</p></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div><h3>Tap the ⋮ Menu</h3><p>Tap the three-dot menu in the top-right corner of Chrome.</p></div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div><h3>Tap "Add to Home screen"</h3><p>Select <strong>Add to Home screen</strong> from the menu. The Cyrabell icon will appear on your home screen.</p></div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div><h3>Tap "Add"</h3><p>Confirm the name and tap <strong>Add</strong>. Done! Open it from your home screen like any app.</p></div>
+      </div>
+    </div>
+
+    <div class="os-steps" id="ios-steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div><h3>Open in Safari</h3><p>Scan the QR code or tap the URL above. Must use <strong>Safari</strong> — other browsers don't support home screen install on iOS.</p></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div><h3>Tap the Share button</h3><p>Tap the <strong>Share</strong> icon (rectangle with upward arrow) at the bottom of the screen.</p></div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div><h3>Tap "Add to Home Screen"</h3><p>Scroll down in the share sheet and tap <strong>Add to Home Screen</strong>.</p></div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div><h3>Tap "Add"</h3><p>Confirm the name (Cyrabell) and tap <strong>Add</strong> in the top-right. The icon appears on your home screen.</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Powered by <strong>NexArch</strong> · <a href="mailto:hello@nexarch.dev">hello@nexarch.dev</a>
+</div>
+
+<div class="copy-toast" id="toast">✓ URL copied!</div>
+
+<!-- Pure JS QR code generator (no external deps) -->
+<script>
+// ── QR Code generator (minimal Reed-Solomon, mode: byte) ──────────────────
+// Based on qrcodejs MIT license — condensed inline
+(function(){
+"use strict";
+var QRMode={MODE_NUMBER:1,MODE_ALPHA_NUM:2,MODE_8BIT_BYTE:4,MODE_KANJI:8};
+var QRErrorCorrectLevel={L:1,M:0,Q:3,H:2};
+var QRMaskPattern={PATTERN000:0,PATTERN001:1,PATTERN010:2,PATTERN011:3,PATTERN100:4,PATTERN101:5,PATTERN110:6,PATTERN111:7};
+var QRUtil={PATTERN_POSITION_TABLE:[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,132],[6,34,60,86,112,136],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],G15:1335,G18:7973,G15_MASK:21522,
+getBCHTypeInfo:function(d){var a=d<<10;while(QRUtil.getBCHDigit(a)-QRUtil.getBCHDigit(QRUtil.G15)>=0)a^=QRUtil.G15<<(QRUtil.getBCHDigit(a)-QRUtil.getBCHDigit(QRUtil.G15));return((d<<10)|a)^QRUtil.G15_MASK},
+getBCHTypeNumber:function(d){var a=d<<12;while(QRUtil.getBCHDigit(a)-QRUtil.getBCHDigit(QRUtil.G18)>=0)a^=QRUtil.G18<<(QRUtil.getBCHDigit(a)-QRUtil.getBCHDigit(QRUtil.G18));return(d<<12)|a},
+getBCHDigit:function(d){var a=0;while(d!=0){a++;d>>>=1;}return a},
+getPatternPosition:function(a){return QRUtil.PATTERN_POSITION_TABLE[a-1]},
+getMask:function(a,i,j){switch(a){case QRMaskPattern.PATTERN000:return(i+j)%2==0;case QRMaskPattern.PATTERN001:return i%2==0;case QRMaskPattern.PATTERN010:return j%3==0;case QRMaskPattern.PATTERN011:return(i+j)%3==0;case QRMaskPattern.PATTERN100:return(Math.floor(i/2)+Math.floor(j/3))%2==0;case QRMaskPattern.PATTERN101:return(i*j)%2+(i*j)%3==0;case QRMaskPattern.PATTERN110:return((i*j)%2+(i*j)%3)%2==0;case QRMaskPattern.PATTERN111:return((i*j)%3+(i+j)%2)%2==0;default:throw new Error("bad maskPattern:"+a)}},
+getErrorCorrectPolynomial:function(e){var a=new QRPolynomial([1],0);for(var i=0;i<e;i++)a=a.multiply(new QRPolynomial([1,QRMath.gexp(i)],0));return a},
+getLengthInBits:function(m,t){if(1<=t&&t<10){switch(m){case QRMode.MODE_NUMBER:return 10;case QRMode.MODE_ALPHA_NUM:return 9;case QRMode.MODE_8BIT_BYTE:return 8;case QRMode.MODE_KANJI:return 8;default:throw new Error("mode:"+m)}}else if(t<27){switch(m){case QRMode.MODE_NUMBER:return 12;case QRMode.MODE_ALPHA_NUM:return 11;case QRMode.MODE_8BIT_BYTE:return 16;case QRMode.MODE_KANJI:return 10;default:throw new Error("mode:"+m)}}else if(t<41){switch(m){case QRMode.MODE_NUMBER:return 14;case QRMode.MODE_ALPHA_NUM:return 13;case QRMode.MODE_8BIT_BYTE:return 16;case QRMode.MODE_KANJI:return 12;default:throw new Error("mode:"+m)}}else throw new Error("type:"+t)},
+getLostPoint:function(q){var s=q.getModuleCount(),l=0;for(var r=0;r<s;r++){for(var c=0;c<s;c++){var same=0,d=q.isDark(r,c);for(var x=-1;x<=1;x++){if(r+x<0||s<=r+x)continue;for(var y=-1;y<=1;y++){if(c+y<0||s<=c+y)continue;if(x==0&&y==0)continue;if(d==q.isDark(r+x,c+y))same++;}}if(same>5)l+=(3+same-5);}}for(var r=0;r<s-1;r++){for(var c=0;c<s-1;c++){var cnt=0;if(q.isDark(r,c))cnt++;if(q.isDark(r+1,c))cnt++;if(q.isDark(r,c+1))cnt++;if(q.isDark(r+1,c+1))cnt++;if(cnt==0||cnt==4)l+=3;}}for(var r=0;r<s;r++){for(var c=0;c<s-6;c++){if(q.isDark(r,c)&&!q.isDark(r,c+1)&&q.isDark(r,c+2)&&q.isDark(r,c+3)&&q.isDark(r,c+4)&&!q.isDark(r,c+5)&&q.isDark(r,c+6))l+=40;}}for(var c=0;c<s;c++){for(var r=0;r<s-6;r++){if(q.isDark(r,c)&&!q.isDark(r+1,c)&&q.isDark(r+2,c)&&q.isDark(r+3,c)&&q.isDark(r+4,c)&&!q.isDark(r+5,c)&&q.isDark(r+6,c))l+=40;}}var dark=0;for(var r=0;r<s;r++){for(var c=0;c<s;c++){if(q.isDark(r,c))dark++;}}var ratio=Math.abs(100*dark/s/s-50)/5;l+=ratio*10;return l}};
+var QRMath={glog:function(n){if(n<1)throw new Error("glog("+n+")");return QRMath.LOG_TABLE[n]},gexp:function(n){while(n<0)n+=255;while(n>=256)n-=255;return QRMath.EXP_TABLE[n]},EXP_TABLE:new Array(256),LOG_TABLE:new Array(256)};
+for(var i=0;i<8;i++)QRMath.EXP_TABLE[i]=1<<i;
+for(var i=8;i<256;i++)QRMath.EXP_TABLE[i]=QRMath.EXP_TABLE[i-4]^QRMath.EXP_TABLE[i-5]^QRMath.EXP_TABLE[i-6]^QRMath.EXP_TABLE[i-8];
+for(var i=0;i<255;i++)QRMath.LOG_TABLE[QRMath.EXP_TABLE[i]]=i;
+function QRPolynomial(n,s){if(n.length==undefined)throw new Error(n.length+"/"+s);var o=0;while(o<n.length&&n[o]==0)o++;this.num=new Array(n.length-o+s);for(var i=0;i<n.length-o;i++)this.num[i]=n[i+o];}
+QRPolynomial.prototype={get:function(i){return this.num[i]},getLength:function(){return this.num.length},multiply:function(e){var n=new Array(this.getLength()+e.getLength()-1);for(var i=0;i<this.getLength();i++)for(var j=0;j<e.getLength();j++)n[i+j]^=QRMath.gexp(QRMath.glog(this.get(i))+QRMath.glog(e.get(j)));return new QRPolynomial(n,0)},mod:function(e){if(this.getLength()-e.getLength()<0)return this;var r=QRMath.glog(this.get(0))-QRMath.glog(e.get(0));var n=new Array(this.getLength());for(var i=0;i<this.getLength();i++)n[i]=this.get(i);for(var i=0;i<e.getLength();i++)n[i]^=QRMath.gexp(QRMath.glog(e.get(i))+r);return new QRPolynomial(n,0).mod(e)}};
+function QRRS_BLOCK(t,d,e){this.totalCount=t;this.dataCount=d;this.ecCount=e;}
+QRRS_BLOCK.RS_BLOCK_TABLE=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]];
+QRRS_BLOCK.getRSBlocks=function(t,e){var d=QRRS_BLOCK.getRsBlockTable(t,e);if(d==undefined)throw new Error("bad rs block @ typeNumber:"+t+"/errorCorrectionLevel:"+e);var l=d.length/3;var b=[];for(var i=0;i<l;i++){var c=d[i*3+0],nb=d[i*3+1],dc=d[i*3+2];for(var j=0;j<c;j++)b.push(new QRRS_BLOCK(nb,dc,nb-dc));}return b};
+QRRS_BLOCK.getRsBlockTable=function(t,e){switch(e){case QRErrorCorrectLevel.L:return QRRS_BLOCK.RS_BLOCK_TABLE[(t-1)*4+0];case QRErrorCorrectLevel.M:return QRRS_BLOCK.RS_BLOCK_TABLE[(t-1)*4+1];case QRErrorCorrectLevel.Q:return QRRS_BLOCK.RS_BLOCK_TABLE[(t-1)*4+2];case QRErrorCorrectLevel.H:return QRRS_BLOCK.RS_BLOCK_TABLE[(t-1)*4+3];default:return undefined}};
+function QRBitBuffer(){this.buffer=[];this.length=0;}
+QRBitBuffer.prototype={get:function(i){var b=Math.floor(i/8);return((this.buffer[b]>>>(7-i%8))&1)==1},put:function(d,l){for(var i=0;i<l;i++)this.putBit(((d>>>(l-i-1))&1)==1)},getLengthInBits:function(){return this.length},putBit:function(b){var p=Math.floor(this.length/8);if(this.buffer.length<=p)this.buffer.push(0);if(b)this.buffer[p]|=0x80>>>(this.length%8);this.length++}};
+function QR8bitByte(d){this.mode=QRMode.MODE_8BIT_BYTE;this.data=d;}
+QR8bitByte.prototype={getLength:function(){return this.data.length},write:function(b){for(var i=0;i<this.data.length;i++){var c=this.data.charCodeAt(i);b.put(c,8);}}};
+function QRCodeModel(t,e){this.typeNumber=t;this.errorCorrectLevel=e;this.modules=null;this.moduleCount=0;this.dataCache=null;this.dataList=[];}
+QRCodeModel.prototype={addData:function(d){var nd=new QR8bitByte(d);this.dataList.push(nd);this.dataCache=null},isDark:function(r,c){if(r<0||this.moduleCount<=r||c<0||this.moduleCount<=c)throw new Error(r+","+c);return this.modules[r][c]},getModuleCount:function(){return this.moduleCount},make:function(){this.makeImpl(false,this.getBestMaskPattern())},makeImpl:function(t,mp){this.moduleCount=this.typeNumber*4+17;this.modules=new Array(this.moduleCount);for(var r=0;r<this.moduleCount;r++){this.modules[r]=new Array(this.moduleCount);for(var c=0;c<this.moduleCount;c++)this.modules[r][c]=null;}this.setupPositionProbePattern(0,0);this.setupPositionProbePattern(this.moduleCount-7,0);this.setupPositionProbePattern(0,this.moduleCount-7);this.setupPositionAdjustPattern();this.setupTimingPattern();this.setupTypeInfo(t,mp);if(this.typeNumber>=7)this.setupTypeNumber(t);if(this.dataCache==null)this.dataCache=QRCodeModel.createData(this.typeNumber,this.errorCorrectLevel,this.dataList);this.mapData(this.dataCache,mp)},setupPositionProbePattern:function(r,c){for(var dr=-1;dr<=7;dr++){if(r+dr<=-1||this.moduleCount<=r+dr)continue;for(var dc=-1;dc<=7;dc++){if(c+dc<=-1||this.moduleCount<=c+dc)continue;if((0<=dr&&dr<=6&&(dc==0||dc==6))||(0<=dc&&dc<=6&&(dr==0||dr==6))||(2<=dr&&dr<=4&&2<=dc&&dc<=4))this.modules[r+dr][c+dc]=true;else this.modules[r+dr][c+dc]=false;}}},getBestMaskPattern:function(){var mp=0,min=0;for(var i=0;i<8;i++){this.makeImpl(true,i);var l=QRUtil.getLostPoint(this);if(i==0||min>l){min=l;mp=i;}}return mp},setupTimingPattern:function(){for(var r=8;r<this.moduleCount-8;r++){if(this.modules[r][6]!=null)continue;this.modules[r][6]=(r%2==0);}for(var c=8;c<this.moduleCount-8;c++){if(this.modules[6][c]!=null)continue;this.modules[6][c]=(c%2==0);}},setupPositionAdjustPattern:function(){var p=QRUtil.getPatternPosition(this.typeNumber);for(var i=0;i<p.length;i++){for(var j=0;j<p.length;j++){var r=p[i],c=p[j];if(this.modules[r][c]!=null)continue;for(var dr=-2;dr<=2;dr++){for(var dc=-2;dc<=2;dc++){if(dr==-2||dr==2||dc==-2||dc==2||(dr==0&&dc==0))this.modules[r+dr][c+dc]=true;else this.modules[r+dr][c+dc]=false;}}}}},setupTypeNumber:function(t){var b=QRUtil.getBCHTypeNumber(this.typeNumber);for(var i=0;i<18;i++){var m=(!t&&((b>>i)&1)==1);this.modules[Math.floor(i/3)][i%3+this.moduleCount-8-3]=m;}for(var i=0;i<18;i++){var m=(!t&&((b>>i)&1)==1);this.modules[i%3+this.moduleCount-8-3][Math.floor(i/3)]=m;}},setupTypeInfo:function(t,mp){var d=(this.errorCorrectLevel<<3)|mp;var b=QRUtil.getBCHTypeInfo(d);for(var i=0;i<15;i++){var m=(!t&&((b>>i)&1)==1);if(i<6)this.modules[i][8]=m;else if(i<8)this.modules[i+1][8]=m;else this.modules[this.moduleCount-15+i][8]=m;}for(var i=0;i<15;i++){var m=(!t&&((b>>i)&1)==1);if(i<8)this.modules[8][this.moduleCount-i-1]=m;else if(i<9)this.modules[8][15-i-1+1]=m;else this.modules[8][15-i-1]=m;}this.modules[this.moduleCount-8][8]=(!t)},mapData:function(d,mp){var i=-1,r=this.moduleCount-1,bi=7,inc=-1;for(var c=this.moduleCount-1;c>0;c-=2){if(c==6)c--;while(true){for(var ca=0;ca<2;ca++){if(this.modules[r][c-ca]==null){var dk=false;if(bi>=0){dk=((d[Math.floor(i/8)]>>>(7-i%8))&1)==1;}if(QRUtil.getMask(mp,r,c-ca))dk=!dk;this.modules[r][c-ca]=dk;i++;if(i==bi*8+7){bi--;i=-1;}}}r+=inc;if(r<0||this.moduleCount<=r){r-=inc;inc=-1*inc;break;}}}}};
+QRCodeModel.PAD0=0xEC;QRCodeModel.PAD1=0x11;
+QRCodeModel.createData=function(t,e,dl){var rs=QRRS_BLOCK.getRSBlocks(t,e);var bb=new QRBitBuffer();for(var i=0;i<dl.length;i++){var d=dl[i];bb.put(d.mode,4);bb.put(d.getLength(),QRUtil.getLengthInBits(d.mode,t));d.write(bb);}var total=0;for(var i=0;i<rs.length;i++)total+=rs[i].dataCount;if(bb.getLengthInBits()>total*8)throw new Error("code length overflow:"+bb.getLengthInBits()+">"+total*8);if(bb.getLengthInBits()+4<=total*8)bb.put(0,4);while(bb.getLengthInBits()%8!=0)bb.putBit(false);while(true){if(bb.getLengthInBits()>=total*8)break;bb.put(QRCodeModel.PAD0,8);if(bb.getLengthInBits()>=total*8)break;bb.put(QRCodeModel.PAD1,8);}return QRCodeModel.createBytes(bb,rs)};
+QRCodeModel.createBytes=function(bb,rs){var offset=0,maxDcCount=0,maxEcCount=0,dcdata=new Array(rs.length),ecdata=new Array(rs.length);for(var r=0;r<rs.length;r++){var dcCount=rs[r].dataCount;var ecCount=rs[r].totalCount-dcCount;maxDcCount=Math.max(maxDcCount,dcCount);maxEcCount=Math.max(maxEcCount,ecCount);dcdata[r]=new Array(dcCount);for(var i=0;i<dcdata[r].length;i++)dcdata[r][i]=0xff&bb.buffer[i+offset];offset+=dcCount;var rsPoly=QRUtil.getErrorCorrectPolynomial(ecCount);var rawPoly=new QRPolynomial(dcdata[r],rsPoly.getLength()-1);var modPoly=rawPoly.mod(rsPoly);ecdata[r]=new Array(rsPoly.getLength()-1);for(var i=0;i<ecdata[r].length;i++){var modIndex=i+modPoly.getLength()-ecdata[r].length;ecdata[r][i]=(modIndex>=0)?modPoly.get(modIndex):0;}}var totalCodeCount=0;for(var i=0;i<rs.length;i++)totalCodeCount+=rs[i].totalCount;var data=new Array(totalCodeCount);var index=0;for(var i=0;i<maxDcCount;i++)for(var r=0;r<rs.length;r++)if(i<dcdata[r].length)data[index++]=dcdata[r][i];for(var i=0;i<maxEcCount;i++)for(var r=0;r<rs.length;r++)if(i<ecdata[r].length)data[index++]=ecdata[r][i];return data};
+
+// ── Draw QR on canvas ─────────────────────────────────────────────────────
+function drawQR(url, canvasId, size){
+  var qr=new QRCodeModel(0,QRErrorCorrectLevel.M);
+  // auto typeNumber
+  for(var t=1;t<=40;t++){
+    try{var test=new QRCodeModel(t,QRErrorCorrectLevel.M);test.addData(url);test.make();qr=test;break;}catch(e){}
+  }
+  var canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var count=qr.getModuleCount();
+  var cell=Math.floor(size/count);
+  var actual=cell*count;
+  canvas.width=actual; canvas.height=actual;
+  // white background
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,actual,actual);
+  // draw modules
+  for(var r=0;r<count;r++){for(var c=0;c<count;c++){
+    ctx.fillStyle=qr.isDark(r,c)?'#0a1628':'#ffffff';
+    ctx.fillRect(c*cell,r*cell,cell,cell);
+  }}
+  // draw Cyrabell C logo in center
+  var cx=actual/2, cy=actual/2, cr=cell*3.5;
+  ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(cx,cy,cr+2,0,2*Math.PI); ctx.fill();
+  ctx.fillStyle='#0a1628'; ctx.beginPath(); ctx.arc(cx,cy,cr,0,2*Math.PI); ctx.fill();
+  ctx.strokeStyle='#00b4d8'; ctx.lineWidth=cr*0.28; ctx.lineCap='round';
+  ctx.beginPath(); ctx.arc(cx,cy,cr*0.58,0.45*Math.PI,1.55*Math.PI,false); ctx.stroke();
+  ctx.fillStyle='#d4a017';
+  ctx.beginPath(); ctx.arc(cx-Math.sin(0.45*Math.PI)*cr*0.58, cy+Math.cos(0.45*Math.PI)*cr*0.58, cr*0.13,0,2*Math.PI); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx-Math.sin(1.55*Math.PI)*cr*0.58, cy+Math.cos(1.55*Math.PI)*cr*0.58, cr*0.13,0,2*Math.PI); ctx.fill();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function(){
+  // Determine app URL
+  var appUrl = location.href.replace('install.html','cyrabelldental_v2.html');
+  // Also handle GitHub Pages (look for index.html sibling)
+  document.getElementById('app-url').textContent = appUrl;
+  drawQR(appUrl, 'qr', 220);
+  // Update manifest link for this page too
+  var manifest={name:'Cyrabell Dental MS',short_name:'Cyrabell',start_url:appUrl,display:'standalone',background_color:'#0a1628',theme_color:'#00b4d8',icons:[{src:'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="#0a1628"/><circle cx="256" cy="256" r="190" fill="none" stroke="#00b4d8" stroke-width="40"/><path d="M340 160 A120 120 0 1 0 340 352" fill="none" stroke="#00b4d8" stroke-width="52" stroke-linecap="round"/><circle cx="340" cy="160" r="22" fill="#d4a017"/><circle cx="340" cy="352" r="22" fill="#d4a017"/></svg>'),sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}]};
+  var blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+  var mlink=document.createElement('link'); mlink.rel='manifest'; mlink.href=URL.createObjectURL(blob); document.head.appendChild(mlink);
+});
+
+window.copyUrl=function(){
+  var url=document.getElementById('app-url').textContent;
+  navigator.clipboard.writeText(url).then(function(){
+    var t=document.getElementById('toast'); t.classList.add('show');
+    setTimeout(function(){t.classList.remove('show');},2000);
+  });
+};
+
+window.showOS=function(os,btn){
+  document.querySelectorAll('.os-tab').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.os-steps').forEach(function(s){s.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById(os+'-steps').classList.add('active');
+};
+
+})();
+</script>
+</body>
+</html>
