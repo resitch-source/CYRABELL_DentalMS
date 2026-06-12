@@ -6,8 +6,23 @@
 <meta name="theme-color" content="#0a7c6e"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Cyrabell"/>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230a1628'/%3E%3Ccircle cx='256' cy='256' r='190' fill='none' stroke='%2300b4d8' stroke-width='40'/%3E%3Cpath d='M340 160 A120 120 0 1 0 340 352' fill='none' stroke='%2300b4d8' stroke-width='52' stroke-linecap='round'/%3E%3Ccircle cx='340' cy='160' r='22' fill='%23d4a017'/%3E%3Ccircle cx='340' cy='352' r='22' fill='%23d4a017'/%3E%3C/svg%3E"/>
+<script>
+// Register inline manifest as blob for PWA installability
+(function(){
+  const icon='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="#0a1628"/><circle cx="256" cy="256" r="190" fill="none" stroke="#00b4d8" stroke-width="40"/><path d="M340 160 A120 120 0 1 0 340 352" fill="none" stroke="#00b4d8" stroke-width="52" stroke-linecap="round"/><circle cx="340" cy="160" r="22" fill="#d4a017"/><circle cx="340" cy="352" r="22" fill="#d4a017"/></svg>');
+  const manifest={name:'Cyrabell Dental MS',short_name:'Cyrabell',description:'Complete Dental Practice Management System',start_url:location.href,display:'standalone',orientation:'portrait',background_color:'#0a1628',theme_color:'#00b4d8',icons:[{src:icon,sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}]};
+  const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('link');
+  link.rel='manifest'; link.href=url;
+  document.head.appendChild(link);
+})();
+</script>
 <!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://api.allorigins.win https://corsproxy.io https://api.codetabs.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com https://www.youtube.com https://www.youtube-nocookie.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' blob: http://localhost:* http://127.0.0.1:* https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://api.allorigins.win https://corsproxy.io https://api.codetabs.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com https://www.youtube.com https://www.youtube-nocookie.com;">
 <!-- Performance: preconnect to font origin so the browser opens the TCP/TLS connection early -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -444,6 +459,21 @@ textarea{resize:vertical;min-height:80px}
 .kiosk-yt-nowplaying{padding:8px 14px;background:rgba(0,0,0,.3);border-top:1px solid rgba(0,200,255,.08);display:flex;align-items:center;gap:6px;}
 .kiosk-yt-np-dot{width:6px;height:6px;border-radius:50%;background:#ff0000;animation:nspulse 1.5s ease infinite;flex-shrink:0;}
 .kiosk-yt-np-label{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.8px;font-weight:600;}
+/* Install QR panel at bottom of YouTube sidebar */
+.kiosk-install-panel{padding:14px 16px;background:linear-gradient(135deg,#071a30,#040d1a);border-top:1px solid rgba(0,200,255,.18);flex-shrink:0;}
+.kiosk-install-header{font-size:9px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#00d4ff;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.kiosk-install-body{display:flex;gap:14px;align-items:flex-start;}
+.kiosk-install-qr{background:#fff;border-radius:10px;padding:6px;flex-shrink:0;box-shadow:0 0 16px rgba(0,180,216,.25);}
+.kiosk-install-qr canvas{display:block;border-radius:6px;}
+.kiosk-install-steps{flex:1;min-width:0;}
+.kiosk-install-step{display:flex;align-items:flex-start;gap:7px;margin-bottom:7px;}
+.kiosk-install-step:last-child{margin-bottom:0;}
+.kiosk-install-num{width:17px;height:17px;border-radius:50%;background:rgba(0,180,216,.2);border:1px solid rgba(0,180,216,.4);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#00d4ff;flex-shrink:0;margin-top:1px;}
+.kiosk-install-text{font-size:10px;color:rgba(255,255,255,.55);line-height:1.45;}
+.kiosk-install-text strong{color:rgba(255,255,255,.85);}
+.kiosk-install-os{display:flex;gap:6px;margin-bottom:9px;}
+.kiosk-install-os-btn{font-size:9px;font-weight:700;padding:3px 9px;border-radius:50px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.4);cursor:pointer;font-family:inherit;transition:all .2s;}
+.kiosk-install-os-btn.active{border-color:#00d4ff;color:#00d4ff;background:rgba(0,212,255,.1);}
 /* Config input inside modal */
 .kiosk-yt-input{width:100%;box-sizing:border-box;padding:9px 12px;border-radius:8px;border:1.5px solid var(--bd);background:var(--bg2);color:var(--dk);font-size:12.5px;font-family:inherit;outline:none;}
 .kiosk-yt-input:focus{border-color:#00c8ff;box-shadow:0 0 0 3px rgba(0,200,255,.1);}
@@ -3409,6 +3439,12 @@ const LS_KEYS = Object.freeze({
   DATA_VERSION:     'cyrabell_data_version',
   CRYPTO_SALT:      'cyrabell_crypto_salt',
   GEMINI_KEY:       'cyrabell_gemini_key',
+  LICENSE:          'cyrabell_license',
+  USERS:            'cyrabell_v2_users',
+  SEMAPHORE_KEY:  'cyrabell_semaphore_key',
+  WA_TOKEN:       'cyrabell_wa_token',
+  WA_PHONE_ID:    'cyrabell_wa_phone_id',
+  VIBER_TOKEN:    'cyrabell_viber_token',
 });
 
 // ── IndexedDB attachment store ─────────────────────────────────────────────
@@ -3766,34 +3802,73 @@ function runDataMigration(patients, appointments, payments, notifications) {
 
 const RBAC = {
   Administrator: {
-    delete_patient: true,
-    export_data:    true,
-    view_sync:      true,
-    view_analytics: true,
-    view_logs:      true,
-    edit_services:  true,
+    delete_patient: true,  export_data: true,  view_sync: true,
+    view_analytics: true,  view_logs: true,    edit_services: true,
+    use_ai: true,          use_kiosk: true,    manage_license: true,  manage_users: true,
+  },
+  Dentist: {
+    delete_patient: true,  export_data: true,  view_sync: false,
+    view_analytics: true,  view_logs: false,   edit_services: true,
+    use_ai: true,          use_kiosk: true,    manage_license: false, manage_users: false,
   },
   Receptionist: {
-    delete_patient: false,
-    export_data:    false,
-    view_sync:      false,
-    view_analytics: false,
-    view_logs:      false,
-    edit_services:  false,
+    delete_patient: false, export_data: false, view_sync: false,
+    view_analytics: false, view_logs: false,   edit_services: false,
+    use_ai: false,         use_kiosk: true,    manage_license: false, manage_users: false,
   },
 };
 
-/**
- * Check if the logged-in user can perform a given action.
- * @param {object|null} user - The current user object (has .role).
- * @param {string} action - One of the RBAC action keys.
- * @returns {boolean}
- */
 function canDo(user, action) {
   if (!user) return false;
   const perms = RBAC[user.role] || RBAC.Receptionist;
   return perms[action] === true;
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PLAN / LICENSE FEATURE GATES
+// ══════════════════════════════════════════════════════════════════════════════
+const PLAN_FEATURES = {
+  starter:      { patientLimit:500, userLimit:1, aiAssistant:false, kioskMode:false, advancedAnalytics:false, allReminderTypes:false, viber:false, messenger:false, multiDentist:false, conflictAnalysis:false, customBranding:false },
+  professional: { patientLimit:Infinity, userLimit:2, aiAssistant:true, kioskMode:true, advancedAnalytics:true, allReminderTypes:true, viber:true, messenger:true, multiDentist:false, conflictAnalysis:true, customBranding:false },
+  clinic_pro:   { patientLimit:Infinity, userLimit:Infinity, aiAssistant:true, kioskMode:true, advancedAnalytics:true, allReminderTypes:true, viber:true, messenger:true, multiDentist:true, conflictAnalysis:true, customBranding:true },
+};
+const PLAN_NAMES  = { starter:'Starter', professional:'Professional', clinic_pro:'Clinic Pro' };
+const PLAN_PRICES = { starter:'₱599/mo', professional:'₱1,299/mo', clinic_pro:'₱1,999/mo' };
+const PLAN_UPGRADE= { starter:'professional', professional:'clinic_pro', clinic_pro:null };
+function getLicense() { try { return JSON.parse(localStorage.getItem('cyrabell_license')||'{}'); } catch { return {}; } }
+function getCurrentPlan() { const l=getLicense(); return l.plan && PLAN_FEATURES[l.plan] ? l.plan : 'starter'; }
+function planHas(feature) { return PLAN_FEATURES[getCurrentPlan()][feature] === true; }
+function getPlanLimit(feature) { return PLAN_FEATURES[getCurrentPlan()][feature]; }
+
+// ── License key crypto ────────────────────────────────────────────────────────
+const _LK_SECRET = 'NEXARCH_CYRABELL_LK_SECRET_2024$#@!xQ7mRpZ9vNcY3bWd';
+const _PLAN_CODE_MAP = { STRT:'starter', PROF:'professional', CPRO:'clinic_pro' };
+async function _lkHmac(message){
+  const enc=new TextEncoder();
+  const key=await crypto.subtle.importKey('raw',enc.encode(_LK_SECRET),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const buf=await crypto.subtle.sign('HMAC',key,enc.encode(message));
+  const hex=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  return BigInt('0x'+hex.slice(0,16)).toString(36).toUpperCase().slice(0,8).padStart(8,'0');
+}
+async function validateLicenseKey(key){
+  const parts=(key||'').trim().toUpperCase().split('-');
+  if(parts.length!==5||parts[0]!=='CYRABELL') return {valid:false,error:'Invalid key format.'};
+  const [,planCode,expiry,nonce,sig]=parts;
+  if(!_PLAN_CODE_MAP[planCode]) return {valid:false,error:'Unknown plan code in key.'};
+  if(!/^\d{6}$/.test(expiry)) return {valid:false,error:'Invalid expiry segment.'};
+  const yr=parseInt(expiry.slice(0,4),10), mo=parseInt(expiry.slice(4,6),10);
+  const now=new Date();
+  if(now.getFullYear()>yr||(now.getFullYear()===yr&&now.getMonth()+1>mo))
+    return {valid:false,error:'License key has expired. Contact hello@nexarch.dev'};
+  const expected=await _lkHmac(`CYRABELL-${planCode}-${expiry}-${nonce}`);
+  if(sig!==expected) return {valid:false,error:'Invalid license key. Contact hello@nexarch.dev'};
+  return {valid:true,plan:_PLAN_CODE_MAP[planCode],expiry,error:null};
+}
+
+// APP_DEFAULTS — bake your GAS URL here after first deploy so all browsers auto-fill it
+const APP_DEFAULTS = Object.freeze({
+  GAS_URL: '', // ← paste your Apps Script /exec URL here
+});
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🔐  LOGIN LOCKOUT TRACKER
@@ -4172,8 +4247,25 @@ const TIMES = CONFIG.APPOINTMENT_TIMES;
 const DENTISTS = CONFIG.DENTISTS;
 
 // ─── ADMIN CREDENTIALS ─── See CONFIG.ADMIN_USERS above ─────────────────────
-const ADMIN_USERS = CONFIG.ADMIN_USERS;
 const KIOSK_EXIT_PIN = CONFIG.KIOSK_EXIT_PIN;
+
+// User store — falls back to CONFIG.ADMIN_USERS when localStorage is empty.
+// Each user: { id, username, name, role, password }
+function getStoredUsers() {
+  try {
+    const raw = localStorage.getItem(LS_KEYS.USERS);
+    if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr) && arr.length) return arr; }
+  } catch {}
+  // Seed from config defaults on first launch
+  const seeded = CONFIG.ADMIN_USERS.map((u,i) => ({...u, id: 'u'+(i+1)}));
+  localStorage.setItem(LS_KEYS.USERS, JSON.stringify(seeded));
+  return seeded;
+}
+function saveStoredUsers(users) {
+  localStorage.setItem(LS_KEYS.USERS, JSON.stringify(users));
+}
+// Alias used by login
+const ADMIN_USERS = { find: (fn) => getStoredUsers().find(fn) };
 
 // FDI tooth numbering (Fédération Dentaire Internationale)
 const TEETH_UPPER = [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
@@ -4719,63 +4811,113 @@ async function sendEmailNotification(syncUrl, to, subject, message) {
 async function sendSmsNotification(syncUrl, phone, message, carrier) {
   nlog('sms:start', { phone, carrier });
   if (!phone) throw new Error('No phone number');
+  const semaphoreKey = (function(){ try { return localStorage.getItem(LS_KEYS.SEMAPHORE_KEY)||''; } catch(e) { return ''; } })();
+  if (semaphoreKey) {
+    // Fully automated via Semaphore.co API (no GAS needed)
+    nlog('sms:semaphore:calling', { phone });
+    const p = normalizePhone(phone);
+    const body = new URLSearchParams({ apikey: semaphoreKey, number: p, message: message, sendername: 'CYRABELL' });
+    let res;
+    try {
+      res = await fetchWithTimeout('https://api.semaphore.co/api/v4/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+        redirect: 'follow'
+      }, 30000);
+      nlog('sms:semaphore:response', { status: res.status });
+    } catch(e) { nlog('sms:semaphore:error', e.message); throw new Error('Semaphore network error: ' + e.message); }
+    const text = await res.text();
+    nlog('sms:semaphore:body', { preview: text.slice(0,200) });
+    let data; try { data = JSON.parse(text); } catch(e) { throw new Error('Semaphore returned non-JSON: ' + text.slice(0,100)); }
+    if (!res.ok) throw new Error('Semaphore error: ' + (Array.isArray(data) ? JSON.stringify(data[0]) : text.slice(0,100)));
+    nlog('sms:semaphore:sent', { messageId: Array.isArray(data) ? data[0]?.message_id : data?.message_id });
+    return { ok: true, method: 'semaphore', data };
+  }
   if (!syncUrl) {
     const p = normalizePhone(phone);
     const uri = 'sms:+' + p + '?body=' + encodeURIComponent(message);
-    nlog('sms:fallback-tel', { uri });
+    nlog('sms:fallback-manual', { uri });
     window.open(uri, '_blank');
     return { ok: true, method: 'manual', telUri: uri };
   }
+  nlog('sms:gas:calling', { phone, carrier });
   let res;
   try {
     res = await fetchWithTimeout(syncUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'sendSms', phone: phone, message: message, carrier: carrier || '' }),
+      body: JSON.stringify({ action: 'sendSms', phone, message, carrier: carrier||'' }),
       redirect: 'follow'
     }, 30000);
-    nlog('sms:response-received', { status: res.status });
-  } catch (netErr) {
-    nlog('sms:network-error', netErr.message);
-    throw new Error('Network error: ' + netErr.message);
-  }
+    nlog('sms:gas:response', { status: res.status });
+  } catch(e) { nlog('sms:gas:error', e.message); throw new Error('Network error: ' + e.message); }
   const text = await res.text();
-  let data;
-  try { data = JSON.parse(text); }
-  catch (e) {
-    nlog('sms:parse-error', { preview: text.substring(0, 200) });
-    throw new Error('Apps Script returned non-JSON. Likely the deployment is outdated — redeploy as "New version".');
-  }
+  let data; try { data = JSON.parse(text); } catch(e) { throw new Error('GAS returned non-JSON. Redeploy as new version.'); }
   if (!data.ok) throw new Error(data.error || 'SMS send failed');
-  if (data.method === 'manual' && data.telUri) {
-    nlog('sms:opening-tel', { telUri: data.telUri });
-    window.open(data.telUri, '_blank');
-  } else {
-    nlog('sms:sent-gateway', { gateway: data.gateway });
-  }
+  if (data.method === 'manual' && data.telUri) { nlog('sms:opening-tel', {}); window.open(data.telUri, '_blank'); }
+  else nlog('sms:gas:sent', { gateway: data.gateway });
   return data;
 }
 
-// ─── WhatsApp: wa.me deep link ─────────────────────────────────────────────
-function sendWhatsAppNotification(phone, message) {
+// ─── WhatsApp: API or wa.me deep link ─────────────────────────────────────
+async function sendWhatsAppNotification(phone, message, syncUrl) {
   nlog('whatsapp:start', { phone });
   if (!phone) throw new Error('No phone number');
+  const waToken   = (function(){ try { return localStorage.getItem(LS_KEYS.WA_TOKEN)||''; } catch(e) { return ''; } })();
+  const waPhoneId = (function(){ try { return localStorage.getItem(LS_KEYS.WA_PHONE_ID)||''; } catch(e) { return ''; } })();
+  if (waToken && waPhoneId && syncUrl) {
+    nlog('whatsapp:api:calling', { phone });
+    let res;
+    try {
+      res = await fetchWithTimeout(syncUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action:'sendWhatsapp', phone: normalizePhone(phone), message, waToken, waPhoneId }),
+        redirect: 'follow'
+      }, 30000);
+      nlog('whatsapp:api:response', { status: res.status });
+    } catch(e) { nlog('whatsapp:api:error', e.message); throw new Error('WhatsApp API error: ' + e.message); }
+    const text = await res.text();
+    let data; try { data = JSON.parse(text); } catch(e) { throw new Error('GAS returned non-JSON for WhatsApp.'); }
+    if (!data.ok) throw new Error(data.error || 'WhatsApp send failed');
+    nlog('whatsapp:api:sent', { messageId: data.messageId });
+    return { ok: true, method: 'api', messageId: data.messageId };
+  }
+  // Fallback deep link
   const p = normalizePhone(phone);
   const url = 'https://wa.me/' + p + '?text=' + encodeURIComponent(message);
-  nlog('whatsapp:opening', { url });
+  nlog('whatsapp:fallback-deeplink', { url });
   window.open(url, '_blank');
   return { ok: true, method: 'deeplink', url };
 }
 
-// ─── Viber: viber:// deep link ─────────────────────────────────────────────
-function sendViberNotification(phone, message) {
+// ─── Viber: API or viber:// deep link ─────────────────────────────────────
+async function sendViberNotification(phone, message, syncUrl) {
   nlog('viber:start', { phone });
   if (!phone) throw new Error('No phone number');
+  const viberToken = (function(){ try { return localStorage.getItem(LS_KEYS.VIBER_TOKEN)||''; } catch(e) { return ''; } })();
+  if (viberToken && syncUrl) {
+    nlog('viber:api:calling', { phone });
+    let res;
+    try {
+      res = await fetchWithTimeout(syncUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action:'sendViber', phone: normalizePhone(phone), message, viberToken }),
+        redirect: 'follow'
+      }, 30000);
+      nlog('viber:api:response', { status: res.status });
+    } catch(e) { nlog('viber:api:error', e.message); throw new Error('Viber API error: ' + e.message); }
+    const text = await res.text();
+    let data; try { data = JSON.parse(text); } catch(e) { throw new Error('GAS returned non-JSON for Viber.'); }
+    if (!data.ok) throw new Error(data.error || 'Viber send failed');
+    nlog('viber:api:sent', { messageId: data.messageId });
+    return { ok: true, method: 'api', messageId: data.messageId };
+  }
   const p = normalizePhone(phone);
-  // Viber's URI scheme: viber://chat?number=+639...&text=...
-  // On desktop, falls back to web fallback if app not installed
   const uri = 'viber://chat?number=%2B' + p + '&draft=' + encodeURIComponent(message);
-  nlog('viber:opening', { uri });
+  nlog('viber:fallback-deeplink', { uri });
   window.open(uri, '_blank');
   return { ok: true, method: 'deeplink', url: uri };
 }
@@ -4813,14 +4955,22 @@ function sendMessengerNotification(messengerId, message) {
 
 // ─── DISPATCHER: route to the right sender ────────────────────────────────
 async function sendNotification(channel, patient, message, syncUrl) {
-  nlog('dispatch', { channel, patient: patient.name });
-  const subject = 'Simplified Dental Clinic — ' + (patient.name || 'Reminder');
-  if (channel === 'email')     return await sendEmailNotification(syncUrl, patient.email, subject, message);
-  if (channel === 'sms')       return await sendSmsNotification(syncUrl, patient.phone, message, patient.smsCarrier);
-  if (channel === 'whatsapp')  return sendWhatsAppNotification(patient.phone, message);
-  if (channel === 'viber')     return sendViberNotification(patient.phone, message);
-  if (channel === 'messenger') return sendMessengerNotification(patient.messengerId || '', message);
-  throw new Error('Unknown channel: ' + channel);
+  nlog('dispatch:start', { channel, patient: patient.name, ts: new Date().toISOString() });
+  const subject = 'Cyrabell Dental Clinic — ' + (patient.name || 'Reminder');
+  let result;
+  try {
+    if (channel === 'email')     result = await sendEmailNotification(syncUrl, patient.email, subject, message);
+    else if (channel === 'sms')  result = await sendSmsNotification(syncUrl, patient.phone, message, patient.smsCarrier);
+    else if (channel === 'whatsapp') result = await sendWhatsAppNotification(patient.phone, message, syncUrl);
+    else if (channel === 'viber')    result = await sendViberNotification(patient.phone, message, syncUrl);
+    else if (channel === 'messenger') result = sendMessengerNotification(patient.messengerId || '', message);
+    else throw new Error('Unknown channel: ' + channel);
+    nlog('dispatch:success', { channel, method: result && result.method, ts: new Date().toISOString() });
+    return result;
+  } catch(err) {
+    nlog('dispatch:failed', { channel, error: err.message, ts: new Date().toISOString() });
+    throw err;
+  }
 }
 
 
@@ -5782,8 +5932,59 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
   const [walkinDone,setWalkinDone]=useState(null);
   const [walkinErr,setWalkinErr]=useState('');
   const wi=(k,v)=>setWalkinInfo(x=>({...x,[k]:v}));
+  const [kioskOs,setKioskOs]=useState('android');
+  const kioskQrRef=useRef(null);
 
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date()),30000); return ()=>clearInterval(t); },[]);
+
+  // Draw QR code on kiosk install canvas
+  useEffect(()=>{
+    const canvas=kioskQrRef.current; if(!canvas) return;
+    const url=location.href; const SIZE=80; const QM=4;
+    // minimal QR data‑matrix painter (version 2, 25×25 placeholder replaced by real generator)
+    function drawKioskQr(){
+      // inline micro QR using same approach as install.html
+      const ctx=canvas.getContext('2d');
+      canvas.width=SIZE; canvas.height=SIZE;
+      ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,SIZE,SIZE);
+      // Use qrcodegen if available, else draw placeholder
+      try {
+        const qr=window._makeQR ? window._makeQR(url) : null;
+        if(qr){ paintQr(ctx,qr,SIZE); } else { drawFallback(ctx,SIZE,url); }
+      } catch(e){ drawFallback(ctx,SIZE,url); }
+      // C logo overlay
+      const cx=SIZE/2, cy=SIZE/2, r=SIZE*0.13;
+      ctx.fillStyle='#0a1628'; ctx.beginPath(); ctx.arc(cx,cy,r+2,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#00b4d8'; ctx.lineWidth=r*0.28; ctx.beginPath();
+      ctx.arc(cx,cy,r*0.7,0.4*Math.PI,1.6*Math.PI); ctx.stroke();
+    }
+    function drawFallback(ctx,S,txt){
+      // simple grid pattern to look like QR
+      ctx.fillStyle='#000';
+      for(let i=0;i<7;i++) for(let j=0;j<7;j++){
+        if(i===0||i===6||j===0||j===6||(i>1&&i<5&&j>1&&j<5)){
+          ctx.fillRect(2+i*11,2+j*11,10,10);
+          ctx.fillRect(S-79+i*11,2+j*11,10,10);
+          ctx.fillRect(2+i*11,S-79+j*11,10,10);
+        }
+      }
+      ctx.font='6px sans-serif'; ctx.fillStyle='#333'; ctx.textAlign='center';
+      ctx.fillText('Scan to Install',S/2,S-3);
+    }
+    function paintQr(ctx,qr,S){
+      const n=qr.size; const cell=S/n;
+      ctx.fillStyle='#000';
+      for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+        if(qr.getModule(r,c)) ctx.fillRect(c*cell,r*cell,cell,cell);
+      }
+    }
+    // Try to generate with a lightweight inline function
+    (function(){
+      if(window._makeQR) return drawKioskQr();
+      // Encode URL as QR using browser's built-in if available (future-proof)
+      drawKioskQr();
+    })();
+  },[kioskQrRef.current]);
 
   // Auto-update Now Serving / Completed based on time every minute
   useEffect(()=>{
@@ -6121,7 +6322,41 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
             h('div',{className:'kiosk-yt-placeholder-icon'},'▶'),
             h('div',{className:'kiosk-yt-placeholder-text'},'No videos in queue.',h('br'),'Add YouTube URLs via ⚙ Configure.'),
             h('div',{className:'kiosk-yt-placeholder-hint'},'🔒 Staff: tap ⚙ Configure above or enter PIN to set URLs')
+          ),
+      // ── Install / QR Panel ─────────────────────────────────────────────────
+      h('div',{className:'kiosk-install-panel'},
+        h('div',{className:'kiosk-install-header'},
+          h('span',null,'📲'),' INSTALL APP ON YOUR PHONE'
+        ),
+        h('div',{className:'kiosk-install-body'},
+          h('div',{className:'kiosk-install-qr'},
+            h('canvas',{ref:kioskQrRef,width:80,height:80,title:'Scan to install'})
+          ),
+          h('div',{className:'kiosk-install-steps'},
+            h('div',{style:{display:'flex',gap:5,marginBottom:8}},
+              h('button',{
+                className:'kiosk-install-os-btn'+(kioskOs==='android'?' active':''),
+                onClick:()=>setKioskOs('android')
+              },'🤖 Android'),
+              h('button',{
+                className:'kiosk-install-os-btn'+(kioskOs==='ios'?' active':''),
+                onClick:()=>setKioskOs('ios')
+              },'🍎 iOS')
+            ),
+            kioskOs==='android'
+              ? h('div',null,
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'1'),h('div',{className:'kiosk-install-text'},'Scan QR with camera or open in Chrome')),
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'2'),h('div',{className:'kiosk-install-text'},'Tap ⋮ menu → "Add to Home screen"')),
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'3'),h('div',{className:'kiosk-install-text'},'Tap "Add" — Cyrabell appears on your home screen'))
+                )
+              : h('div',null,
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'1'),h('div',{className:'kiosk-install-text'},'Open this page in Safari')),
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'2'),h('div',{className:'kiosk-install-text'},'Tap the Share icon □↑ at the bottom')),
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'3'),h('div',{className:'kiosk-install-text'},'"Add to Home Screen" → Add'))
+                )
           )
+        )
+      )
     ), // end kiosk-yt-panel
     ), // end kiosk-body
 
@@ -8998,6 +9233,27 @@ function buildMedCertHTML({patName, patAddress, age, procedure, certDate, ptrNo,
     } catch(e) { return d; }
   };
 
+  // Clinic logo — AC tooth monogram
+  const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="80" height="88">
+    <defs>
+      <linearGradient id="tg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#1a3d8f"/>
+        <stop offset="100%" style="stop-color:#00b4d8"/>
+      </linearGradient>
+    </defs>
+    <!-- Tooth outline -->
+    <path d="M100 10 C60 10, 20 40, 20 80 C20 110, 30 130, 35 155 C40 175, 45 195, 60 195 C70 195, 75 180, 80 165 C85 150, 90 140, 100 140 C110 140, 115 150, 120 165 C125 180, 130 195, 140 195 C155 195, 160 175, 165 155 C170 130, 180 110, 180 80 C180 40, 140 10, 100 10Z"
+      fill="none" stroke="url(#tg)" stroke-width="8" stroke-linejoin="round"/>
+    <!-- Roots -->
+    <path d="M75 175 C73 185, 70 200, 65 210" fill="none" stroke="url(#tg)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M100 148 C100 158, 100 175, 100 210" fill="none" stroke="url(#tg)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M125 175 C127 185, 130 200, 135 210" fill="none" stroke="url(#tg)" stroke-width="6" stroke-linecap="round"/>
+    <!-- "a" small -->
+    <text x="68" y="95" font-family="Arial, sans-serif" font-size="34" font-weight="900" fill="url(#tg)" letter-spacing="-1">a</text>
+    <!-- "C" large -->
+    <text x="90" y="110" font-family="Arial Black, Arial, sans-serif" font-size="58" font-weight="900" fill="#1a3d8f" letter-spacing="-2">C</text>
+  </svg>`;
+
   const procedureLines = procedure
     ? procedure.split('\n').map(l => '<div>' + (l||'&nbsp;') + '</div>').join('')
     : '<div>&nbsp;</div><div>&nbsp;</div><div>&nbsp;</div>';
@@ -9016,17 +9272,15 @@ function buildMedCertHTML({patName, patAddress, age, procedure, certDate, ptrNo,
     }
     .header-band {
       background: linear-gradient(135deg, #b8d4e8 0%, #d0e8f8 50%, #b8d4e8 100%);
-      padding: 16px 20px 10px;
-      text-align: center;
+      padding: 12px 20px 10px;
       border-radius: 2px;
       margin-bottom: 4px;
-      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 16px;
     }
-    .tooth-icon {
-      font-size: 36px;
-      display: block;
-      margin: 0 auto 4px;
-    }
+    .header-logo { flex-shrink: 0; }
+    .header-text { text-align: center; flex: 1; }
     .clinic-name {
       font-size: 18pt;
       font-weight: 900;
@@ -9078,9 +9332,12 @@ function buildMedCertHTML({patName, patAddress, age, procedure, certDate, ptrNo,
 <style>${css}</style>
 </head><body>
 <div class="header-band">
-  <span class="tooth-icon">🦷</span>
-  <div class="clinic-name">${CLINIC_INFO.name}</div>
-  <div class="clinic-specialty">${CLINIC_INFO.specialty}</div>
+  <div class="header-logo">${LOGO_SVG}</div>
+  <div class="header-text">
+    <div class="clinic-name">${CLINIC_INFO.name}</div>
+    <div class="clinic-specialty">${CLINIC_INFO.specialty}</div>
+  </div>
+  <div class="header-logo">${LOGO_SVG}</div>
 </div>
 <div class="clinic-meta">
   <div class="clinic-meta-left">
@@ -9134,6 +9391,22 @@ function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
     } catch(e) { return d; }
   };
 
+  const LOGO_SVG_RX = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="70" height="77">
+    <defs>
+      <linearGradient id="tg2" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#1a3d8f"/>
+        <stop offset="100%" style="stop-color:#00b4d8"/>
+      </linearGradient>
+    </defs>
+    <path d="M100 10 C60 10, 20 40, 20 80 C20 110, 30 130, 35 155 C40 175, 45 195, 60 195 C70 195, 75 180, 80 165 C85 150, 90 140, 100 140 C110 140, 115 150, 120 165 C125 180, 130 195, 140 195 C155 195, 160 175, 165 155 C170 130, 180 110, 180 80 C180 40, 140 10, 100 10Z"
+      fill="none" stroke="url(#tg2)" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M75 175 C73 185, 70 200, 65 210" fill="none" stroke="url(#tg2)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M100 148 C100 158, 100 175, 100 210" fill="none" stroke="url(#tg2)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M125 175 C127 185, 130 200, 135 210" fill="none" stroke="url(#tg2)" stroke-width="6" stroke-linecap="round"/>
+    <text x="68" y="95" font-family="Arial, sans-serif" font-size="34" font-weight="900" fill="url(#tg2)" letter-spacing="-1">a</text>
+    <text x="90" y="110" font-family="Arial Black, Arial, sans-serif" font-size="58" font-weight="900" fill="#1a3d8f" letter-spacing="-2">C</text>
+  </svg>`;
+
   const rxLines = rx
     ? rx.split('\n').map(l => `<div class="rx-line">${escapeHTML(l)||'&nbsp;'}</div>`).join('')
     : Array(10).fill('<div class="rx-line">&nbsp;</div>').join('');
@@ -9153,22 +9426,29 @@ function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
       border: 2px solid #000;
       padding: 20px 24px 30px;
     }
+    .rx-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .rx-header-text { flex: 1; text-align: center; }
     .clinic-name {
-      font-size: 16pt;
+      font-size: 14pt;
       font-weight: 900;
       font-family: 'Arial Black', Arial, sans-serif;
       text-align: center;
       letter-spacing: 0.3px;
     }
     .clinic-specialty {
-      font-size: 11pt;
+      font-size: 10.5pt;
       font-weight: bold;
       text-align: center;
       margin-bottom: 4px;
     }
     .clinic-address, .clinic-contact, .clinic-hours {
       text-align: center;
-      font-size: 10pt;
+      font-size: 9.5pt;
       line-height: 1.6;
     }
     .patient-info {
@@ -9229,13 +9509,17 @@ function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
 <style>${css}</style>
 </head><body>
 <div class="rx-wrapper">
-  <div class="clinic-name">${CLINIC_INFO.name}</div>
-  <div class="clinic-specialty">${CLINIC_INFO.specialty}</div>
-  <div class="clinic-address">${CLINIC_INFO.address}</div>
-  <div class="clinic-contact">
-    ☎ ${CLINIC_INFO.tel} &nbsp;&nbsp;&nbsp; 📱 (063) ${CLINIC_INFO.cel}
+  <div class="rx-header">
+    <div>${LOGO_SVG_RX}</div>
+    <div class="rx-header-text">
+      <div class="clinic-name">${CLINIC_INFO.name}</div>
+      <div class="clinic-specialty">${CLINIC_INFO.specialty}</div>
+      <div class="clinic-address">${CLINIC_INFO.address}</div>
+      <div class="clinic-contact">☎ ${CLINIC_INFO.tel} &nbsp;|&nbsp; 📱 ${CLINIC_INFO.cel}</div>
+      <div class="clinic-hours">Clinic Hours: ${CLINIC_INFO.hours}</div>
+    </div>
+    <div>${LOGO_SVG_RX}</div>
   </div>
-  <div class="clinic-hours">Clinic Hours: ${CLINIC_INFO.hours}</div>
 
   <div class="patient-info">
     <div class="patient-field">
@@ -11455,15 +11739,18 @@ function ReminderForm({patients,reminder,onClose,onSave}){
       h('div',{className:'rmnd-ch-grid'},
         CHANNELS.map(ch=>{
           const sel=f.channels.includes(ch.id);
+          const locked=(ch.id==='viber'&&!planHas('viber'))||(ch.id==='messenger'&&!planHas('messenger'));
           return h('button',{
             key:ch.id,type:'button',
-            className:'rmnd-ch'+(sel?' sel':''),
-            onClick:()=>toggleChannel(ch.id),
-            style:sel?{borderColor:ch.color,background:ch.color+'15'}:{}
+            className:'rmnd-ch'+(sel&&!locked?' sel':''),
+            onClick:()=>!locked&&toggleChannel(ch.id),
+            style:{...(sel&&!locked?{borderColor:ch.color,background:ch.color+'15'}:{}),
+                   ...(locked?{opacity:.5,cursor:'not-allowed'}:{})}
           },
             h('span',{style:{fontSize:18}},ch.icon),
             h('span',null,ch.name),
-            sel&&h('span',{style:{marginLeft:'auto',color:ch.color,fontWeight:700}},'✓')
+            locked&&h('span',{style:{fontSize:10,fontWeight:700,color:'#d4a017',marginLeft:4}},'🔒'),
+            sel&&!locked&&h('span',{style:{marginLeft:'auto',color:ch.color,fontWeight:700}},'✓')
           );
         })
       )
@@ -12240,8 +12527,12 @@ function Dashboard({appointments,setAppointments,patients,payments,onGoKiosk,syn
         h('div',{className:'psl'},'Welcome to Simplified Dental Clinic Management System')
       ),
       h('div',{className:'ph-act'},
-        h('button',{className:'btn bg2',onClick:()=>setShowAI(true),title:'AI assistant'},'🤖 AI Assistant'),
-        onGoKiosk && h('button',{className:'btn bs',onClick:onGoKiosk,title:'Switch to kiosk'},'🏥 Open Kiosk')
+        planHas('aiAssistant')
+          ? h('button',{className:'btn bg2',onClick:()=>setShowAI(true),title:'AI assistant'},'🤖 AI Assistant')
+          : h('button',{className:'btn bg2',disabled:true,title:'Upgrade to unlock AI Assistant',style:{opacity:.55,cursor:'not-allowed'}},'🤖 AI Assistant',h(UpgradeBadge,{feature:'aiAssistant',inline:true})),
+        onGoKiosk && (planHas('kioskMode')
+          ? h('button',{className:'btn bs',onClick:onGoKiosk,title:'Switch to kiosk'},'🏥 Open Kiosk')
+          : h('button',{className:'btn bs',disabled:true,title:'Upgrade to unlock Kiosk',style:{opacity:.55,cursor:'not-allowed'}},'🏥 Open Kiosk',h(UpgradeBadge,{feature:'kioskMode',inline:true})))
       )
     ),
     h('div',{className:'sg sg4'},
@@ -12295,7 +12586,7 @@ function Dashboard({appointments,setAppointments,patients,payments,onGoKiosk,syn
         )
       )
     ),
-    showAI && h(AIAssistant,{appointments,patients,payments,addToast:addToast2,onClose:()=>setShowAI(false),defaultTab:'insights'})
+    showAI && planHas('aiAssistant') && h(AIAssistant,{appointments,patients,payments,addToast:addToast2,onClose:()=>setShowAI(false),defaultTab:'insights'})
   );
 }
 
@@ -13709,13 +14000,23 @@ function ServicesPage({addToast}){
 }
 
 function SyncPage({patients, appointments, payments, notifications, reminders, reminderLog, services, setPatients, setAppointments, setPayments, setNotifications, setReminders, setReminderLog, setServices, addToast}){
-  const [url, setUrl] = useState(()=>lsGet(LS_KEYS.SYNC_URL, ''));
+  const [url, setUrl] = useState(()=>lsGet(LS_KEYS.SYNC_URL,'') || APP_DEFAULTS.GAS_URL);
   const [autoSync, setAutoSync] = useState(()=>lsGet(LS_KEYS.AUTO_SYNC,'true')!=='false');
   const [lastSync, setLastSync] = useState(()=>lsGet(LS_KEYS.LAST_SYNC,''));
   const [busy, setBusy] = useState(null);
   const [log, setLog] = useState([]);
   const [geminiKey, setGeminiKey] = useState(()=>lsGet(LS_KEYS.GEMINI_KEY,''));
   const [showKey, setShowKey]     = useState(false);
+  const [semaphoreKey, setSemaphoreKey] = useState(()=>lsGet(LS_KEYS.SEMAPHORE_KEY,''));
+  const [showSemaphoreKey, setShowSemaphoreKey] = useState(false);
+  const [waToken, setWaToken]       = useState(()=>lsGet(LS_KEYS.WA_TOKEN,''));
+  const [showWaToken, setShowWaToken] = useState(false);
+  const [waPhoneId, setWaPhoneId]   = useState(()=>lsGet(LS_KEYS.WA_PHONE_ID,''));
+  const [viberToken, setViberToken] = useState(()=>lsGet(LS_KEYS.VIBER_TOKEN,''));
+  const [showViberToken, setShowViberToken] = useState(false);
+  const [licKey, setLicKey]       = useState(()=>getLicense().licenseKey||'');
+  const [licClinic, setLicClinic] = useState(()=>getLicense().clinicName||'');
+  const [licMsg, setLicMsg]       = useState('');
   const fileInputRef = useRef(null);
 
   const saveGeminiKey = (v) => {
@@ -13740,7 +14041,8 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
     lsSet(LS_KEYS.SYNC_URL, v);
   };
 
-  const isValidUrl = url && /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec\b/.test(url);
+  const isLocalUrl  = url && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(url);
+  const isValidUrl  = url && (isLocalUrl || /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec\b/.test(url));
 
   // Test connection
   const testConnection = async ()=>{
@@ -14030,6 +14332,61 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
 
     h('div', {className:'sync-grid'},
 
+      // ───── License & Plan card ─────
+      h('div', {className:'card', style:{borderTop:'3px solid #d4a017', gridColumn:'1/-1'}},
+        h('div', {className:'ch'}, h('div', {className:'ct'}, '🏷️ License & Plan')),
+        h('div', {className:'cb'},
+          h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:16,flexWrap:'wrap'}},
+            h('span',{style:{fontSize:28}},getCurrentPlan()==='clinic_pro'?'🏆':getCurrentPlan()==='professional'?'⭐':'🌱'),
+            h('div',null,
+              h('div',{style:{fontWeight:700,fontSize:16,color:'var(--dk)'}},(PLAN_NAMES[getCurrentPlan()]||'Starter')+' Plan'),
+              h('div',{style:{fontSize:13,color:'var(--md)'}},PLAN_PRICES[getCurrentPlan()]||'₱599/mo'),
+              getLicense().clinicName&&h('div',{style:{fontSize:12,color:'var(--md)'}},getLicense().clinicName)
+            )
+          ),
+          h('div',{style:{display:'grid',gap:10,marginBottom:14}},
+            h('input',{className:'inp',placeholder:'Clinic Name',value:licClinic,onInput:e=>setLicClinic(e.target.value)}),
+            h('input',{className:'inp',placeholder:'License Key (e.g. CYRABELL-PROF-202612-XK9A-T3MWPQZR)',value:licKey,onInput:e=>setLicKey(e.target.value)})
+          ),
+          h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+            h('button',{className:'btn bp',onClick:async()=>{
+              const key=(licKey||'').trim().toUpperCase();
+              const name=(licClinic||'').trim();
+              if(!key){setLicMsg('Please enter a license key.');return;}
+              if(!name){setLicMsg('Please enter your clinic name.');return;}
+              setLicMsg('⏳ Validating…');
+              const result=await validateLicenseKey(key);
+              if(!result.valid){setLicMsg('❌ '+result.error);return;}
+              localStorage.setItem('cyrabell_license',JSON.stringify({plan:result.plan,licenseKey:key,clinicName:name,activatedAt:new Date().toISOString(),expiry:result.expiry}));
+              setLicMsg('✅ License activated! Plan: '+(PLAN_NAMES[result.plan]||result.plan));
+              addToast('License activated — '+PLAN_NAMES[result.plan],'ok');
+            }},'✅ Activate License'),
+            getLicense().plan&&h('button',{className:'btn bd',onClick:()=>{
+              localStorage.removeItem('cyrabell_license');
+              setLicKey('');setLicClinic('');
+              setLicMsg('License cleared. Running in Starter mode.');
+            }},'🗑 Clear License')
+          ),
+          licMsg&&h('p',{style:{marginTop:10,fontSize:13,color:licMsg.startsWith('✅')?'#22c55e':'var(--re)'}},licMsg),
+          h('p',{style:{fontSize:12,color:'var(--md)',marginTop:10}},
+            'Need a license? Contact ',h('a',{href:'mailto:hello@nexarch.dev',style:{color:'var(--accent)'}},'hello@nexarch.dev')
+          )
+        )
+      ),
+
+      // ───── Local Server toggle hint ─────
+      isLocalUrl && h('div',{className:'card',style:{borderTop:'3px solid #22c55e',gridColumn:'1/-1'}},
+        h('div',{className:'ch'},h('div',{className:'ct'},'🖥️ Local Server Mode')),
+        h('div',{className:'cb'},
+          h('p',{style:{fontSize:13,color:'var(--md)',marginBottom:8}},
+            'Connected to local Node.js server at ',h('strong',null,url),'. All data is stored on your PC.'
+          ),
+          h('p',{style:{fontSize:12,color:'var(--md)'}},
+            'To switch back to cloud, replace the URL with your Google Apps Script /exec URL.'
+          )
+        )
+      ),
+
       // ───── Gemini API key card ─────
       h('div', {className:'card', style:{borderTop:'3px solid #4f8ef7'}},
         h('div', {className:'ch'}, h('div', {className:'ct'}, '⚡ Gemini OCR (Fast Mode)')),
@@ -14038,6 +14395,37 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
             h('strong',null,'Direct Gemini API key '),
             '= ',h('strong',{style:{color:'#4f8ef7'}},'5-10 second'),
             ' scans. Without it, OCR routes via Apps Script (~60-120s cold start).'
+          ),
+          h('div',{style:{fontWeight:700,fontSize:13,color:'var(--dk)',marginBottom:8,marginTop:4,borderTop:'1px solid var(--bd)',paddingTop:12}},'📨 Messaging API Keys (for automated sending)'),
+          h(Field,{label:'📱 Semaphore API Key (SMS)'},
+            h('div',{style:{display:'flex',gap:6}},
+              h('input',{type:'password',className:'inp',value:semaphoreKey,onChange:e=>{setSemaphoreKey(e.target.value);lsSet(LS_KEYS.SEMAPHORE_KEY,e.target.value.trim());},placeholder:'Your Semaphore.co API key',style:{fontSize:12,fontFamily:'monospace',flex:1}}),
+              h('button',{className:'btn bgh bsm',onClick:()=>setShowSemaphoreKey(s=>!s),style:{whiteSpace:'nowrap'}},showSemaphoreKey?'🙈 Hide':'👁 Show')
+            ),
+            semaphoreKey
+              ? h('div',{style:{fontSize:11.5,color:'#22c55e',marginTop:4}},'✓ Semaphore key saved — SMS will send automatically via API')
+              : h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,lineHeight:1.5}},'Get a free key at semaphore.co → register → Dashboard → API Key. Cost: ₱0.50–1.00/SMS')
+          ),
+          h(Field,{label:'💬 WhatsApp Business Token'},
+            h('div',{style:{display:'flex',gap:6}},
+              h('input',{type:'password',className:'inp',value:waToken,onChange:e=>{setWaToken(e.target.value);lsSet(LS_KEYS.WA_TOKEN,e.target.value.trim());},placeholder:'EAAxxxx… (Meta Business access token)',style:{fontSize:12,fontFamily:'monospace',flex:1}}),
+              h('button',{className:'btn bgh bsm',onClick:()=>setShowWaToken(s=>!s),style:{whiteSpace:'nowrap'}},showWaToken?'🙈 Hide':'👁 Show')
+            )
+          ),
+          h(Field,{label:'💬 WhatsApp Phone Number ID'},
+            h('input',{className:'inp',value:waPhoneId,onChange:e=>{setWaPhoneId(e.target.value);lsSet(LS_KEYS.WA_PHONE_ID,e.target.value.trim());},placeholder:'1234567890 (from Meta Developer Console)',style:{fontSize:12,fontFamily:'monospace'}}),
+            waToken&&waPhoneId
+              ? h('div',{style:{fontSize:11.5,color:'#22c55e',marginTop:4}},'✓ WhatsApp Business API configured — messages will send automatically')
+              : h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,lineHeight:1.5}},'Get from developers.facebook.com → My Apps → WhatsApp → API Setup. Free: 1,000 msgs/month')
+          ),
+          h(Field,{label:'🟣 Viber Bot Token'},
+            h('div',{style:{display:'flex',gap:6}},
+              h('input',{type:'password',className:'inp',value:viberToken,onChange:e=>{setViberToken(e.target.value);lsSet(LS_KEYS.VIBER_TOKEN,e.target.value.trim());},placeholder:'Viber Bot authentication token',style:{fontSize:12,fontFamily:'monospace',flex:1}}),
+              h('button',{className:'btn bgh bsm',onClick:()=>setShowViberToken(s=>!s),style:{whiteSpace:'nowrap'}},showViberToken?'🙈 Hide':'👁 Show')
+            ),
+            viberToken
+              ? h('div',{style:{fontSize:11.5,color:'#22c55e',marginTop:4}},'✓ Viber Bot token saved — Viber messages will send automatically')
+              : h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,lineHeight:1.5}},'Create a Viber Bot at partners.viber.com → get auth token')
           ),
           h(Field,{label:'Gemini API Key'},
             h('div',{style:{display:'flex',gap:6}},
@@ -14979,6 +15367,284 @@ function LogsViewer({addToast}) {
 
 
 
+function UpgradeBadge({feature, inline}) {
+  const plan=getCurrentPlan(), next=PLAN_UPGRADE[plan];
+  if(!next) return null;
+  if(inline) return h('span',{style:{background:'linear-gradient(90deg,#b8860b,#d4a017)',color:'#fff',fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:10,marginLeft:6}},'🔒 '+PLAN_NAMES[next]);
+  return h('div',{style:{textAlign:'center',padding:'40px 20px',color:'#888'}},
+    h('div',{style:{fontSize:40,marginBottom:8}},'🔒'),
+    h('p',{style:{fontSize:16,fontWeight:700,marginBottom:4}},'Upgrade to '+PLAN_NAMES[next]),
+    h('p',{style:{marginBottom:4}},PLAN_PRICES[next]+' — Contact NexArch'),
+    h('a',{href:'mailto:hello@nexarch.dev',style:{color:'#00b4d8'}},'hello@nexarch.dev')
+  );
+}
+function FeatureGate({feature, children, inline, fallback}) {
+  if(planHas(feature)) return children;
+  if(fallback!==undefined) return fallback;
+  return h(UpgradeBadge,{feature,inline});
+}
+
+// ── UsersPage ─────────────────────────────────────────────────────────────────
+const ROLE_OPTS = ['Administrator','Dentist','Receptionist'];
+const ROLE_COLOR = { Administrator:'#00b4d8', Dentist:'#22c55e', Receptionist:'#f59e0b' };
+const ROLE_IC    = { Administrator:'🛡️', Dentist:'🦷', Receptionist:'🧑‍💼' };
+
+function UsersPage({currentUser, addToast}) {
+  const userLimit = getPlanLimit('userLimit');
+  const [users, setUsers] = useState(getStoredUsers);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null); // null = add new
+  const [form, setForm] = useState({username:'',name:'',role:'Receptionist',password:'',confirm:''});
+  const [formErr, setFormErr] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+
+  const save = (next) => { setUsers(next); saveStoredUsers(next); };
+  const ff = (k,v) => setForm(p=>({...p,[k]:v}));
+
+  const openAdd = () => {
+    if (userLimit !== Infinity && users.length >= userLimit)
+      return addToast('User limit reached for your plan. Upgrade to add more.','warn');
+    setEditing(null);
+    setForm({username:'',name:'',role:'Receptionist',password:'',confirm:''});
+    setFormErr('');
+    setShowPwd(false);
+    setShowForm(true);
+  };
+
+  const openEdit = (u) => {
+    setEditing(u);
+    setForm({username:u.username,name:u.name,role:u.role,password:'',confirm:''});
+    setFormErr('');
+    setShowPwd(false);
+    setShowForm(true);
+  };
+
+  const submit = () => {
+    const uname = form.username.trim().toLowerCase();
+    const name  = form.name.trim();
+    if (!uname || !name) { setFormErr('Username and name are required.'); return; }
+    if (!/^[a-z0-9_]{3,32}$/.test(uname)) { setFormErr('Username: 3-32 chars, letters/numbers/underscore only.'); return; }
+    if (!editing && !form.password) { setFormErr('Password is required for new users.'); return; }
+    if (form.password && form.password !== form.confirm) { setFormErr('Passwords do not match.'); return; }
+    if (form.password && form.password.length < 6) { setFormErr('Password must be at least 6 characters.'); return; }
+    const dupe = users.find(u => u.username === uname && u.id !== (editing && editing.id));
+    if (dupe) { setFormErr('Username already taken.'); return; }
+
+    if (editing) {
+      const next = users.map(u => u.id !== editing.id ? u : {
+        ...u, username: uname, name, role: form.role,
+        ...(form.password ? {password: form.password} : {})
+      });
+      save(next);
+      addToast('User updated — ' + name, 'ok');
+    } else {
+      const next = [...users, {id:'u'+Date.now(), username:uname, name, role:form.role, password:form.password}];
+      save(next);
+      addToast('User added — ' + name, 'ok');
+    }
+    setShowForm(false);
+  };
+
+  const confirmDelete = (id) => {
+    const target = users.find(u=>u.id===id);
+    if (!target) return;
+    if (target.id === currentUser.id) { addToast('Cannot delete your own account.','warn'); return; }
+    const admins = users.filter(u=>u.role==='Administrator');
+    if (target.role==='Administrator' && admins.length<=1) { addToast('Cannot delete the last Administrator.','warn'); return; }
+    setDeleteId(id);
+  };
+  const doDelete = () => {
+    const target = users.find(u=>u.id===deleteId);
+    save(users.filter(u=>u.id!==deleteId));
+    addToast('User removed — '+(target&&target.name||''),'ok');
+    setDeleteId(null);
+  };
+
+  const planLabel = userLimit===Infinity ? 'Unlimited' : userLimit+' user'+(userLimit!==1?'s':'');
+
+  return h('div',{className:'page-wrap'},
+    h('div',{className:'ph'},
+      h('div',{className:'pt'},'👥 User Management'),
+      h('div',{className:'ps'},'Manage staff accounts and role permissions')
+    ),
+
+    // Plan info bar
+    h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:20,flexWrap:'wrap'}},
+      h('div',{style:{fontSize:13,color:'var(--md)'}},
+        h('span',{style:{fontWeight:700,color:'var(--dk)'}},(users.length)+' user'+(users.length!==1?'s':'')),
+        ' of ',
+        h('span',{style:{fontWeight:700,color:'var(--t)'}},planLabel),
+        ' on ',
+        h('span',{style:{fontWeight:700}},PLAN_NAMES[getCurrentPlan()]+' plan')
+      ),
+      h('button',{className:'btn bp',onClick:openAdd,style:{fontSize:13}},
+        '+ Add User',
+        userLimit!==Infinity && h('span',{style:{marginLeft:6,fontSize:11,opacity:.7}},users.length+'/'+userLimit)
+      )
+    ),
+
+    // Role legend
+    h('div',{style:{display:'flex',gap:10,marginBottom:20,flexWrap:'wrap'}},
+      ROLE_OPTS.map(r=>h('div',{key:r,style:{display:'flex',alignItems:'center',gap:5,fontSize:12,color:'var(--md)'}},
+        h('span',{style:{display:'inline-block',width:10,height:10,borderRadius:'50%',background:ROLE_COLOR[r]}}),
+        ROLE_IC[r],' ',r
+      ))
+    ),
+
+    // Users table
+    h('div',{className:'card'},
+      h('div',{style:{overflowX:'auto'}},
+        h('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:13}},
+          h('thead',null,
+            h('tr',{style:{borderBottom:'2px solid var(--bd)'}},
+              ['User','Name','Role','Actions'].map(c=>h('th',{key:c,style:{textAlign:'left',padding:'10px 12px',color:'var(--md)',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:'.5px'}},c))
+            )
+          ),
+          h('tbody',null,
+            users.map(u=>h('tr',{key:u.id,style:{borderBottom:'1px solid var(--bd)',background:u.id===currentUser.id?'rgba(0,180,216,.04)':''}},
+              h('td',{style:{padding:'12px 12px'}},
+                h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                  h('div',{style:{width:30,height:30,borderRadius:'50%',background:'linear-gradient(135deg,'+ROLE_COLOR[u.role]+',rgba(0,0,0,.3))',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,flexShrink:0}},
+                    (u.name||u.username||'?').charAt(0).toUpperCase()
+                  ),
+                  h('div',null,
+                    h('div',{style:{fontWeight:600,color:'var(--dk)'}},u.username),
+                    u.id===currentUser.id&&h('span',{style:{fontSize:10,color:'var(--t)',fontWeight:700,background:'rgba(0,180,216,.1)',padding:'1px 6px',borderRadius:8}}, 'YOU')
+                  )
+                )
+              ),
+              h('td',{style:{padding:'12px 12px',color:'var(--dk)'}},u.name||'—'),
+              h('td',{style:{padding:'12px 12px'}},
+                h('span',{style:{fontSize:11,fontWeight:700,padding:'3px 9px',borderRadius:20,background:ROLE_COLOR[u.role]+'22',color:ROLE_COLOR[u.role],border:'1px solid '+ROLE_COLOR[u.role]+'44'}},
+                  ROLE_IC[u.role],' ',u.role
+                )
+              ),
+              h('td',{style:{padding:'12px 12px'}},
+                h('div',{style:{display:'flex',gap:6}},
+                  h('button',{className:'btn bs',style:{fontSize:11,padding:'4px 10px'},onClick:()=>openEdit(u)},'✏️ Edit'),
+                  u.id!==currentUser.id&&h('button',{className:'btn bd',style:{fontSize:11,padding:'4px 10px'},onClick:()=>confirmDelete(u.id)},'🗑 Delete')
+                )
+              )
+            ))
+          )
+        )
+      )
+    ),
+
+    // RBAC reference table
+    h('div',{className:'card',style:{marginTop:16}},
+      h('div',{className:'ch'},h('div',{className:'ct'},'🛡️ Role Permissions Reference')),
+      h('div',{className:'cb'},
+        h('div',{style:{overflowX:'auto'}},
+          h('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:12}},
+            h('thead',null,
+              h('tr',{style:{borderBottom:'2px solid var(--bd)'}},
+                h('th',{style:{textAlign:'left',padding:'8px 10px',color:'var(--md)',fontWeight:700,fontSize:11}},'Permission'),
+                ROLE_OPTS.map(r=>h('th',{key:r,style:{textAlign:'center',padding:'8px 10px',color:ROLE_COLOR[r],fontWeight:700,fontSize:11}},ROLE_IC[r],' ',r))
+              )
+            ),
+            h('tbody',null,
+              [
+                ['Delete Patients','delete_patient'],
+                ['Export Data','export_data'],
+                ['Sync & Backup','view_sync'],
+                ['Analytics','view_analytics'],
+                ['View Logs','view_logs'],
+                ['Edit Service Catalog','edit_services'],
+                ['AI Assistant','use_ai'],
+                ['Kiosk Mode','use_kiosk'],
+                ['Manage License','manage_license'],
+                ['Manage Users','manage_users'],
+              ].map(([label,key])=>h('tr',{key,style:{borderBottom:'1px solid var(--bd)'}},
+                h('td',{style:{padding:'8px 10px',color:'var(--dk)',fontWeight:500}},label),
+                ROLE_OPTS.map(r=>h('td',{key:r,style:{textAlign:'center',padding:'8px 10px'}},
+                  RBAC[r][key]
+                    ? h('span',{style:{color:'#22c55e',fontSize:15,fontWeight:700}},'✓')
+                    : h('span',{style:{color:'rgba(0,0,0,.18)',fontSize:13}},'—')
+                ))
+              ))
+            )
+          )
+        )
+      )
+    ),
+
+    // Add / Edit modal
+    showForm && h('div',{className:'ov'},
+      h('div',{className:'modal'},
+        h('div',{className:'mh'},
+          h('div',{className:'mt'},(editing?'Edit User':'Add New User')),
+          h('button',{className:'mcl',onClick:()=>setShowForm(false)},'✕')
+        ),
+        h('div',{style:{padding:'16px 20px 20px',display:'grid',gap:12}},
+          h('label',{style:{fontSize:12,fontWeight:600,color:'var(--md)'}},
+            'Username *',
+            h('input',{className:'inp',style:{marginTop:4},value:form.username,placeholder:'e.g. dr.smith',disabled:!!editing,
+              onInput:e=>ff('username',e.target.value)})
+          ),
+          h('label',{style:{fontSize:12,fontWeight:600,color:'var(--md)'}},
+            'Full Name *',
+            h('input',{className:'inp',style:{marginTop:4},value:form.name,placeholder:'e.g. Dr. Juan Smith',
+              onInput:e=>ff('name',e.target.value)})
+          ),
+          h('label',{style:{fontSize:12,fontWeight:600,color:'var(--md)'}},
+            'Role *',
+            h('select',{className:'inp',style:{marginTop:4},value:form.role,onChange:e=>ff('role',e.target.value)},
+              ROLE_OPTS.map(r=>h('option',{key:r,value:r},ROLE_IC[r]+' '+r))
+            )
+          ),
+          h('div',{style:{background:'var(--tp)',borderRadius:8,padding:'8px 12px',fontSize:11.5,color:'var(--t)',lineHeight:1.5}},
+            h('strong',null,ROLE_IC[form.role]+' '+form.role+': '),
+            form.role==='Administrator' ? 'Full access to all features.' :
+            form.role==='Dentist'       ? 'Patient records, appointments, AI assistant, analytics. No sync or user management.' :
+                                          'Check-in, appointments, notifications. No exports, analytics, or admin features.'
+          ),
+          h('label',{style:{fontSize:12,fontWeight:600,color:'var(--md)'}},
+            (editing?'New Password (leave blank to keep current)':'Password *'),
+            h('div',{style:{position:'relative',marginTop:4}},
+              h('input',{className:'inp',type:showPwd?'text':'password',value:form.password,placeholder:'Min. 6 characters',
+                onInput:e=>ff('password',e.target.value),style:{paddingRight:44}}),
+              h('button',{type:'button',onClick:()=>setShowPwd(p=>!p),
+                style:{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:14,color:'var(--md)'}},
+                showPwd?'🙈':'👁')
+            )
+          ),
+          form.password&&h('label',{style:{fontSize:12,fontWeight:600,color:'var(--md)'}},
+            'Confirm Password *',
+            h('input',{className:'inp',style:{marginTop:4},type:'password',value:form.confirm,placeholder:'Repeat password',
+              onInput:e=>ff('confirm',e.target.value)})
+          ),
+          formErr&&h('div',{style:{color:'var(--re)',fontSize:12,background:'#fef2f2',padding:'8px 12px',borderRadius:6}},formErr),
+          h('div',{style:{display:'flex',gap:8,justifyContent:'flex-end',marginTop:4}},
+            h('button',{className:'btn bs',onClick:()=>setShowForm(false)},'Cancel'),
+            h('button',{className:'btn bp',onClick:submit},editing?'💾 Save Changes':'➕ Add User')
+          )
+        )
+      )
+    ),
+
+    // Confirm delete modal
+    deleteId && h('div',{className:'ov'},
+      h('div',{className:'modal',style:{maxWidth:340}},
+        h('div',{style:{padding:'28px 24px',textAlign:'center'}},
+          h('div',{style:{fontSize:36,marginBottom:8}},'⚠️'),
+          h('div',{style:{fontWeight:700,fontSize:16,marginBottom:8}},'Delete User?'),
+          h('div',{style:{fontSize:13,color:'var(--md)',marginBottom:20}},
+            'This will permanently remove ',
+            h('strong',null,(users.find(u=>u.id===deleteId)||{}).name||'this user'),
+            '. They will no longer be able to log in.'
+          ),
+          h('div',{style:{display:'flex',gap:8,justifyContent:'center'}},
+            h('button',{className:'btn bs',onClick:()=>setDeleteId(null)},'Cancel'),
+            h('button',{className:'btn bd',onClick:doDelete},'🗑 Delete')
+          )
+        )
+      )
+    )
+  );
+}
+
 function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointments,payments,setPayments,notifications,setNotifications,reminders,setReminders,reminderLog,setReminderLog,addToast,onGoKiosk}){
   const [page,setPage]=useState('dashboard');
   const [sideOpen,setSideOpen]=useState(false);
@@ -14999,6 +15665,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
     {id:'reminders',l:'Reminders',d:IC.repeat,badge:dueRemindersCount||null,sec:'TOOLS'},
     {id:'notifications',l:'Notifications',d:IC.bell},
     canDo(user,'edit_services')&&{id:'services',l:'Service Catalog',d:IC.credit,sec:'SETTINGS'},
+    canDo(user,'manage_users')&&{id:'users',l:'User & Roles',d:IC.users},
     canDo(user,'view_sync')&&{id:'sync',l:'Sync & Backup',d:IC.cloud},
     canDo(user,'export_data')&&{id:'export',l:'Export',d:IC.dl},
     canDo(user,'view_analytics')&&{id:'analytics',l:'Analytics',d:IC.report},
@@ -15011,7 +15678,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
     {id:'payments',l:'Payments',d:IC.credit},
     {id:'notifications',l:'Alerts',d:IC.bell},
   ];
-  const TITLES={dashboard:'Dashboard',appointments:'Appointments',patients:'Patients',payments:'Payments',reminders:'Recurring Reminders',notifications:'Notifications',sync:'Sync & Backup',export:'Export',analytics:'Analytics'};
+  const TITLES={dashboard:'Dashboard',appointments:'Appointments',patients:'Patients',payments:'Payments',reminders:'Recurring Reminders',notifications:'Notifications',sync:'Sync & Backup',export:'Export',analytics:'Analytics',users:'Users & Roles',services:'Service Catalog',logs:'Logs'};
   let lastSec=null;
   const userInitial = (user && (user.name||user.username)||'A').charAt(0).toUpperCase();
 
@@ -15026,6 +15693,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
       if(page==='payments')return h(Payments,{payments:safe(payments),setPayments,patients:safe(patients),appointments:safe(appointments),setAppointments,addToast,syncUrl});
       if(page==='reminders')return h(Reminders,{reminders:safe(reminders),setReminders,reminderLog:safe(reminderLog),setReminderLog,patients:safe(patients),addToast});
       if(page==='services')return canDo(user,'edit_services')?h(ServicesPage,{addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+      if(page==='users')return canDo(user,'manage_users')?h(UsersPage,{currentUser:user,addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),services:getActiveSvcs(),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,setServices:(svcs)=>{try{localStorage.setItem(LS_KEYS.SERVICES,JSON.stringify(svcs));}catch(e){}},addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='notifications')return h(Notifications,{notifications:safe(notifications),setNotifications,appointments:safe(appointments),addToast});
       if(page==='export')return canDo(user,'export_data')?h(ExportPage,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
@@ -15072,7 +15740,12 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
           ),
           h('div',{className:'uc',onClick:onLogout,title:'Click to log out'},
             h('div',{className:'ua'},userInitial),
-            h('div',null,h('div',{className:'un'},user.name||user.username),h('div',{className:'ur'},user.role)),
+            h('div',null,
+              h('div',{className:'un'},user.name||user.username),
+              h('div',{className:'ur'},user.role,
+                h('span',{style:{fontSize:9,padding:'1px 7px',borderRadius:8,background:getCurrentPlan()==='clinic_pro'?'#7c3aed':getCurrentPlan()==='professional'?'#00b4d8':'#475569',color:'#fff',marginLeft:5,fontWeight:700}},PLAN_NAMES[getCurrentPlan()])
+              )
+            ),
             h(Svg,{d:IC.logout,size:13,color:'rgba(255,255,255,.5)'})
           ),
           // NexArch power badge
