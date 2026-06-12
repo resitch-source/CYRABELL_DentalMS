@@ -3441,6 +3441,10 @@ const LS_KEYS = Object.freeze({
   GEMINI_KEY:       'cyrabell_gemini_key',
   LICENSE:          'cyrabell_license',
   USERS:            'cyrabell_v2_users',
+  SEMAPHORE_KEY:  'cyrabell_semaphore_key',
+  WA_TOKEN:       'cyrabell_wa_token',
+  WA_PHONE_ID:    'cyrabell_wa_phone_id',
+  VIBER_TOKEN:    'cyrabell_viber_token',
 });
 
 // ── IndexedDB attachment store ─────────────────────────────────────────────
@@ -4807,63 +4811,113 @@ async function sendEmailNotification(syncUrl, to, subject, message) {
 async function sendSmsNotification(syncUrl, phone, message, carrier) {
   nlog('sms:start', { phone, carrier });
   if (!phone) throw new Error('No phone number');
+  const semaphoreKey = (function(){ try { return localStorage.getItem(LS_KEYS.SEMAPHORE_KEY)||''; } catch(e) { return ''; } })();
+  if (semaphoreKey) {
+    // Fully automated via Semaphore.co API (no GAS needed)
+    nlog('sms:semaphore:calling', { phone });
+    const p = normalizePhone(phone);
+    const body = new URLSearchParams({ apikey: semaphoreKey, number: p, message: message, sendername: 'CYRABELL' });
+    let res;
+    try {
+      res = await fetchWithTimeout('https://api.semaphore.co/api/v4/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+        redirect: 'follow'
+      }, 30000);
+      nlog('sms:semaphore:response', { status: res.status });
+    } catch(e) { nlog('sms:semaphore:error', e.message); throw new Error('Semaphore network error: ' + e.message); }
+    const text = await res.text();
+    nlog('sms:semaphore:body', { preview: text.slice(0,200) });
+    let data; try { data = JSON.parse(text); } catch(e) { throw new Error('Semaphore returned non-JSON: ' + text.slice(0,100)); }
+    if (!res.ok) throw new Error('Semaphore error: ' + (Array.isArray(data) ? JSON.stringify(data[0]) : text.slice(0,100)));
+    nlog('sms:semaphore:sent', { messageId: Array.isArray(data) ? data[0]?.message_id : data?.message_id });
+    return { ok: true, method: 'semaphore', data };
+  }
   if (!syncUrl) {
     const p = normalizePhone(phone);
     const uri = 'sms:+' + p + '?body=' + encodeURIComponent(message);
-    nlog('sms:fallback-tel', { uri });
+    nlog('sms:fallback-manual', { uri });
     window.open(uri, '_blank');
     return { ok: true, method: 'manual', telUri: uri };
   }
+  nlog('sms:gas:calling', { phone, carrier });
   let res;
   try {
     res = await fetchWithTimeout(syncUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'sendSms', phone: phone, message: message, carrier: carrier || '' }),
+      body: JSON.stringify({ action: 'sendSms', phone, message, carrier: carrier||'' }),
       redirect: 'follow'
     }, 30000);
-    nlog('sms:response-received', { status: res.status });
-  } catch (netErr) {
-    nlog('sms:network-error', netErr.message);
-    throw new Error('Network error: ' + netErr.message);
-  }
+    nlog('sms:gas:response', { status: res.status });
+  } catch(e) { nlog('sms:gas:error', e.message); throw new Error('Network error: ' + e.message); }
   const text = await res.text();
-  let data;
-  try { data = JSON.parse(text); }
-  catch (e) {
-    nlog('sms:parse-error', { preview: text.substring(0, 200) });
-    throw new Error('Apps Script returned non-JSON. Likely the deployment is outdated — redeploy as "New version".');
-  }
+  let data; try { data = JSON.parse(text); } catch(e) { throw new Error('GAS returned non-JSON. Redeploy as new version.'); }
   if (!data.ok) throw new Error(data.error || 'SMS send failed');
-  if (data.method === 'manual' && data.telUri) {
-    nlog('sms:opening-tel', { telUri: data.telUri });
-    window.open(data.telUri, '_blank');
-  } else {
-    nlog('sms:sent-gateway', { gateway: data.gateway });
-  }
+  if (data.method === 'manual' && data.telUri) { nlog('sms:opening-tel', {}); window.open(data.telUri, '_blank'); }
+  else nlog('sms:gas:sent', { gateway: data.gateway });
   return data;
 }
 
-// ─── WhatsApp: wa.me deep link ─────────────────────────────────────────────
-function sendWhatsAppNotification(phone, message) {
+// ─── WhatsApp: API or wa.me deep link ─────────────────────────────────────
+async function sendWhatsAppNotification(phone, message, syncUrl) {
   nlog('whatsapp:start', { phone });
   if (!phone) throw new Error('No phone number');
+  const waToken   = (function(){ try { return localStorage.getItem(LS_KEYS.WA_TOKEN)||''; } catch(e) { return ''; } })();
+  const waPhoneId = (function(){ try { return localStorage.getItem(LS_KEYS.WA_PHONE_ID)||''; } catch(e) { return ''; } })();
+  if (waToken && waPhoneId && syncUrl) {
+    nlog('whatsapp:api:calling', { phone });
+    let res;
+    try {
+      res = await fetchWithTimeout(syncUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action:'sendWhatsapp', phone: normalizePhone(phone), message, waToken, waPhoneId }),
+        redirect: 'follow'
+      }, 30000);
+      nlog('whatsapp:api:response', { status: res.status });
+    } catch(e) { nlog('whatsapp:api:error', e.message); throw new Error('WhatsApp API error: ' + e.message); }
+    const text = await res.text();
+    let data; try { data = JSON.parse(text); } catch(e) { throw new Error('GAS returned non-JSON for WhatsApp.'); }
+    if (!data.ok) throw new Error(data.error || 'WhatsApp send failed');
+    nlog('whatsapp:api:sent', { messageId: data.messageId });
+    return { ok: true, method: 'api', messageId: data.messageId };
+  }
+  // Fallback deep link
   const p = normalizePhone(phone);
   const url = 'https://wa.me/' + p + '?text=' + encodeURIComponent(message);
-  nlog('whatsapp:opening', { url });
+  nlog('whatsapp:fallback-deeplink', { url });
   window.open(url, '_blank');
   return { ok: true, method: 'deeplink', url };
 }
 
-// ─── Viber: viber:// deep link ─────────────────────────────────────────────
-function sendViberNotification(phone, message) {
+// ─── Viber: API or viber:// deep link ─────────────────────────────────────
+async function sendViberNotification(phone, message, syncUrl) {
   nlog('viber:start', { phone });
   if (!phone) throw new Error('No phone number');
+  const viberToken = (function(){ try { return localStorage.getItem(LS_KEYS.VIBER_TOKEN)||''; } catch(e) { return ''; } })();
+  if (viberToken && syncUrl) {
+    nlog('viber:api:calling', { phone });
+    let res;
+    try {
+      res = await fetchWithTimeout(syncUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action:'sendViber', phone: normalizePhone(phone), message, viberToken }),
+        redirect: 'follow'
+      }, 30000);
+      nlog('viber:api:response', { status: res.status });
+    } catch(e) { nlog('viber:api:error', e.message); throw new Error('Viber API error: ' + e.message); }
+    const text = await res.text();
+    let data; try { data = JSON.parse(text); } catch(e) { throw new Error('GAS returned non-JSON for Viber.'); }
+    if (!data.ok) throw new Error(data.error || 'Viber send failed');
+    nlog('viber:api:sent', { messageId: data.messageId });
+    return { ok: true, method: 'api', messageId: data.messageId };
+  }
   const p = normalizePhone(phone);
-  // Viber's URI scheme: viber://chat?number=+639...&text=...
-  // On desktop, falls back to web fallback if app not installed
   const uri = 'viber://chat?number=%2B' + p + '&draft=' + encodeURIComponent(message);
-  nlog('viber:opening', { uri });
+  nlog('viber:fallback-deeplink', { uri });
   window.open(uri, '_blank');
   return { ok: true, method: 'deeplink', url: uri };
 }
@@ -4901,14 +4955,22 @@ function sendMessengerNotification(messengerId, message) {
 
 // ─── DISPATCHER: route to the right sender ────────────────────────────────
 async function sendNotification(channel, patient, message, syncUrl) {
-  nlog('dispatch', { channel, patient: patient.name });
-  const subject = 'Simplified Dental Clinic — ' + (patient.name || 'Reminder');
-  if (channel === 'email')     return await sendEmailNotification(syncUrl, patient.email, subject, message);
-  if (channel === 'sms')       return await sendSmsNotification(syncUrl, patient.phone, message, patient.smsCarrier);
-  if (channel === 'whatsapp')  return sendWhatsAppNotification(patient.phone, message);
-  if (channel === 'viber')     return sendViberNotification(patient.phone, message);
-  if (channel === 'messenger') return sendMessengerNotification(patient.messengerId || '', message);
-  throw new Error('Unknown channel: ' + channel);
+  nlog('dispatch:start', { channel, patient: patient.name, ts: new Date().toISOString() });
+  const subject = 'Cyrabell Dental Clinic — ' + (patient.name || 'Reminder');
+  let result;
+  try {
+    if (channel === 'email')     result = await sendEmailNotification(syncUrl, patient.email, subject, message);
+    else if (channel === 'sms')  result = await sendSmsNotification(syncUrl, patient.phone, message, patient.smsCarrier);
+    else if (channel === 'whatsapp') result = await sendWhatsAppNotification(patient.phone, message, syncUrl);
+    else if (channel === 'viber')    result = await sendViberNotification(patient.phone, message, syncUrl);
+    else if (channel === 'messenger') result = sendMessengerNotification(patient.messengerId || '', message);
+    else throw new Error('Unknown channel: ' + channel);
+    nlog('dispatch:success', { channel, method: result && result.method, ts: new Date().toISOString() });
+    return result;
+  } catch(err) {
+    nlog('dispatch:failed', { channel, error: err.message, ts: new Date().toISOString() });
+    throw err;
+  }
 }
 
 
@@ -13945,6 +14007,13 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
   const [log, setLog] = useState([]);
   const [geminiKey, setGeminiKey] = useState(()=>lsGet(LS_KEYS.GEMINI_KEY,''));
   const [showKey, setShowKey]     = useState(false);
+  const [semaphoreKey, setSemaphoreKey] = useState(()=>lsGet(LS_KEYS.SEMAPHORE_KEY,''));
+  const [showSemaphoreKey, setShowSemaphoreKey] = useState(false);
+  const [waToken, setWaToken]       = useState(()=>lsGet(LS_KEYS.WA_TOKEN,''));
+  const [showWaToken, setShowWaToken] = useState(false);
+  const [waPhoneId, setWaPhoneId]   = useState(()=>lsGet(LS_KEYS.WA_PHONE_ID,''));
+  const [viberToken, setViberToken] = useState(()=>lsGet(LS_KEYS.VIBER_TOKEN,''));
+  const [showViberToken, setShowViberToken] = useState(false);
   const [licKey, setLicKey]       = useState(()=>getLicense().licenseKey||'');
   const [licClinic, setLicClinic] = useState(()=>getLicense().clinicName||'');
   const [licMsg, setLicMsg]       = useState('');
@@ -14326,6 +14395,37 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
             h('strong',null,'Direct Gemini API key '),
             '= ',h('strong',{style:{color:'#4f8ef7'}},'5-10 second'),
             ' scans. Without it, OCR routes via Apps Script (~60-120s cold start).'
+          ),
+          h('div',{style:{fontWeight:700,fontSize:13,color:'var(--dk)',marginBottom:8,marginTop:4,borderTop:'1px solid var(--bd)',paddingTop:12}},'📨 Messaging API Keys (for automated sending)'),
+          h(Field,{label:'📱 Semaphore API Key (SMS)'},
+            h('div',{style:{display:'flex',gap:6}},
+              h('input',{type:'password',className:'inp',value:semaphoreKey,onChange:e=>{setSemaphoreKey(e.target.value);lsSet(LS_KEYS.SEMAPHORE_KEY,e.target.value.trim());},placeholder:'Your Semaphore.co API key',style:{fontSize:12,fontFamily:'monospace',flex:1}}),
+              h('button',{className:'btn bgh bsm',onClick:()=>setShowSemaphoreKey(s=>!s),style:{whiteSpace:'nowrap'}},showSemaphoreKey?'🙈 Hide':'👁 Show')
+            ),
+            semaphoreKey
+              ? h('div',{style:{fontSize:11.5,color:'#22c55e',marginTop:4}},'✓ Semaphore key saved — SMS will send automatically via API')
+              : h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,lineHeight:1.5}},'Get a free key at semaphore.co → register → Dashboard → API Key. Cost: ₱0.50–1.00/SMS')
+          ),
+          h(Field,{label:'💬 WhatsApp Business Token'},
+            h('div',{style:{display:'flex',gap:6}},
+              h('input',{type:'password',className:'inp',value:waToken,onChange:e=>{setWaToken(e.target.value);lsSet(LS_KEYS.WA_TOKEN,e.target.value.trim());},placeholder:'EAAxxxx… (Meta Business access token)',style:{fontSize:12,fontFamily:'monospace',flex:1}}),
+              h('button',{className:'btn bgh bsm',onClick:()=>setShowWaToken(s=>!s),style:{whiteSpace:'nowrap'}},showWaToken?'🙈 Hide':'👁 Show')
+            )
+          ),
+          h(Field,{label:'💬 WhatsApp Phone Number ID'},
+            h('input',{className:'inp',value:waPhoneId,onChange:e=>{setWaPhoneId(e.target.value);lsSet(LS_KEYS.WA_PHONE_ID,e.target.value.trim());},placeholder:'1234567890 (from Meta Developer Console)',style:{fontSize:12,fontFamily:'monospace'}}),
+            waToken&&waPhoneId
+              ? h('div',{style:{fontSize:11.5,color:'#22c55e',marginTop:4}},'✓ WhatsApp Business API configured — messages will send automatically')
+              : h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,lineHeight:1.5}},'Get from developers.facebook.com → My Apps → WhatsApp → API Setup. Free: 1,000 msgs/month')
+          ),
+          h(Field,{label:'🟣 Viber Bot Token'},
+            h('div',{style:{display:'flex',gap:6}},
+              h('input',{type:'password',className:'inp',value:viberToken,onChange:e=>{setViberToken(e.target.value);lsSet(LS_KEYS.VIBER_TOKEN,e.target.value.trim());},placeholder:'Viber Bot authentication token',style:{fontSize:12,fontFamily:'monospace',flex:1}}),
+              h('button',{className:'btn bgh bsm',onClick:()=>setShowViberToken(s=>!s),style:{whiteSpace:'nowrap'}},showViberToken?'🙈 Hide':'👁 Show')
+            ),
+            viberToken
+              ? h('div',{style:{fontSize:11.5,color:'#22c55e',marginTop:4}},'✓ Viber Bot token saved — Viber messages will send automatically')
+              : h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,lineHeight:1.5}},'Create a Viber Bot at partners.viber.com → get auth token')
           ),
           h(Field,{label:'Gemini API Key'},
             h('div',{style:{display:'flex',gap:6}},
