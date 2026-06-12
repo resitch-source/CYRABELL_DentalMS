@@ -5916,7 +5916,7 @@ function KioskInfoBar({ads}){
 function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a;}
 
 function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patients,syncUrl}){
-  const [step,setStep]=useState('queue'); // 'queue'|'checkin'|'walkin'|'confirm'|'success'
+  const [step,setStep]=useState('queue'); // 'queue'|'checkin'|'walkin'|'install'|'confirm'|'success'
   const [search,setSearch]=useState('');
   const [picked,setPicked]=useState(null);
   const [clock,setClock]=useState(new Date());
@@ -5934,6 +5934,7 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
   const wi=(k,v)=>setWalkinInfo(x=>({...x,[k]:v}));
   const [kioskOs,setKioskOs]=useState('android');
   const kioskQrRef=useRef(null);
+  const kioskQrMainRef=useRef(null);
 
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date()),30000); return ()=>clearInterval(t); },[]);
 
@@ -5985,6 +5986,24 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
       drawKioskQr();
     })();
   },[kioskQrRef.current]);
+
+  // Draw QR on main install tab canvas
+  useEffect(()=>{
+    const canvas=kioskQrMainRef.current; if(!canvas) return;
+    const url='https://resitch-source.github.io/CYRABELL_DentalMS/'; const SIZE=180;
+    const ctx=canvas.getContext('2d');
+    canvas.width=SIZE; canvas.height=SIZE;
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,SIZE,SIZE);
+    function paintQr(ctx,qr,S){ const n=qr.size; const cell=S/n; ctx.fillStyle='#000'; for(let r=0;r<n;r++) for(let c=0;c<n;c++){ if(qr.getModule(r,c)) ctx.fillRect(c*cell,r*cell,cell,cell); } }
+    function drawFallback(ctx,S){ ctx.fillStyle='#000'; for(let i=0;i<7;i++) for(let j=0;j<7;j++){ if(i===0||i===6||j===0||j===6||(i>1&&i<5&&j>1&&j<5)){ ctx.fillRect(4+i*24,4+j*24,22,22); ctx.fillRect(S-167+i*24,4+j*24,22,22); ctx.fillRect(4+i*24,S-167+j*24,22,22); } } ctx.font='10px sans-serif'; ctx.fillStyle='#333'; ctx.textAlign='center'; ctx.fillText('Scan to Install',S/2,S-4); }
+    try{ const qr=window._makeQR ? window._makeQR(url) : null; if(qr){ paintQr(ctx,qr,SIZE); } else { drawFallback(ctx,SIZE); } }catch(e){ drawFallback(ctx,SIZE); }
+    // overlay logo
+    const cx=SIZE/2, cy=SIZE/2, r=SIZE*0.1;
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx,cy,r+3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#0a1628'; ctx.beginPath(); ctx.arc(cx,cy,r+1,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#00b4d8'; ctx.lineWidth=r*0.3; ctx.beginPath();
+    ctx.arc(cx,cy,r*0.65,0.4*Math.PI,1.6*Math.PI); ctx.stroke();
+  },[kioskQrMainRef.current, step]);
 
   // Auto-update Now Serving / Completed based on time every minute
   useEffect(()=>{
@@ -6113,7 +6132,8 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
     h('div',{className:'kiosk-nav'},
       h('button',{className:'kiosk-nav-btn'+(step==='queue'?' active':''),onClick:()=>setStep('queue')},'📋 Queue'),
       h('button',{className:'kiosk-nav-btn'+(step==='checkin'?' active':''),onClick:()=>setStep('checkin')},'✓ Check In'),
-      h('button',{className:'kiosk-nav-btn'+(step==='walkin'?' active':''),onClick:()=>{setStep('walkin');setWalkinDone(null);setWalkinErr('');}},walkinMode==='standby'?'🪑 Join Queue':'➕ Walk-In')
+      h('button',{className:'kiosk-nav-btn'+(step==='walkin'?' active':''),onClick:()=>{setStep('walkin');setWalkinDone(null);setWalkinErr('');}},walkinMode==='standby'?'🪑 Join Queue':'➕ Walk-In'),
+      h('button',{className:'kiosk-nav-btn'+(step==='install'?' active':''),onClick:()=>setStep('install')},'📲 Install App')
     ),
 
     // ── Content ───────────────────────────────────────────────────────────────
@@ -6287,6 +6307,67 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
         h('div',{className:'kiosk-success-msg'},'🪑 Please take a seat in the waiting area.',h('br'),'Our staff has been notified that you\'ve arrived.'),
         h('div',{className:'kiosk-countdown'},'This screen will reset in a few seconds…')
       )
+      ,
+
+      // ── INSTALL TAB ─────────────────────────────────────────────────────────
+      step==='install' && h('div',{style:{maxWidth:520,margin:'0 auto',padding:'8px 0'}},
+        h('div',{className:'kiosk-step-title',style:{marginBottom:16}},'📲 Install App on Your Phone'),
+        h('div',{style:{display:'flex',gap:24,alignItems:'flex-start',flexWrap:'wrap',justifyContent:'center'}},
+          // QR side
+          h('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:10}},
+            h('div',{style:{background:'#fff',borderRadius:16,padding:12,boxShadow:'0 4px 24px rgba(0,180,216,.3)'}},
+              h('canvas',{ref:kioskQrMainRef,width:180,height:180,title:'Scan to install'})
+            ),
+            h('div',{style:{fontSize:11,color:'rgba(255,255,255,.45)',textAlign:'center',lineHeight:1.4}},
+              'resitch-source.github.io',h('br'),'CYRABELL_DentalMS'
+            )
+          ),
+          // Steps side
+          h('div',{style:{flex:1,minWidth:220}},
+            h('div',{style:{display:'flex',gap:8,marginBottom:14}},
+              h('button',{
+                className:'kiosk-install-os-btn'+(kioskOs==='android'?' active':''),
+                style:{fontSize:12,padding:'6px 16px'},
+                onClick:()=>setKioskOs('android')
+              },'🤖 Android'),
+              h('button',{
+                className:'kiosk-install-os-btn'+(kioskOs==='ios'?' active':''),
+                style:{fontSize:12,padding:'6px 16px'},
+                onClick:()=>setKioskOs('ios')
+              },'🍎 iOS')
+            ),
+            kioskOs==='android'
+              ? h('div',{style:{display:'flex',flexDirection:'column',gap:12}},
+                  ...[
+                    ['1','Open your Camera app and point it at the QR code above'],
+                    ['2','A notification will appear — tap it to open the app in Chrome'],
+                    ['3','Tap the ⋮ menu (top-right) → select "Add to Home screen"'],
+                    ['4','Tap "Add" — the app icon will appear on your home screen'],
+                  ].map(([n,t])=>h('div',{key:n,style:{display:'flex',gap:10,alignItems:'flex-start'}},
+                    h('div',{style:{width:26,height:26,borderRadius:'50%',background:'rgba(0,180,216,.2)',border:'1px solid rgba(0,180,216,.5)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800,color:'#00d4ff',flexShrink:0,marginTop:1}},n),
+                    h('div',{style:{fontSize:13,color:'rgba(255,255,255,.75)',lineHeight:1.5}},t)
+                  ))
+                )
+              : h('div',{style:{display:'flex',flexDirection:'column',gap:12}},
+                  ...[
+                    ['1','Open Safari (must use Safari — not Chrome — on iOS)'],
+                    ['2','Scan the QR code with your Camera app or type the URL'],
+                    ['3','Tap the Share icon □↑ at the bottom of the screen'],
+                    ['4','Scroll down and tap "Add to Home Screen"'],
+                    ['5','Tap "Add" in the top-right — the app icon will appear'],
+                  ].map(([n,t])=>h('div',{key:n,style:{display:'flex',gap:10,alignItems:'flex-start'}},
+                    h('div',{style:{width:26,height:26,borderRadius:'50%',background:'rgba(0,180,216,.2)',border:'1px solid rgba(0,180,216,.5)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800,color:'#00d4ff',flexShrink:0,marginTop:1}},n),
+                    h('div',{style:{fontSize:13,color:'rgba(255,255,255,.75)',lineHeight:1.5}},t)
+                  ))
+                )
+          )
+        ),
+        h('div',{style:{marginTop:20,padding:'12px 16px',background:'rgba(0,180,216,.07)',border:'1px solid rgba(0,180,216,.18)',borderRadius:10,fontSize:12,color:'rgba(255,255,255,.5)',textAlign:'center',lineHeight:1.6}},
+          'Works like a native app — book appointments, view records, and receive reminders from your phone.',h('br'),
+          'No download required. Free for patients.'
+        )
+      )
+
     ) // end kiosk-content
     ), // end kiosk-main
 
