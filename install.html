@@ -180,8 +180,7 @@ function drawQR(url, canvasId, size){
 // ── Init ──────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', function(){
   // Determine app URL
-  var appUrl = location.href.replace('install.html','cyrabelldental_v2.html');
-  // Also handle GitHub Pages (look for index.html sibling)
+  var appUrl = 'https://resitch-source.github.io/CYRABELL_DentalMS/';
   document.getElementById('app-url').textContent = appUrl;
   drawQR(appUrl, 'qr', 220);
   // Update manifest link for this page too

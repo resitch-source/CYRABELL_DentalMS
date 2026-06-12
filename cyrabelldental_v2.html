@@ -5940,7 +5940,7 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
   // Draw QR code on kiosk install canvas
   useEffect(()=>{
     const canvas=kioskQrRef.current; if(!canvas) return;
-    const url=location.href; const SIZE=80; const QM=4;
+    const url='https://resitch-source.github.io/CYRABELL_DentalMS/'; const SIZE=80; const QM=4;
     // minimal QR data‑matrix painter (version 2, 25×25 placeholder replaced by real generator)
     function drawKioskQr(){
       // inline micro QR using same approach as install.html
@@ -6347,7 +6347,7 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
               ? h('div',null,
                   h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'1'),h('div',{className:'kiosk-install-text'},'Scan QR with camera or open in Chrome')),
                   h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'2'),h('div',{className:'kiosk-install-text'},'Tap ⋮ menu → "Add to Home screen"')),
-                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'3'),h('div',{className:'kiosk-install-text'},'Tap "Add" — Cyrabell appears on your home screen'))
+                  h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'3'),h('div',{className:'kiosk-install-text'},'Tap "Add" — the app appears on your home screen'))
                 )
               : h('div',null,
                   h('div',{className:'kiosk-install-step'},h('div',{className:'kiosk-install-num'},'1'),h('div',{className:'kiosk-install-text'},'Open this page in Safari')),
