@@ -13,7 +13,7 @@
 // Register inline manifest as blob for PWA installability
 (function(){
   const icon='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="#0a1628"/><circle cx="256" cy="256" r="190" fill="none" stroke="#00b4d8" stroke-width="40"/><path d="M340 160 A120 120 0 1 0 340 352" fill="none" stroke="#00b4d8" stroke-width="52" stroke-linecap="round"/><circle cx="340" cy="160" r="22" fill="#d4a017"/><circle cx="340" cy="352" r="22" fill="#d4a017"/></svg>');
-  const manifest={name:'Cyrabell Dental MS',short_name:'Cyrabell',description:'Complete Dental Practice Management System',start_url:location.href,display:'standalone',orientation:'portrait',background_color:'#0a1628',theme_color:'#00b4d8',icons:[{src:icon,sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}]};
+  const manifest={name:'Simplified Dental Clinic Management Systems',short_name:'SimplifiedDMS',description:'Complete Dental Practice Management System',start_url:location.href,display:'standalone',orientation:'portrait',background_color:'#0a1628',theme_color:'#00b4d8',icons:[{src:icon,sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}]};
   const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
   const url=URL.createObjectURL(blob);
   const link=document.createElement('link');
@@ -15777,6 +15777,9 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
               h('div',{className:'bn-ic'},h(Svg,{d:IC.menu,size:18,color:'var(--lt)'})),
               h('span',{className:'bn-lbl'},'More')
             )
+          ),
+          h('div',{style:{borderTop:'1px solid var(--bd)',padding:'6px 12px',display:'flex',alignItems:'center',justifyContent:'center',background:'#f8fafc'}},
+            h(BrandLogo,{dark:false,width:160})
           )
         )
       )
