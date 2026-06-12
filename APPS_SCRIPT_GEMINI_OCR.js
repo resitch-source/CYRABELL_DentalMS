@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// CYRABELL DENTAL MS — Google Apps Script Backend (v5 — Unified)
+// CYRABELL DENTAL MS — Google Apps Script Backend (v6 — Unified)
 // ═══════════════════════════════════════════════════════════════════════════
 //
 // Combines ALL responsibilities in one file:
@@ -7,8 +7,11 @@
 //   2. Patient photo upload / retrieval via Google Drive
 //   3. File attachment upload / delete via Google Drive
 //   4. Multi-provider AI Vision OCR (Gemini → OpenAI → Anthropic)
-//   5. Email & SMS notifications
-//   6. Server-side error logging
+//   5. Email notifications (Gmail / MailApp)
+//   6. SMS — Semaphore.co API (PH) with email-to-SMS fallback
+//   7. WhatsApp — Meta WhatsApp Business Cloud API (automated)
+//   8. Viber — Viber Bot REST API (automated)
+//   9. Server-side error logging
 //
 // ─── FIRST-TIME SETUP ────────────────────────────────────────────────────
 //  1. sheets.google.com → create a new blank spreadsheet
@@ -16,13 +19,15 @@
 //  2. Extensions → Apps Script
 //  3. Delete placeholder Code.gs, paste THIS ENTIRE FILE → Save (Ctrl+S)
 //  4. In function dropdown select "authorizeAll" → click ▶ Run
-//     → Review permissions → Allow (click Advanced → Go to project if warned)
+//     → Review permissions → Allow
 //  5. In function dropdown select "setupSheets" → click ▶ Run
-//  6. Add your Gemini API key (FREE):
-//     Project Settings (⚙️) → Script properties → Add property:
-//       Name:  GEMINI_API_KEY
-//       Value: AIza...  (get free key at aistudio.google.com/app/apikey)
-//  7. Deploy → New deployment → ⚙️ gear → Web app:
+//  6. Add your API keys via Script Properties (⚙️ Project Settings):
+//       GEMINI_API_KEY      — free at aistudio.google.com/app/apikey
+//       SEMAPHORE_API_KEY   — semaphore.co dashboard → API Key
+//       WA_TOKEN            — Meta Developer Console → WhatsApp → Token
+//       WA_PHONE_ID         — Meta Developer Console → WhatsApp → Phone Number ID
+//       VIBER_TOKEN         — partners.viber.com → Bot → Auth Token
+//  7. Deploy → New deployment → Web app:
 //       Execute as:     Me
 //       Who has access: Anyone
 //  8. Copy the Web app URL → paste in Cyrabell ☁️ Sync page
@@ -31,13 +36,6 @@
 //  1. Paste new code over Code.gs → Save
 //  2. Deploy → Manage deployments → ✏️ Edit → Version "New version" → Deploy
 //  3. URL stays the same — no need to update Cyrabell settings
-//
-// ⚡ FASTEST OCR (5-10s):
-//   Also enter your Gemini key in Cyrabell → ☁️ Sync → "Gemini OCR (Fast Mode)"
-//   card. The app then calls Gemini DIRECTLY from the browser, bypassing
-//   Apps Script cold start entirely.
-//
-// FREE TIER (Gemini 2.0 Flash): 15 req/min • 1,500 req/day
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -126,8 +124,10 @@ function doPost(e) {
     if (action === 'deleteFile')  return jsonOut(handleDeleteAttachment(payload));
 
     // ── Notifications ─────────────────────────────────────────────────────
-    if (action === 'sendEmail')   return jsonOut(handleSendEmail(payload));
-    if (action === 'sendSms')     return jsonOut(handleSendSms(payload));
+    if (action === 'sendEmail')    return jsonOut(handleSendEmail(payload));
+    if (action === 'sendSms')      return jsonOut(handleSendSms(payload));
+    if (action === 'sendWhatsapp') return jsonOut(handleSendWhatsapp(payload));
+    if (action === 'sendViber')    return jsonOut(handleSendViber(payload));
 
     // ── Real-time single-record upsert ────────────────────────────────────
     if (action === 'upsertRecord')    return jsonOut(handleUpsertRecord(payload));
@@ -445,50 +445,57 @@ function handleAppendLogs(payload) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CONFIG — save & retrieve GAS URL + API keys via PropertiesService
+// CONFIG — save & retrieve API keys via PropertiesService
 //
-// Keys are stored in Script Properties (never in the spreadsheet).
-// The client receives only boolean flags ("has key?"), never the values.
+// Keys stored in Script Properties (never in the spreadsheet).
+// Client receives only boolean "has key?" flags — values are never returned.
 //
-// Saved properties:
-//   GAS_URL          — this deployment's own web-app URL (for reference)
-//   GEMINI_API_KEY   — Gemini key (also used by handleOcr above)
-//   OPENAI_API_KEY   — optional
-//   ANTHROPIC_API_KEY — optional
-//
-// Action: saveConfig
-//   payload: { gasUrl?, geminiKey?, openaiKey?, anthropicKey? }
-//   Returns: { ok:true, saved:['geminiKey',...] }
-//
-// Action: getConfig
-//   No payload needed.
-//   Returns: { ok:true, hasGasUrl, hasGeminiKey, hasOpenaiKey, hasAnthropicKey }
+// Stored properties:
+//   GAS_URL            — this deployment's own web-app URL
+//   GEMINI_API_KEY     — Gemini (OCR). Free at aistudio.google.com
+//   OPENAI_API_KEY     — GPT-4o Vision (optional)
+//   ANTHROPIC_API_KEY  — Claude Haiku (optional)
+//   SEMAPHORE_API_KEY  — semaphore.co SMS (Philippines)
+//   WA_TOKEN           — WhatsApp Business Cloud API access token
+//   WA_PHONE_ID        — WhatsApp Business Cloud phone number ID
+//   VIBER_TOKEN        — Viber Bot authentication token
 // ═══════════════════════════════════════════════════════════════════════════
 
 function handleSaveConfig(payload) {
-  var props  = PropertiesService.getScriptProperties();
-  var saved  = [];
+  var props = PropertiesService.getScriptProperties();
+  var saved = [];
 
-  if (payload.gasUrl && payload.gasUrl.trim()) {
-    props.setProperty('GAS_URL', payload.gasUrl.trim());
-    saved.push('gasUrl');
-  }
-  if (payload.geminiKey && payload.geminiKey.trim()) {
-    props.setProperty('GEMINI_API_KEY', payload.geminiKey.trim());
-    saved.push('geminiKey');
-  }
-  if (payload.openaiKey && payload.openaiKey.trim()) {
-    props.setProperty('OPENAI_API_KEY', payload.openaiKey.trim());
-    saved.push('openaiKey');
-  }
-  if (payload.anthropicKey && payload.anthropicKey.trim()) {
-    props.setProperty('ANTHROPIC_API_KEY', payload.anthropicKey.trim());
-    saved.push('anthropicKey');
-  }
-  // Allow clearing a key by passing an explicit empty string with a _clear flag
-  if (payload.clearGeminiKey)   { props.deleteProperty('GEMINI_API_KEY');   saved.push('cleared:geminiKey'); }
-  if (payload.clearOpenaiKey)   { props.deleteProperty('OPENAI_API_KEY');   saved.push('cleared:openaiKey'); }
-  if (payload.clearAnthropicKey){ props.deleteProperty('ANTHROPIC_API_KEY');saved.push('cleared:anthropicKey'); }
+  var map = {
+    gasUrl:       'GAS_URL',
+    geminiKey:    'GEMINI_API_KEY',
+    openaiKey:    'OPENAI_API_KEY',
+    anthropicKey: 'ANTHROPIC_API_KEY',
+    semaphoreKey: 'SEMAPHORE_API_KEY',
+    waToken:      'WA_TOKEN',
+    waPhoneId:    'WA_PHONE_ID',
+    viberToken:   'VIBER_TOKEN',
+  };
+
+  Object.keys(map).forEach(function(field) {
+    if (payload[field] && String(payload[field]).trim()) {
+      props.setProperty(map[field], String(payload[field]).trim());
+      saved.push(field);
+    }
+  });
+
+  // Clear flags
+  var clearMap = {
+    clearGeminiKey:    'GEMINI_API_KEY',
+    clearOpenaiKey:    'OPENAI_API_KEY',
+    clearAnthropicKey: 'ANTHROPIC_API_KEY',
+    clearSemaphoreKey: 'SEMAPHORE_API_KEY',
+    clearWaToken:      'WA_TOKEN',
+    clearWaPhoneId:    'WA_PHONE_ID',
+    clearViberToken:   'VIBER_TOKEN',
+  };
+  Object.keys(clearMap).forEach(function(flag) {
+    if (payload[flag]) { props.deleteProperty(clearMap[flag]); saved.push('cleared:' + flag); }
+  });
 
   serverLog('INFO', 'saveConfig', 'Config updated: ' + saved.join(', '));
   return { ok:true, saved:saved };
@@ -496,12 +503,17 @@ function handleSaveConfig(payload) {
 
 function handleGetConfig() {
   var props = PropertiesService.getScriptProperties();
+  function has(k) { return !!(props.getProperty(k) || '').trim(); }
   return {
     ok:               true,
-    hasGasUrl:        !!(props.getProperty('GAS_URL')           || '').trim(),
-    hasGeminiKey:     !!(props.getProperty('GEMINI_API_KEY')    || '').trim(),
-    hasOpenaiKey:     !!(props.getProperty('OPENAI_API_KEY')    || '').trim(),
-    hasAnthropicKey:  !!(props.getProperty('ANTHROPIC_API_KEY') || '').trim(),
+    hasGasUrl:        has('GAS_URL'),
+    hasGeminiKey:     has('GEMINI_API_KEY'),
+    hasOpenaiKey:     has('OPENAI_API_KEY'),
+    hasAnthropicKey:  has('ANTHROPIC_API_KEY'),
+    hasSemaphoreKey:  has('SEMAPHORE_API_KEY'),
+    hasWaToken:       has('WA_TOKEN'),
+    hasWaPhoneId:     has('WA_PHONE_ID'),
+    hasViberToken:    has('VIBER_TOKEN'),
   };
 }
 
@@ -940,51 +952,228 @@ function handleSendEmail(payload) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SMS NOTIFICATIONS (via email-to-SMS gateway)
+// SMS NOTIFICATIONS
+// Priority: 1) Semaphore.co API  2) Email-to-SMS gateway  3) Manual URI
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Body: { action:'sendSms', phone, message, carrier? }
-// Carrier codes: globe | smart | sun | att | verizon | tmobile | sprint
+// Body: { action:'sendSms', phone, message, carrier?, semaphoreKey? }
 function handleSendSms(payload) {
   if (!payload.phone)   return { ok:false, error:'Missing phone' };
   if (!payload.message) return { ok:false, error:'Missing message' };
 
-  // Normalize Philippine numbers to 10 digits (strip leading 0 or country code 63)
-  var phone = String(payload.phone).replace(/\D/g,'');
-  if (phone.length === 11 && phone.charAt(0) === '0')          phone = phone.substring(1);
-  if (phone.length === 12 && phone.substring(0,2) === '63')    phone = phone.substring(2);
+  var props        = PropertiesService.getScriptProperties();
+  // Client may pass key directly (from browser localStorage); else use stored key
+  var semaphoreKey = (payload.semaphoreKey || props.getProperty('SEMAPHORE_API_KEY') || '').trim();
+  var rawPhone     = String(payload.phone).replace(/\D/g,'');
 
+  // Normalize to international format (63XXXXXXXXXX)
+  if (rawPhone.length === 11 && rawPhone.charAt(0) === '0')       rawPhone = '63' + rawPhone.substring(1);
+  else if (rawPhone.length === 10)                                  rawPhone = '63' + rawPhone;
+  else if (rawPhone.length === 12 && rawPhone.substring(0,2) !== '63') rawPhone = '63' + rawPhone.substring(rawPhone.length-10);
+
+  // ── Path 1: Semaphore.co API (automatic, no carrier needed) ──────────────
+  if (semaphoreKey && semaphoreKey.length > 10) {
+    Logger.log('[sendSms] Using Semaphore API for ' + rawPhone);
+    try {
+      var semBody = 'apikey=' + encodeURIComponent(semaphoreKey)
+        + '&number=' + encodeURIComponent(rawPhone)
+        + '&message=' + encodeURIComponent(String(payload.message).substring(0, 160))
+        + '&sendername=CYRABELL';
+      var semRes = UrlFetchApp.fetch('https://api.semaphore.co/api/v4/messages', {
+        method:             'post',
+        contentType:        'application/x-www-form-urlencoded',
+        payload:            semBody,
+        muteHttpExceptions: true
+      });
+      var semCode = semRes.getResponseCode();
+      var semData = JSON.parse(semRes.getContentText());
+      Logger.log('[sendSms] Semaphore HTTP ' + semCode + ' — ' + JSON.stringify(semData).substring(0, 200));
+      if (semCode !== 200 && semCode !== 201) {
+        var semErr = Array.isArray(semData) ? JSON.stringify(semData[0]) : JSON.stringify(semData);
+        return { ok:false, error:'Semaphore error ' + semCode + ': ' + semErr };
+      }
+      var msgId = Array.isArray(semData) ? (semData[0] && semData[0].message_id) : semData.message_id;
+      serverLog('INFO', 'sendSms', 'Semaphore sent to ' + rawPhone + ' msgId=' + msgId);
+      return { ok:true, method:'semaphore', messageId:msgId, phone:rawPhone, time:new Date().toISOString() };
+    } catch(err) {
+      Logger.log('[sendSms] Semaphore exception: ' + err.message);
+      return { ok:false, error:'Semaphore exception: ' + err.message };
+    }
+  }
+
+  // ── Path 2: Email-to-SMS gateway (requires carrier) ──────────────────────
+  var phone10 = rawPhone.replace(/^63/, ''); // 10-digit local
   var GATEWAYS = {
     globe:   '@globe.com.ph',
-    smart:   '@smart.com.ph',
-    sun:     '@sun.com.ph',
+    smart:   '@mysmart.com.ph',
+    sun:     '@suntextmessage.com',
+    tnt:     '@tnttext.com',
     att:     '@txt.att.net',
     verizon: '@vtext.com',
     tmobile: '@tmomail.net',
     sprint:  '@messaging.sprintpcs.com',
   };
-
   var carrier = (payload.carrier || '').toLowerCase();
   var gateway = GATEWAYS[carrier];
 
   if (gateway) {
+    Logger.log('[sendSms] Email-to-SMS gateway: ' + phone10 + gateway);
     try {
-      var addr = phone + gateway;
-      MailApp.sendEmail({ to:addr, subject:'', body:String(payload.message).substring(0,160), name:'Cyrabell' });
-      return { ok:true, method:'email-to-sms', gateway:addr, time:new Date().toISOString() };
+      MailApp.sendEmail({
+        to:   phone10 + gateway,
+        subject: '',
+        body: String(payload.message).substring(0, 160),
+        name: 'Cyrabell'
+      });
+      serverLog('INFO', 'sendSms', 'Email-to-SMS sent to ' + phone10 + gateway);
+      return { ok:true, method:'email-to-sms', gateway:phone10+gateway, time:new Date().toISOString() };
     } catch(err) {
-      return { ok:false, error:'SMS gateway failed: ' + err.message };
+      return { ok:false, error:'Email-to-SMS failed: ' + err.message };
     }
   }
 
-  // No carrier → return SMS URI for manual launch
+  // ── Path 3: Manual URI (no API key, no carrier configured) ───────────────
+  Logger.log('[sendSms] No API key/carrier — returning manual URI');
   return {
     ok:     true,
     method: 'manual',
-    telUri: 'sms:+63' + phone + '?body=' + encodeURIComponent(payload.message),
-    note:   'No carrier specified. Open the telUri to send manually.',
+    telUri: 'sms:+' + rawPhone + '?body=' + encodeURIComponent(payload.message),
+    note:   'No Semaphore key or carrier configured. Open telUri to send manually.',
     time:   new Date().toISOString()
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WHATSAPP BUSINESS CLOUD API
+// Requires: Meta Business account + approved WhatsApp Business app
+// Free tier: 1,000 service conversations / month
+// Docs: developers.facebook.com/docs/whatsapp/cloud-api
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Body: { action:'sendWhatsapp', phone, message, waToken?, waPhoneId? }
+function handleSendWhatsapp(payload) {
+  if (!payload.phone)   return { ok:false, error:'Missing phone' };
+  if (!payload.message) return { ok:false, error:'Missing message' };
+
+  var props      = PropertiesService.getScriptProperties();
+  var waToken    = (payload.waToken   || props.getProperty('WA_TOKEN')    || '').trim();
+  var waPhoneId  = (payload.waPhoneId || props.getProperty('WA_PHONE_ID') || '').trim();
+
+  if (!waToken)   return { ok:false, error:'WhatsApp token not configured. Add WA_TOKEN to Script Properties.' };
+  if (!waPhoneId) return { ok:false, error:'WhatsApp Phone ID not configured. Add WA_PHONE_ID to Script Properties.' };
+
+  // Normalize to international format
+  var phone = String(payload.phone).replace(/\D/g,'');
+  if (phone.length === 11 && phone.charAt(0) === '0') phone = '63' + phone.substring(1);
+  else if (phone.length === 10)                        phone = '63' + phone;
+
+  Logger.log('[sendWhatsapp] Sending to ' + phone + ' via phone ID ' + waPhoneId);
+
+  var requestBody = JSON.stringify({
+    messaging_product: 'whatsapp',
+    recipient_type:    'individual',
+    to:                phone,
+    type:              'text',
+    text:              { preview_url: false, body: String(payload.message) }
+  });
+
+  var res;
+  try {
+    res = UrlFetchApp.fetch(
+      'https://graph.facebook.com/v19.0/' + waPhoneId + '/messages',
+      {
+        method:             'post',
+        contentType:        'application/json',
+        headers:            { 'Authorization': 'Bearer ' + waToken },
+        payload:            requestBody,
+        muteHttpExceptions: true
+      }
+    );
+  } catch(err) {
+    Logger.log('[sendWhatsapp] Network error: ' + err.message);
+    return { ok:false, error:'WhatsApp network error: ' + err.message };
+  }
+
+  var code = res.getResponseCode();
+  var body = res.getContentText();
+  Logger.log('[sendWhatsapp] HTTP ' + code + ' — ' + body.substring(0, 300));
+
+  var data;
+  try { data = JSON.parse(body); } catch(e) { return { ok:false, error:'WhatsApp returned non-JSON: ' + body.substring(0,100) }; }
+
+  if (code !== 200) {
+    var errMsg = (data.error && data.error.message) || ('HTTP ' + code);
+    serverLog('ERROR', 'sendWhatsapp', errMsg + ' for ' + phone);
+    return { ok:false, error:'WhatsApp API error: ' + errMsg };
+  }
+
+  var msgId = data.messages && data.messages[0] && data.messages[0].id;
+  serverLog('INFO', 'sendWhatsapp', 'Sent to ' + phone + ' msgId=' + msgId);
+  return { ok:true, method:'whatsapp-cloud-api', messageId:msgId, phone:phone, time:new Date().toISOString() };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VIBER BOT REST API
+// Requires: Viber Bot account at partners.viber.com
+// Note: Bot can only message users who have subscribed (sent bot a message first)
+// Docs: developers.viber.com/docs/api/rest-bot-api
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Body: { action:'sendViber', phone, message, viberToken? }
+function handleSendViber(payload) {
+  if (!payload.phone)   return { ok:false, error:'Missing phone' };
+  if (!payload.message) return { ok:false, error:'Missing message' };
+
+  var props      = PropertiesService.getScriptProperties();
+  var viberToken = (payload.viberToken || props.getProperty('VIBER_TOKEN') || '').trim();
+
+  if (!viberToken) return { ok:false, error:'Viber token not configured. Add VIBER_TOKEN to Script Properties.' };
+
+  // Normalize phone
+  var phone = String(payload.phone).replace(/\D/g,'');
+  if (phone.length === 11 && phone.charAt(0) === '0') phone = '63' + phone.substring(1);
+  else if (phone.length === 10)                        phone = '63' + phone;
+
+  Logger.log('[sendViber] Sending to ' + phone);
+
+  var requestBody = JSON.stringify({
+    receiver:        phone,
+    min_api_version: 1,
+    sender:          { name: 'Cyrabell Dental', avatar: '' },
+    tracking_data:   'cyrabell_reminder_' + Date.now(),
+    type:            'text',
+    text:            String(payload.message)
+  });
+
+  var res;
+  try {
+    res = UrlFetchApp.fetch('https://chatapi.viber.com/pa/send_message', {
+      method:             'post',
+      contentType:        'application/json',
+      headers:            { 'X-Viber-Auth-Token': viberToken },
+      payload:            requestBody,
+      muteHttpExceptions: true
+    });
+  } catch(err) {
+    Logger.log('[sendViber] Network error: ' + err.message);
+    return { ok:false, error:'Viber network error: ' + err.message };
+  }
+
+  var code = res.getResponseCode();
+  var body = res.getContentText();
+  Logger.log('[sendViber] HTTP ' + code + ' — ' + body.substring(0, 300));
+
+  var data;
+  try { data = JSON.parse(body); } catch(e) { return { ok:false, error:'Viber returned non-JSON: ' + body.substring(0,100) }; }
+
+  // Viber status codes: 0 = OK, others = error
+  if (data.status !== 0) {
+    serverLog('ERROR', 'sendViber', 'Status ' + data.status + ': ' + data.status_message + ' for ' + phone);
+    return { ok:false, error:'Viber error ' + data.status + ': ' + (data.status_message || 'Unknown error') };
+  }
+
+  serverLog('INFO', 'sendViber', 'Sent to ' + phone + ' token=' + data.message_token);
+  return { ok:true, method:'viber-bot-api', messageId:data.message_token, phone:phone, time:new Date().toISOString() };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1102,6 +1291,50 @@ function setupGeminiKey() {
   PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', key);
   Logger.log('✅ Gemini key saved: ' + key.substring(0,8) + '… (' + key.length + ' chars)');
   Logger.log('   Redeploy: Deploy → Manage → ✏️ Edit → New version → Deploy');
+}
+
+// Save messaging API keys. Fill values below then click ▶ Run.
+function setupMessagingKeys() {
+  var keys = {
+    SEMAPHORE_API_KEY: 'YOUR-SEMAPHORE-KEY-HERE',  // semaphore.co → Dashboard → API Key
+    WA_TOKEN:          'YOUR-WA-TOKEN-HERE',         // Meta Dev Console → WhatsApp → Access Token
+    WA_PHONE_ID:       'YOUR-WA-PHONE-ID-HERE',      // Meta Dev Console → WhatsApp → Phone Number ID
+    VIBER_TOKEN:       'YOUR-VIBER-TOKEN-HERE',      // partners.viber.com → Bot → Auth Token
+  };
+  var props = PropertiesService.getScriptProperties();
+  var saved = [];
+  Object.keys(keys).forEach(function(k) {
+    var v = keys[k];
+    if (v && v.indexOf('YOUR-') !== 0 && v.length > 5) {
+      props.setProperty(k, v.trim());
+      saved.push(k);
+      Logger.log('✅ Saved ' + k + ': ' + v.substring(0,8) + '…');
+    } else {
+      Logger.log('⏭ Skipped ' + k + ' (still placeholder)');
+    }
+  });
+  if (saved.length > 0) Logger.log('\n✅ Saved: ' + saved.join(', ') + '\n   Redeploy as new version for changes to take effect.');
+  else Logger.log('\n❌ No keys saved. Replace the placeholder values above with your actual keys first.');
+}
+
+// Check status of all API keys (messaging + AI).
+function checkAllKeyStatus() {
+  var props = PropertiesService.getScriptProperties().getProperties();
+  function mask(k) { k=(k||'').trim(); return k ? k.substring(0,8)+'…('+k.length+' chars)' : '(not set)'; }
+  Logger.log('=== AI / OCR Keys ===');
+  Logger.log('GEMINI_API_KEY:    ' + mask(props.GEMINI_API_KEY));
+  Logger.log('OPENAI_API_KEY:    ' + mask(props.OPENAI_API_KEY));
+  Logger.log('ANTHROPIC_API_KEY: ' + mask(props.ANTHROPIC_API_KEY));
+  Logger.log('');
+  Logger.log('=== Messaging Keys ===');
+  Logger.log('SEMAPHORE_API_KEY: ' + mask(props.SEMAPHORE_API_KEY));
+  Logger.log('WA_TOKEN:          ' + mask(props.WA_TOKEN));
+  Logger.log('WA_PHONE_ID:       ' + (props.WA_PHONE_ID || '(not set)'));
+  Logger.log('VIBER_TOKEN:       ' + mask(props.VIBER_TOKEN));
+  Logger.log('');
+  Logger.log('Active SMS:       ' + ((props.SEMAPHORE_API_KEY && props.SEMAPHORE_API_KEY.length > 10) ? 'Semaphore API ✅' : 'Email-to-SMS gateway ⚠️'));
+  Logger.log('Active WhatsApp:  ' + ((props.WA_TOKEN && props.WA_PHONE_ID) ? 'Business Cloud API ✅' : 'Deep link (manual) ⚠️'));
+  Logger.log('Active Viber:     ' + (props.VIBER_TOKEN ? 'Bot REST API ✅' : 'Deep link (manual) ⚠️'));
 }
 
 // Save your Anthropic API key. Replace key below then click ▶ Run.
