@@ -6004,6 +6004,20 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
 
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date()),30000); return ()=>clearInterval(t); },[]);
 
+  // Real-time queue refresh: listen for localStorage changes from other tabs,
+  // and poll every 15s to catch same-tab updates (e.g. booking confirmations)
+  useEffect(()=>{
+    const reload=()=>{
+      try{
+        const s=localStorage.getItem('cyrabell_v2_appointments');
+        if(s){const d=JSON.parse(s);if(Array.isArray(d))setAppointments(d);}
+      }catch(e){}
+    };
+    window.addEventListener('storage',reload);
+    const t=setInterval(reload,15000);
+    return ()=>{ window.removeEventListener('storage',reload); clearInterval(t); };
+  },[]);
+
   // Draw QR on sidebar install canvas
   useEffect(()=>{
     if(kioskQrRef.current && window._drawQROnCanvas)
