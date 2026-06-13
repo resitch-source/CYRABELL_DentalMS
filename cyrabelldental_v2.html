@@ -21,6 +21,66 @@
   document.head.appendChild(link);
 })();
 </script>
+</script>
+<!-- QR Code generator (MIT, based on qrcodejs) — used by Kiosk install panel -->
+<script>
+(function(){
+"use strict";
+var QRMode={MODE_NUMBER:1,MODE_ALPHA_NUM:2,MODE_8BIT_BYTE:4,MODE_KANJI:8};
+var QRErrorCorrectLevel={L:1,M:0,Q:3,H:2};
+var QRMaskPattern={PATTERN000:0,PATTERN001:1,PATTERN010:2,PATTERN011:3,PATTERN100:4,PATTERN101:5,PATTERN110:6,PATTERN111:7};
+var QRUtil={PATTERN_POSITION_TABLE:[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,132],[6,34,60,86,112,136],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],G15:1335,G18:7973,G15_MASK:21522,
+getBCHTypeInfo:function(d){var a=d<<10;while(QRUtil.getBCHDigit(a)-QRUtil.getBCHDigit(QRUtil.G15)>=0)a^=QRUtil.G15<<(QRUtil.getBCHDigit(a)-QRUtil.getBCHDigit(QRUtil.G15));return((d<<10)|a)^QRUtil.G15_MASK},
+getBCHTypeNumber:function(d){var a=d<<12;while(QRUtil.getBCHDigit(a)-QRUtil.getBCHDigit(QRUtil.G18)>=0)a^=QRUtil.G18<<(QRUtil.getBCHDigit(a)-QRUtil.getBCHDigit(QRUtil.G18));return(d<<12)|a},
+getBCHDigit:function(d){var a=0;while(d!=0){a++;d>>>=1;}return a},
+getPatternPosition:function(a){return QRUtil.PATTERN_POSITION_TABLE[a-1]},
+getMask:function(a,i,j){switch(a){case QRMaskPattern.PATTERN000:return(i+j)%2==0;case QRMaskPattern.PATTERN001:return i%2==0;case QRMaskPattern.PATTERN010:return j%3==0;case QRMaskPattern.PATTERN011:return(i+j)%3==0;case QRMaskPattern.PATTERN100:return(Math.floor(i/2)+Math.floor(j/3))%2==0;case QRMaskPattern.PATTERN101:return(i*j)%2+(i*j)%3==0;case QRMaskPattern.PATTERN110:return((i*j)%2+(i*j)%3)%2==0;case QRMaskPattern.PATTERN111:return((i*j)%3+(i+j)%2)%2==0;default:throw new Error("bad maskPattern:"+a)}},
+getErrorCorrectPolynomial:function(e){var a=new QRPolynomial([1],0);for(var i=0;i<e;i++)a=a.multiply(new QRPolynomial([1,QRMath.gexp(i)],0));return a},
+getLengthInBits:function(m,t){if(1<=t&&t<10){switch(m){case QRMode.MODE_NUMBER:return 10;case QRMode.MODE_ALPHA_NUM:return 9;case QRMode.MODE_8BIT_BYTE:return 8;case QRMode.MODE_KANJI:return 8;default:throw new Error("mode:"+m)}}else if(t<27){switch(m){case QRMode.MODE_NUMBER:return 12;case QRMode.MODE_ALPHA_NUM:return 11;case QRMode.MODE_8BIT_BYTE:return 16;case QRMode.MODE_KANJI:return 10;default:throw new Error("mode:"+m)}}else if(t<41){switch(m){case QRMode.MODE_NUMBER:return 14;case QRMode.MODE_ALPHA_NUM:return 13;case QRMode.MODE_8BIT_BYTE:return 16;case QRMode.MODE_KANJI:return 12;default:throw new Error("mode:"+m)}}else throw new Error("type:"+t)},
+getLostPoint:function(q){var s=q.getModuleCount(),l=0;for(var r=0;r<s;r++){for(var c=0;c<s;c++){var same=0,d=q.isDark(r,c);for(var x=-1;x<=1;x++){if(r+x<=-1||s<=r+x)continue;for(var y=-1;y<=1;y++){if(c+y<=-1||s<=c+y)continue;if(x==0&&y==0)continue;if(d==q.isDark(r+x,c+y))same++;}}if(same>5)l+=(3+same-5);}}for(var r=0;r<s-1;r++){for(var c=0;c<s-1;c++){var cnt=0;if(q.isDark(r,c))cnt++;if(q.isDark(r+1,c))cnt++;if(q.isDark(r,c+1))cnt++;if(q.isDark(r+1,c+1))cnt++;if(cnt==0||cnt==4)l+=3;}}for(var r=0;r<s;r++){for(var c=0;c<s-6;c++){if(q.isDark(r,c)&&!q.isDark(r,c+1)&&q.isDark(r,c+2)&&q.isDark(r,c+3)&&q.isDark(r,c+4)&&!q.isDark(r,c+5)&&q.isDark(r,c+6))l+=40;}}for(var c=0;c<s;c++){for(var r=0;r<s-6;r++){if(q.isDark(r,c)&&!q.isDark(r+1,c)&&q.isDark(r+2,c)&&q.isDark(r+3,c)&&q.isDark(r+4,c)&&!q.isDark(r+5,c)&&q.isDark(r+6,c))l+=40;}}var dark=0;for(var r=0;r<s;r++){for(var c=0;c<s;c++){if(q.isDark(r,c))dark++;}}var ratio=Math.abs(100*dark/s/s-50)/5;l+=ratio*10;return l}};
+var QRMath={glog:function(n){if(n<1)throw new Error("glog("+n+")");return QRMath.LOG_TABLE[n]},gexp:function(n){while(n<0)n+=255;while(n>=256)n-=255;return QRMath.EXP_TABLE[n]},EXP_TABLE:new Array(256),LOG_TABLE:new Array(256)};
+for(var i=0;i<8;i++)QRMath.EXP_TABLE[i]=1<<i;
+for(var i=8;i<256;i++)QRMath.EXP_TABLE[i]=QRMath.EXP_TABLE[i-4]^QRMath.EXP_TABLE[i-5]^QRMath.EXP_TABLE[i-6]^QRMath.EXP_TABLE[i-8];
+for(var i=0;i<255;i++)QRMath.LOG_TABLE[QRMath.EXP_TABLE[i]]=i;
+function QRPolynomial(n,s){if(n.length==undefined)throw new Error(n.length+"/"+s);var o=0;while(o<n.length&&n[o]==0)o++;this.num=new Array(n.length-o+s);for(var i=0;i<n.length-o;i++)this.num[i]=n[i+o];}
+QRPolynomial.prototype={get:function(i){return this.num[i]},getLength:function(){return this.num.length},multiply:function(e){var n=new Array(this.getLength()+e.getLength()-1);for(var i=0;i<this.getLength();i++)for(var j=0;j<e.getLength();j++)n[i+j]^=QRMath.gexp(QRMath.glog(this.get(i))+QRMath.glog(e.get(j)));return new QRPolynomial(n,0)},mod:function(e){if(this.getLength()-e.getLength()<0)return this;var r=QRMath.glog(this.get(0))-QRMath.glog(e.get(0));var n=new Array(this.getLength());for(var i=0;i<this.getLength();i++)n[i]=this.get(i);for(var i=0;i<e.getLength();i++)n[i]^=QRMath.gexp(QRMath.glog(e.get(i))+r);return new QRPolynomial(n,0).mod(e)}};
+function QRRS_BLOCK(t,d,e){this.totalCount=t;this.dataCount=d;this.ecCount=e;}
+QRRS_BLOCK.RS_BLOCK_TABLE=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]];
+QRRS_BLOCK.getRSBlocks=function(t,e){var d=QRRS_BLOCK.getRsBlockTable(t,e);if(d==undefined)throw new Error("bad rs block @ typeNumber:"+t+"/errorCorrectionLevel:"+e);var l=d.length/3;var b=[];for(var i=0;i<l;i++){var c=d[i*3+0],nb=d[i*3+1],dc=d[i*3+2];for(var j=0;j<c;j++)b.push(new QRRS_BLOCK(nb,dc,nb-dc));}return b};
+QRRS_BLOCK.getRsBlockTable=function(t,e){switch(e){case QRErrorCorrectLevel.L:return QRRS_BLOCK.RS_BLOCK_TABLE[(t-1)*4+0];case QRErrorCorrectLevel.M:return QRRS_BLOCK.RS_BLOCK_TABLE[(t-1)*4+1];case QRErrorCorrectLevel.Q:return QRRS_BLOCK.RS_BLOCK_TABLE[(t-1)*4+2];case QRErrorCorrectLevel.H:return QRRS_BLOCK.RS_BLOCK_TABLE[(t-1)*4+3];default:return undefined}};
+function QRBitBuffer(){this.buffer=[];this.length=0;}
+QRBitBuffer.prototype={get:function(i){var b=Math.floor(i/8);return((this.buffer[b]>>>(7-i%8))&1)==1},put:function(d,l){for(var i=0;i<l;i++)this.putBit(((d>>>(l-i-1))&1)==1)},getLengthInBits:function(){return this.length},putBit:function(b){var p=Math.floor(this.length/8);if(this.buffer.length<=p)this.buffer.push(0);if(b)this.buffer[p]|=0x80>>>(this.length%8);this.length++}};
+function QR8bitByte(d){this.mode=QRMode.MODE_8BIT_BYTE;this.data=d;}
+QR8bitByte.prototype={getLength:function(){return this.data.length},write:function(b){for(var i=0;i<this.data.length;i++){var c=this.data.charCodeAt(i);b.put(c,8);}}};
+function QRCodeModel(t,e){this.typeNumber=t;this.errorCorrectLevel=e;this.modules=null;this.moduleCount=0;this.dataCache=null;this.dataList=[];}
+QRCodeModel.prototype={addData:function(d){var nd=new QR8bitByte(d);this.dataList.push(nd);this.dataCache=null},isDark:function(r,c){if(r<0||this.moduleCount<=r||c<0||this.moduleCount<=c)throw new Error(r+","+c);return this.modules[r][c]},getModuleCount:function(){return this.moduleCount},make:function(){this.makeImpl(false,this.getBestMaskPattern())},makeImpl:function(t,mp){this.moduleCount=this.typeNumber*4+17;this.modules=new Array(this.moduleCount);for(var r=0;r<this.moduleCount;r++){this.modules[r]=new Array(this.moduleCount);for(var c=0;c<this.moduleCount;c++)this.modules[r][c]=null;}this.setupPositionProbePattern(0,0);this.setupPositionProbePattern(this.moduleCount-7,0);this.setupPositionProbePattern(0,this.moduleCount-7);this.setupPositionAdjustPattern();this.setupTimingPattern();this.setupTypeInfo(t,mp);if(this.typeNumber>=7)this.setupTypeNumber(t);if(this.dataCache==null)this.dataCache=QRCodeModel.createData(this.typeNumber,this.errorCorrectLevel,this.dataList);this.mapData(this.dataCache,mp)},setupPositionProbePattern:function(r,c){for(var dr=-1;dr<=7;dr++){if(r+dr<=-1||this.moduleCount<=r+dr)continue;for(var dc=-1;dc<=7;dc++){if(c+dc<=-1||this.moduleCount<=c+dc)continue;if((0<=dr&&dr<=6&&(dc==0||dc==6))||(0<=dc&&dc<=6&&(dr==0||dr==6))||(2<=dr&&dr<=4&&2<=dc&&dc<=4))this.modules[r+dr][c+dc]=true;else this.modules[r+dr][c+dc]=false;}}},getBestMaskPattern:function(){var mp=0,min=0;for(var i=0;i<8;i++){this.makeImpl(true,i);var l=QRUtil.getLostPoint(this);if(i==0||min>l){min=l;mp=i;}}return mp},setupTimingPattern:function(){for(var r=8;r<this.moduleCount-8;r++){if(this.modules[r][6]!=null)continue;this.modules[r][6]=(r%2==0);}for(var c=8;c<this.moduleCount-8;c++){if(this.modules[6][c]!=null)continue;this.modules[6][c]=(c%2==0);}},setupPositionAdjustPattern:function(){var p=QRUtil.getPatternPosition(this.typeNumber);for(var i=0;i<p.length;i++){for(var j=0;j<p.length;j++){var r=p[i],c=p[j];if(this.modules[r][c]!=null)continue;for(var dr=-2;dr<=2;dr++){for(var dc=-2;dc<=2;dc++){if(dr==-2||dr==2||dc==-2||dc==2||(dr==0&&dc==0))this.modules[r+dr][c+dc]=true;else this.modules[r+dr][c+dc]=false;}}}}},setupTypeNumber:function(t){var b=QRUtil.getBCHTypeNumber(this.typeNumber);for(var i=0;i<18;i++){var m=(!t&&((b>>i)&1)==1);this.modules[Math.floor(i/3)][i%3+this.moduleCount-8-3]=m;}for(var i=0;i<18;i++){var m=(!t&&((b>>i)&1)==1);this.modules[i%3+this.moduleCount-8-3][Math.floor(i/3)]=m;}},setupTypeInfo:function(t,mp){var d=(this.errorCorrectLevel<<3)|mp;var b=QRUtil.getBCHTypeInfo(d);for(var i=0;i<15;i++){var m=(!t&&((b>>i)&1)==1);if(i<6)this.modules[i][8]=m;else if(i<8)this.modules[i+1][8]=m;else this.modules[this.moduleCount-15+i][8]=m;}for(var i=0;i<15;i++){var m=(!t&&((b>>i)&1)==1);if(i<8)this.modules[8][this.moduleCount-i-1]=m;else if(i<9)this.modules[8][15-i-1+1]=m;else this.modules[8][15-i-1]=m;}this.modules[this.moduleCount-8][8]=(!t)},mapData:function(d,mp){var i=-1,r=this.moduleCount-1,bi=7,inc=-1;for(var c=this.moduleCount-1;c>0;c-=2){if(c==6)c--;while(true){for(var ca=0;ca<2;ca++){if(this.modules[r][c-ca]==null){var dk=false;if(bi>=0){dk=((d[Math.floor(i/8)]>>>(7-i%8))&1)==1;}if(QRUtil.getMask(mp,r,c-ca))dk=!dk;this.modules[r][c-ca]=dk;i++;if(i==bi*8+7){bi--;i=-1;}}}r+=inc;if(r<0||this.moduleCount<=r){r-=inc;inc=-1*inc;break;}}}}};
+QRCodeModel.PAD0=0xEC;QRCodeModel.PAD1=0x11;
+QRCodeModel.createData=function(t,e,dl){var rs=QRRS_BLOCK.getRSBlocks(t,e);var bb=new QRBitBuffer();for(var i=0;i<dl.length;i++){var d=dl[i];bb.put(d.mode,4);bb.put(d.getLength(),QRUtil.getLengthInBits(d.mode,t));d.write(bb);}var total=0;for(var i=0;i<rs.length;i++)total+=rs[i].dataCount;if(bb.getLengthInBits()>total*8)throw new Error("code length overflow:"+bb.getLengthInBits()+">"+total*8);if(bb.getLengthInBits()+4<=total*8)bb.put(0,4);while(bb.getLengthInBits()%8!=0)bb.putBit(false);while(true){if(bb.getLengthInBits()>=total*8)break;bb.put(QRCodeModel.PAD0,8);if(bb.getLengthInBits()>=total*8)break;bb.put(QRCodeModel.PAD1,8);}return QRCodeModel.createBytes(bb,rs)};
+QRCodeModel.createBytes=function(bb,rs){var offset=0,maxDcCount=0,maxEcCount=0,dcdata=new Array(rs.length),ecdata=new Array(rs.length);for(var r=0;r<rs.length;r++){var dcCount=rs[r].dataCount;var ecCount=rs[r].totalCount-dcCount;maxDcCount=Math.max(maxDcCount,dcCount);maxEcCount=Math.max(maxEcCount,ecCount);dcdata[r]=new Array(dcCount);for(var i=0;i<dcdata[r].length;i++)dcdata[r][i]=0xff&bb.buffer[i+offset];offset+=dcCount;var rsPoly=QRUtil.getErrorCorrectPolynomial(ecCount);var rawPoly=new QRPolynomial(dcdata[r],rsPoly.getLength()-1);var modPoly=rawPoly.mod(rsPoly);ecdata[r]=new Array(rsPoly.getLength()-1);for(var i=0;i<ecdata[r].length;i++){var modIndex=i+modPoly.getLength()-ecdata[r].length;ecdata[r][i]=(modIndex>=0)?modPoly.get(modIndex):0;}}var totalCodeCount=0;for(var i=0;i<rs.length;i++)totalCodeCount+=rs[i].totalCount;var data=new Array(totalCodeCount);var index=0;for(var i=0;i<maxDcCount;i++)for(var r=0;r<rs.length;r++)if(i<dcdata[r].length)data[index++]=dcdata[r][i];for(var i=0;i<maxEcCount;i++)for(var r=0;r<rs.length;r++)if(i<ecdata[r].length)data[index++]=ecdata[r][i];return data};
+// Expose: draw QR onto a canvas element (not an id) at given size
+window._drawQROnCanvas=function(url,canvas,size){
+  var qr=null;
+  for(var t=1;t<=40;t++){try{var m=new QRCodeModel(t,QRErrorCorrectLevel.M);m.addData(url);m.make();qr=m;break;}catch(e){}}
+  if(!qr||!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var count=qr.getModuleCount();
+  var cell=Math.floor(size/count);
+  var actual=cell*count;
+  canvas.width=actual;canvas.height=actual;
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,actual,actual);
+  for(var r=0;r<count;r++)for(var c=0;c<count;c++){ctx.fillStyle=qr.isDark(r,c)?'#0a1628':'#ffffff';ctx.fillRect(c*cell,r*cell,cell,cell);}
+  // logo overlay
+  var cx=actual/2,cy=actual/2,cr=cell*3.5;
+  ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(cx,cy,cr+2,0,2*Math.PI);ctx.fill();
+  ctx.fillStyle='#0a1628';ctx.beginPath();ctx.arc(cx,cy,cr,0,2*Math.PI);ctx.fill();
+  ctx.strokeStyle='#00b4d8';ctx.lineWidth=cr*0.28;ctx.lineCap='round';
+  ctx.beginPath();ctx.arc(cx,cy,cr*0.58,0.45*Math.PI,1.55*Math.PI,false);ctx.stroke();
+  ctx.fillStyle='#d4a017';
+  ctx.beginPath();ctx.arc(cx-Math.sin(0.45*Math.PI)*cr*0.58,cy+Math.cos(0.45*Math.PI)*cr*0.58,cr*0.13,0,2*Math.PI);ctx.fill();
+  ctx.beginPath();ctx.arc(cx-Math.sin(1.55*Math.PI)*cr*0.58,cy+Math.cos(1.55*Math.PI)*cr*0.58,cr*0.13,0,2*Math.PI);ctx.fill();
+};
+})();
+</script>
 <!-- Security: Content-Security-Policy — blocks external script injection while allowing inline scripts (required for single-file app) -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: blob: https://drive.google.com https://lh3.googleusercontent.com https://drive.usercontent.google.com; connect-src 'self' blob: http://localhost:* http://127.0.0.1:* https://script.google.com https://script.googleusercontent.com https://generativelanguage.googleapis.com https://api.open-meteo.com https://api.allorigins.win https://corsproxy.io https://api.codetabs.com; worker-src 'self' blob:; frame-src https://drive.google.com https://docs.google.com https://www.youtube.com https://www.youtube-nocookie.com;">
 <!-- Performance: preconnect to font origin so the browser opens the TCP/TLS connection early -->
@@ -5938,71 +5998,16 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
 
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date()),30000); return ()=>clearInterval(t); },[]);
 
-  // Draw QR code on kiosk install canvas
+  // Draw QR on sidebar install canvas
   useEffect(()=>{
-    const canvas=kioskQrRef.current; if(!canvas) return;
-    const url='https://resitch-source.github.io/CYRABELL_DentalMS/'; const SIZE=80; const QM=4;
-    // minimal QR data‑matrix painter (version 2, 25×25 placeholder replaced by real generator)
-    function drawKioskQr(){
-      // inline micro QR using same approach as install.html
-      const ctx=canvas.getContext('2d');
-      canvas.width=SIZE; canvas.height=SIZE;
-      ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,SIZE,SIZE);
-      // Use qrcodegen if available, else draw placeholder
-      try {
-        const qr=window._makeQR ? window._makeQR(url) : null;
-        if(qr){ paintQr(ctx,qr,SIZE); } else { drawFallback(ctx,SIZE,url); }
-      } catch(e){ drawFallback(ctx,SIZE,url); }
-      // C logo overlay
-      const cx=SIZE/2, cy=SIZE/2, r=SIZE*0.13;
-      ctx.fillStyle='#0a1628'; ctx.beginPath(); ctx.arc(cx,cy,r+2,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle='#00b4d8'; ctx.lineWidth=r*0.28; ctx.beginPath();
-      ctx.arc(cx,cy,r*0.7,0.4*Math.PI,1.6*Math.PI); ctx.stroke();
-    }
-    function drawFallback(ctx,S,txt){
-      // simple grid pattern to look like QR
-      ctx.fillStyle='#000';
-      for(let i=0;i<7;i++) for(let j=0;j<7;j++){
-        if(i===0||i===6||j===0||j===6||(i>1&&i<5&&j>1&&j<5)){
-          ctx.fillRect(2+i*11,2+j*11,10,10);
-          ctx.fillRect(S-79+i*11,2+j*11,10,10);
-          ctx.fillRect(2+i*11,S-79+j*11,10,10);
-        }
-      }
-      ctx.font='6px sans-serif'; ctx.fillStyle='#333'; ctx.textAlign='center';
-      ctx.fillText('Scan to Install',S/2,S-3);
-    }
-    function paintQr(ctx,qr,S){
-      const n=qr.size; const cell=S/n;
-      ctx.fillStyle='#000';
-      for(let r=0;r<n;r++) for(let c=0;c<n;c++){
-        if(qr.getModule(r,c)) ctx.fillRect(c*cell,r*cell,cell,cell);
-      }
-    }
-    // Try to generate with a lightweight inline function
-    (function(){
-      if(window._makeQR) return drawKioskQr();
-      // Encode URL as QR using browser's built-in if available (future-proof)
-      drawKioskQr();
-    })();
+    if(kioskQrRef.current && window._drawQROnCanvas)
+      window._drawQROnCanvas('https://resitch-source.github.io/CYRABELL_DentalMS/',kioskQrRef.current,80);
   },[kioskQrRef.current]);
 
   // Draw QR on main install tab canvas
   useEffect(()=>{
-    const canvas=kioskQrMainRef.current; if(!canvas) return;
-    const url='https://resitch-source.github.io/CYRABELL_DentalMS/'; const SIZE=180;
-    const ctx=canvas.getContext('2d');
-    canvas.width=SIZE; canvas.height=SIZE;
-    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,SIZE,SIZE);
-    function paintQr(ctx,qr,S){ const n=qr.size; const cell=S/n; ctx.fillStyle='#000'; for(let r=0;r<n;r++) for(let c=0;c<n;c++){ if(qr.getModule(r,c)) ctx.fillRect(c*cell,r*cell,cell,cell); } }
-    function drawFallback(ctx,S){ ctx.fillStyle='#000'; for(let i=0;i<7;i++) for(let j=0;j<7;j++){ if(i===0||i===6||j===0||j===6||(i>1&&i<5&&j>1&&j<5)){ ctx.fillRect(4+i*24,4+j*24,22,22); ctx.fillRect(S-167+i*24,4+j*24,22,22); ctx.fillRect(4+i*24,S-167+j*24,22,22); } } ctx.font='10px sans-serif'; ctx.fillStyle='#333'; ctx.textAlign='center'; ctx.fillText('Scan to Install',S/2,S-4); }
-    try{ const qr=window._makeQR ? window._makeQR(url) : null; if(qr){ paintQr(ctx,qr,SIZE); } else { drawFallback(ctx,SIZE); } }catch(e){ drawFallback(ctx,SIZE); }
-    // overlay logo
-    const cx=SIZE/2, cy=SIZE/2, r=SIZE*0.1;
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx,cy,r+3,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#0a1628'; ctx.beginPath(); ctx.arc(cx,cy,r+1,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='#00b4d8'; ctx.lineWidth=r*0.3; ctx.beginPath();
-    ctx.arc(cx,cy,r*0.65,0.4*Math.PI,1.6*Math.PI); ctx.stroke();
+    if(kioskQrMainRef.current && window._drawQROnCanvas)
+      window._drawQROnCanvas('https://resitch-source.github.io/CYRABELL_DentalMS/',kioskQrMainRef.current,200);
   },[kioskQrMainRef.current, step]);
 
   // Auto-update Now Serving / Completed based on time every minute
