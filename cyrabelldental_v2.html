@@ -5040,6 +5040,42 @@ async function sendNotification(channel, patient, message, syncUrl) {
 }
 
 
+// ── Auto-notification helpers ────────────────────────────────────────────────
+
+// Returns channels that have API credentials configured in localStorage.
+function getEnabledChannels(){
+  const ch=[];
+  try{if(localStorage.getItem(LS_KEYS.SEMAPHORE_KEY)) ch.push('sms');}catch(e){}
+  try{if(localStorage.getItem(LS_KEYS.SYNC_URL))       ch.push('email');}catch(e){}
+  try{if(localStorage.getItem(LS_KEYS.WA_TOKEN)&&localStorage.getItem(LS_KEYS.WA_PHONE_ID)) ch.push('whatsapp');}catch(e){}
+  try{if(localStorage.getItem(LS_KEYS.VIBER_TOKEN))    ch.push('viber');}catch(e){}
+  return ch;
+}
+
+// Sends appointment notification on all enabled channels and appends to the
+// notifications log.  type = 'confirmation' | 'cancellation' | 'reminder'
+async function sendApptNotif(type, appt, syncUrl, setNotifications){
+  const channels=getEnabledChannels();
+  if(!channels.length||!appt) return;
+  const tmplFn=TMPL[type];
+  if(!tmplFn) return;
+  const message=tmplFn(appt);
+  const patient={name:appt.patientName,phone:appt.phone||'',email:appt.email||'',smsCarrier:appt.smsCarrier||''};
+  const nowStr=new Date().toLocaleString();
+  for(const ch of channels){
+    let status='sent';
+    try{ await sendNotification(ch,patient,message,syncUrl); }
+    catch(e){ status='failed'; }
+    if(setNotifications){
+      setNotifications(prev=>[{
+        id:'N'+uid(),type:ch,recipient:appt.patientName,
+        phone:appt.phone||'—',email:appt.email||'—',
+        message,sentAt:nowStr,status
+      },...prev]);
+    }
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 🤖 AI ASSISTANT — Rule-based scheduling + dental case analysis
 // ═══════════════════════════════════════════════════════════════════════════
@@ -6142,6 +6178,7 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
     };
     if(setAppointments) setAppointments(prev=>[appt,...prev]);
     if(syncUrl) syncOneRecord('appointments',appt,syncUrl);
+    sendApptNotif('confirmation',appt,syncUrl,null);
     setWalkinDone(appt);
   };
 
@@ -13460,10 +13497,10 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
       syncOneRecord('appointments', updated, syncUrl);
       return updated;
     }));
-    const msgs={confirmed:'Confirmed! Auto-SMS sent.',completed:'Marked complete.',cancelled:'Appointment cancelled.'};
+    const msgs={confirmed:'Confirmed! Notifications sent.',completed:'Marked complete.',cancelled:'Appointment cancelled.'};
     addToast(msgs[status]||'Updated.',status==='cancelled'?'error':'success');
     if(status==='confirmed'&&a){
-      setNotifications(prev=>[{id:'N'+uid(),type:'sms',recipient:a.patientName,phone:a.phone||'—',email:a.email||'—',message:TMPL.confirmation(a),sentAt:new Date().toLocaleString(),status:'sent'},...prev]);
+      sendApptNotif('confirmation',a,syncUrl,setNotifications);
       if (setPayments && a.fee > 0) {
         const refTag = 'auto-' + a.id;
         setPayments(prev => {
@@ -13476,6 +13513,9 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
           }, ...prev];
         });
       }
+    }
+    if(status==='cancelled'&&a){
+      sendApptNotif('cancellation',a,syncUrl,setNotifications);
     }
   };
 
@@ -16483,6 +16523,36 @@ function App(){
     }, 6 * 60 * 60 * 1000); // 6 hours
     return () => clearInterval(interval);
   }, [user, reminders, patients]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 30-MINUTE PRE-APPOINTMENT REMINDER: checks every minute, sends once per
+  // appointment (tracked in sessionStorage to survive re-renders but reset on
+  // page reload so staff don't get duplicate reminders across days).
+  useEffect(()=>{
+    const sentKey='cyrabell_30min_sent';
+    const getSent=()=>{try{return JSON.parse(sessionStorage.getItem(sentKey)||'[]');}catch(e){return [];}};
+    const markSent=(id)=>{const s=getSent();s.push(id);try{sessionStorage.setItem(sentKey,JSON.stringify(s));}catch(e){}};
+    const check=()=>{
+      const now=new Date();
+      const today2=localToday();
+      const sent=getSent();
+      (appointments||[]).forEach(a=>{
+        if(a.date!==today2) return;
+        if(a.status==='cancelled'||a.status==='completed') return;
+        if(sent.includes(a.id)) return;
+        if(!a.time) return;
+        const [hh,mm]=(a.time).split(':').map(Number);
+        const apptMs=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm).getTime();
+        const diffMin=(apptMs-now.getTime())/60000;
+        if(diffMin>=28&&diffMin<=32){
+          markSent(a.id);
+          sendApptNotif('reminder',a,syncUrl,setNotifications);
+        }
+      });
+    };
+    const t=setInterval(check,60000);
+    return ()=>clearInterval(t);
+  },[appointments,syncUrl]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // AUTO-SYNC: push to Google Sheets on every data change.
