@@ -4694,6 +4694,43 @@ const BrandLogo = ({dark=false, width=200})=>h('div',{
 const LOGO_DATA       = 'data:image/svg+xml,' + encodeURIComponent(LOGO_SVG);
 const LOGO_DATA_LIGHT = 'data:image/svg+xml,' + encodeURIComponent(LOGO_SVG_LIGHT);
 
+// Clinic logo — AC tooth monogram (Dr. Arnold Colao branding)
+// Used in patient documents: patient list print, medical certificate, prescription
+const AC_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 340">
+  <defs>
+    <linearGradient id="acgl" x1="2%" y1="2%" x2="98%" y2="98%">
+      <stop offset="0%"  stop-color="#1b3182"/>
+      <stop offset="48%" stop-color="#1878c2"/>
+      <stop offset="100%" stop-color="#00c8e2"/>
+    </linearGradient>
+  </defs>
+  <path fill="white" stroke="none"
+    d="M150,26 C127,14 74,20 48,52 C26,76 22,108 24,132
+       C26,158 38,178 50,196 C60,210 68,222 71,240
+       C75,262 74,288 70,308 C68,322 88,328 95,310
+       C103,288 110,260 116,238 C121,222 130,212 150,212
+       C170,212 179,222 184,238 C190,260 197,288 205,310
+       C212,328 232,322 230,308 C226,288 225,262 229,240
+       C232,222 240,210 250,196 C262,178 274,158 276,132
+       C278,108 274,76 252,52 C226,20 173,14 150,26Z"/>
+  <path fill="none" stroke="url(#acgl)" stroke-width="16" stroke-linejoin="round" stroke-linecap="round"
+    d="M150,26 C127,14 74,20 48,52 C26,76 22,108 24,132
+       C26,158 38,178 50,196 C60,210 68,222 71,240
+       C75,262 74,288 70,308 C68,322 88,328 95,310
+       C103,288 110,260 116,238 C121,222 130,212 150,212
+       C170,212 179,222 184,238 C190,260 197,288 205,310
+       C212,328 232,322 230,308 C226,288 225,262 229,240
+       C232,222 240,210 250,196 C262,178 274,158 276,132
+       C278,108 274,76 252,52 C226,20 173,14 150,26Z"/>
+  <path fill="none" stroke="url(#acgl)" stroke-width="9" stroke-linecap="round"
+    d="M198,48 C242,74 260,120 246,160"/>
+  <text x="132" y="192" font-family="'Arial Black','Arial Bold',Arial,sans-serif"
+    font-size="122" font-weight="900" fill="#00c4e0">C</text>
+  <text x="56" y="184" font-family="'Arial Black','Arial Bold',Arial,sans-serif"
+    font-size="105" font-weight="900" fill="#1b3182">A</text>
+</svg>`;
+const AC_LOGO_DATA = 'data:image/svg+xml,' + encodeURIComponent(AC_LOGO_SVG);
+
 const BMAP={pending:'bpend',confirmed:'bconf',cancelled:'bcanc',completed:'bcomp',paid:'bpaid',unpaid:'bcanc',sent:'bsent',failed:'bcanc'};
 // aria-label provides screen-reader text for colour-only status dots (Finding #14)
 const SBadge=({status})=>h('span',{className:'badge '+(BMAP[status]||'bpend'),'aria-label':'Status: '+(status||'unknown')},h('span',{className:'bdot','aria-hidden':'true'}),status);
@@ -4718,7 +4755,7 @@ function expJSON(data,fn){
 }
 function printDoc(content,title){
   const w=window.open('','_blank');if(!w)return;
-  w.document.write('<!DOCTYPE html><html><head><title>'+title+'</title><style>body{font-family:Segoe UI,sans-serif;padding:28px;color:#1a2332;max-width:880px;margin:0 auto}h2{font-size:15px;margin:20px 0 9px;color:#243447}.meta{font-size:12px;color:#8fa8b8;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#e8f5f3;padding:8px 10px;text-align:left;font-size:11px;color:#4a6275;text-transform:uppercase;letter-spacing:1px}td{padding:8px 10px;border-bottom:1px solid #dde8ec;font-size:12px}.pby{font-size:11px;color:#4a7080;letter-spacing:1px;margin-top:4px}</style></head><body><img src="'+LOGO_DATA+'" alt="Simplified Dental Clinic" style="width:200px;height:auto;display:block;margin-bottom:2px"><div class="pby">POWERED BY: <strong>CYRABELL</strong></div><div class="meta">Generated: '+new Date().toLocaleString()+'</div>'+content+'<script>window.onload=function(){window.print();}<\/script></body></html>');
+  w.document.write('<!DOCTYPE html><html><head><title>'+title+'</title><style>body{font-family:Segoe UI,sans-serif;padding:28px;color:#1a2332;max-width:880px;margin:0 auto}.doc-header{display:flex;align-items:center;gap:16px;margin-bottom:4px;padding-bottom:10px;border-bottom:2px solid #e0eaf4}.doc-logo{flex-shrink:0}h2{font-size:15px;margin:20px 0 9px;color:#243447}.meta{font-size:12px;color:#8fa8b8;margin-bottom:20px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#e8f5f3;padding:8px 10px;text-align:left;font-size:11px;color:#4a6275;text-transform:uppercase;letter-spacing:1px}td{padding:8px 10px;border-bottom:1px solid #dde8ec;font-size:12px}.pby{font-size:11px;color:#4a7080;letter-spacing:1px;margin-top:2px}.clinic-lbl{font-size:13px;font-weight:700;color:#1b3182;margin-bottom:2px}</style></head><body><div class="doc-header"><div class="doc-logo"><img src="'+AC_LOGO_DATA+'" alt="AC Dental" style="width:60px;height:auto;display:block"></div><div><div class="clinic-lbl">Arnold Colao Dental Clinic</div><div class="pby">SIMPLIFIED DENTAL CLINIC MANAGEMENT SYSTEMS</div></div></div><div class="meta">Generated: '+new Date().toLocaleString()+'</div>'+content+'<script>window.onload=function(){window.print();}<\/script></body></html>');
   w.document.close();
 }
 
@@ -9319,26 +9356,8 @@ function buildMedCertHTML({patName, patAddress, age, procedure, certDate, ptrNo,
     } catch(e) { return d; }
   };
 
-  // Clinic logo — AC tooth monogram
-  const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="80" height="88">
-    <defs>
-      <linearGradient id="tg" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" style="stop-color:#1a3d8f"/>
-        <stop offset="100%" style="stop-color:#00b4d8"/>
-      </linearGradient>
-    </defs>
-    <!-- Tooth outline -->
-    <path d="M100 10 C60 10, 20 40, 20 80 C20 110, 30 130, 35 155 C40 175, 45 195, 60 195 C70 195, 75 180, 80 165 C85 150, 90 140, 100 140 C110 140, 115 150, 120 165 C125 180, 130 195, 140 195 C155 195, 160 175, 165 155 C170 130, 180 110, 180 80 C180 40, 140 10, 100 10Z"
-      fill="none" stroke="url(#tg)" stroke-width="8" stroke-linejoin="round"/>
-    <!-- Roots -->
-    <path d="M75 175 C73 185, 70 200, 65 210" fill="none" stroke="url(#tg)" stroke-width="6" stroke-linecap="round"/>
-    <path d="M100 148 C100 158, 100 175, 100 210" fill="none" stroke="url(#tg)" stroke-width="6" stroke-linecap="round"/>
-    <path d="M125 175 C127 185, 130 200, 135 210" fill="none" stroke="url(#tg)" stroke-width="6" stroke-linecap="round"/>
-    <!-- "a" small -->
-    <text x="68" y="95" font-family="Arial, sans-serif" font-size="34" font-weight="900" fill="url(#tg)" letter-spacing="-1">a</text>
-    <!-- "C" large -->
-    <text x="90" y="110" font-family="Arial Black, Arial, sans-serif" font-size="58" font-weight="900" fill="#1a3d8f" letter-spacing="-2">C</text>
-  </svg>`;
+  // Clinic logo — AC tooth monogram, sized for med cert header
+  const LOGO_SVG = AC_LOGO_SVG.replace('viewBox="0 0 300 340"','viewBox="0 0 300 340" width="80" height="91"');
 
   const procedureLines = procedure
     ? procedure.split('\n').map(l => '<div>' + (l||'&nbsp;') + '</div>').join('')
@@ -9477,21 +9496,8 @@ function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
     } catch(e) { return d; }
   };
 
-  const LOGO_SVG_RX = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="70" height="77">
-    <defs>
-      <linearGradient id="tg2" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" style="stop-color:#1a3d8f"/>
-        <stop offset="100%" style="stop-color:#00b4d8"/>
-      </linearGradient>
-    </defs>
-    <path d="M100 10 C60 10, 20 40, 20 80 C20 110, 30 130, 35 155 C40 175, 45 195, 60 195 C70 195, 75 180, 80 165 C85 150, 90 140, 100 140 C110 140, 115 150, 120 165 C125 180, 130 195, 140 195 C155 195, 160 175, 165 155 C170 130, 180 110, 180 80 C180 40, 140 10, 100 10Z"
-      fill="none" stroke="url(#tg2)" stroke-width="8" stroke-linejoin="round"/>
-    <path d="M75 175 C73 185, 70 200, 65 210" fill="none" stroke="url(#tg2)" stroke-width="6" stroke-linecap="round"/>
-    <path d="M100 148 C100 158, 100 175, 100 210" fill="none" stroke="url(#tg2)" stroke-width="6" stroke-linecap="round"/>
-    <path d="M125 175 C127 185, 130 200, 135 210" fill="none" stroke="url(#tg2)" stroke-width="6" stroke-linecap="round"/>
-    <text x="68" y="95" font-family="Arial, sans-serif" font-size="34" font-weight="900" fill="url(#tg2)" letter-spacing="-1">a</text>
-    <text x="90" y="110" font-family="Arial Black, Arial, sans-serif" font-size="58" font-weight="900" fill="#1a3d8f" letter-spacing="-2">C</text>
-  </svg>`;
+  // Clinic logo — AC tooth monogram, sized for Rx header
+  const LOGO_SVG_RX = AC_LOGO_SVG.replace('viewBox="0 0 300 340"','viewBox="0 0 300 340" width="70" height="79"');
 
   const rxLines = rx
     ? rx.split('\n').map(l => `<div class="rx-line">${escapeHTML(l)||'&nbsp;'}</div>`).join('')
