@@ -147,11 +147,11 @@ QRCodeModel.createBytes=function(bb,rs){var offset=0,maxDcCount=0,maxEcCount=0,d
 
 // ── Draw QR on canvas ─────────────────────────────────────────────────────
 function drawQR(url, canvasId, size){
-  var qr=new QRCodeModel(0,QRErrorCorrectLevel.M);
-  // auto typeNumber
+  var qr=null;
   for(var t=1;t<=40;t++){
-    try{var test=new QRCodeModel(t,QRErrorCorrectLevel.M);test.addData(url);test.make();qr=test;break;}catch(e){}
+    try{var test=new QRCodeModel(t,QRErrorCorrectLevel.H);test.addData(url);test.make();qr=test;break;}catch(e){}
   }
+  if(!qr)return;
   var canvas=document.getElementById(canvasId);
   if(!canvas)return;
   var ctx=canvas.getContext('2d');
@@ -167,7 +167,7 @@ function drawQR(url, canvasId, size){
     ctx.fillRect(c*cell,r*cell,cell,cell);
   }}
   // draw Cyrabell C logo in center
-  var cx=actual/2, cy=actual/2, cr=cell*3.5;
+  var cx=actual/2, cy=actual/2, cr=Math.min(cell*2.2,actual*0.07);
   ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(cx,cy,cr+2,0,2*Math.PI); ctx.fill();
   ctx.fillStyle='#0a1628'; ctx.beginPath(); ctx.arc(cx,cy,cr,0,2*Math.PI); ctx.fill();
   ctx.strokeStyle='#00b4d8'; ctx.lineWidth=cr*0.28; ctx.lineCap='round';
