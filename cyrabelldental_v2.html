@@ -5981,7 +5981,7 @@ function KioskInfoBar({ads}){
 }
 function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a;}
 
-function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patients,syncUrl}){
+function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patients,setPatients,syncUrl}){
   const [step,setStep]=useState('queue'); // 'queue'|'checkin'|'walkin'|'install'|'confirm'|'success'
   const [search,setSearch]=useState('');
   const [picked,setPicked]=useState(null);
@@ -6109,9 +6109,31 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
     if(walkinMode==='standby'&&todayStandby.length>=4){setWalkinErr('Standby queue is full today (4/4). Please choose a specific time slot.');return;}
     const sv=getActiveSvcs().find(x=>x.name===walkinInfo.service);
     const qNum=walkinMode==='standby'?todayStandby.length+1:null;
+    const nameClean=walkinInfo.name.trim();
+    const phoneClean=walkinInfo.phone.trim();
+    // Find existing patient by phone or name to avoid duplicates
+    const existingPat=(patients||[]).find(p=>
+      (p.phone&&p.phone===phoneClean)||(p.name&&p.name.toLowerCase()===nameClean.toLowerCase())
+    );
+    let patientId;
+    if(existingPat){
+      patientId=existingPat.id;
+    } else {
+      patientId='P'+Date.now().toString().slice(-6);
+      const newPat={
+        id:patientId,name:nameClean,phone:phoneClean,email:'',
+        dob:'',sex:'',bloodType:'',allergies:'',occupation:'',maritalStatus:'',
+        teeth:{},attachments:[],history:[],lastVisit:localToday(),photoDataUrl:'',photoFileId:'',
+      };
+      if(setPatients) setPatients(prev=>[newPat,...prev]);
+      try{
+        const stored=JSON.parse(localStorage.getItem('cyrabell_v2_patients')||'[]');
+        localStorage.setItem('cyrabell_v2_patients',JSON.stringify([newPat,...stored]));
+      }catch(e){}
+    }
     const appt={
-      id:'A'+uid(),patientId:'P'+uid(),patientName:walkinInfo.name.trim(),
-      phone:walkinInfo.phone.trim(),email:'',
+      id:'A'+uid(),patientId,patientName:nameClean,
+      phone:phoneClean,email:'',
       service:walkinInfo.service,services:[walkinInfo.service],fee:sv?sv.fee:0,
       date:walkinInfo.date,time:walkinMode==='scheduled'?walkinInfo.time:'',
       dentist:'Dr. Arnold Colao',notes:'Walk-in booking via Kiosk',
@@ -16730,6 +16752,7 @@ function App(){
       onExit:()=>setView(user?'admin':'login'),
       addToast,
       patients,
+      setPatients,
       syncUrl,
     }),
     h(Toast,{toasts,rm:id=>setToasts(p=>p.filter(t=>t.id!==id))})
