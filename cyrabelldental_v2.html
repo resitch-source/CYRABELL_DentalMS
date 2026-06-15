@@ -9838,7 +9838,9 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
     }
   };
   return h(Modal,{title:patient.name,sub:patient.id+' · '+patient.phone,xl:true,onClose,footer:h(Fragment,null,
-    h('button',{className:'btn bg2',onClick:()=>setShowAIAnalysis(true),style:{marginRight:'auto'}},'🤖 AI Analysis'),
+    planHas('aiAssistant')
+      ? h('button',{className:'btn bg2',onClick:()=>setShowAIAnalysis(true),style:{marginRight:'auto'}},'🤖 AI Analysis')
+      : h('button',{className:'btn bg2',disabled:true,title:'Professional plan required',style:{marginRight:'auto',opacity:0.45,cursor:'not-allowed'}},'🤖 🔒 AI Analysis'),
     h('button',{className:'btn bgh',onClick:onClose},'Close')
   )},
     h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:16}},
