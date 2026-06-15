@@ -83,10 +83,10 @@ const CONDS=Object.keys(CONDITIONS);
 const ENAMEL=0xf8f4ed, ROOT_TOP=0xe7dcc6, ROOT_BOT=0xc6a679;
 
 const TYPES={
-  incisor:  {label:'Incisor',  md:0.42, bl:0.32, crownH:0.95, nexp:2.3, cuspAmp:0.04, front:'Labial', top:'Incisal'},
-  canine:   {label:'Canine',   md:0.44, bl:0.44, crownH:1.05, nexp:2.6, cuspAmp:0.18, front:'Labial', top:'Incisal'},
-  premolar: {label:'Premolar', md:0.56, bl:0.58, crownH:0.95, nexp:3.0, cuspAmp:0.14, front:'Buccal', top:'Occlusal'},
-  molar:    {label:'Molar',    md:0.78, bl:0.70, crownH:0.98, nexp:4.0, cuspAmp:0.17, front:'Buccal', top:'Occlusal'},
+  incisor:  {label:'Incisor',  md:0.46, bl:0.30, crownH:0.95, nexp:2.4, cuspAmp:0.06, front:'Labial', top:'Incisal'},
+  canine:   {label:'Canine',   md:0.46, bl:0.42, crownH:1.05, nexp:2.7, cuspAmp:0.11, front:'Labial', top:'Incisal'},
+  premolar: {label:'Premolar', md:0.58, bl:0.60, crownH:0.92, nexp:3.2, cuspAmp:0.17, front:'Buccal', top:'Occlusal'},
+  molar:    {label:'Molar',    md:0.82, bl:0.72, crownH:0.92, nexp:4.2, cuspAmp:0.20, front:'Buccal', top:'Occlusal'},
 };
 // root limbs per type: each limb = array of {x,y,z,rx,rz} from neck to apex
 const ROOTS={
@@ -111,18 +111,24 @@ Object.keys(TYPES).forEach(t=>state[t]={mesial:'healthy',distal:'healthy',buccal
 
 function lerp(a,b,t){return a+(b-a)*Math.max(0,Math.min(1,t));}
 function angDiff(a,b){let d=Math.abs(a-b)%(Math.PI*2);return d>Math.PI?Math.PI*2-d:d;}
-function crownW(c){
-  if(c<0.28) return lerp(0.94,1.05,c/0.28);
-  if(c<0.82) return lerp(1.05,0.92,(c-0.28)/0.54);
-  if(c<0.93) return lerp(0.92,0.6,(c-0.82)/0.11);
-  return lerp(0.6,0.0,(c-0.93)/0.07);
+// crown wall profile over cc in [0,1] (cervix→occlusal rim) — fuller, near-vertical walls
+function wallW(cc){
+  if(cc<0.30) return lerp(0.92,1.05,cc/0.30);   // cervical neck → crown bulge
+  if(cc<0.88) return lerp(1.05,0.98,(cc-0.30)/0.58); // near-vertical wall
+  return lerp(0.98,0.90,(cc-0.88)/0.12);        // slight inward at occlusal rim
 }
-function cuspProfile(type,theta){
-  const c=Math.cos(theta);
-  if(type==='molar'){let p=0;[Math.PI/4,3*Math.PI/4,5*Math.PI/4,7*Math.PI/4].forEach(a=>{p=Math.max(p,Math.exp(-Math.pow(angDiff(theta,a)/0.66,2)))});return p;}
-  if(type==='premolar'){let p=0;[Math.PI/2,3*Math.PI/2].forEach(a=>{p=Math.max(p,Math.exp(-Math.pow(angDiff(theta,a)/0.72,2)))});return p;}
-  if(type==='canine'){return 0.45+0.55*Math.exp(-Math.pow(angDiff(theta,Math.PI/2)/0.8,2));}
-  return Math.pow(Math.abs(c),1.5);
+// occlusal relief over q in [0(rim)..1(center)] — real cusps, fissures, central fossa
+function occl(type,theta,q){
+  const A=TYPES[type].cuspAmp;
+  if(type==='canine'){ return A*Math.pow(q,1.5)*2.2; } // tall single cusp tip
+  if(type==='incisor'){ const ridge=Math.pow(Math.abs(Math.cos(theta)),1.4); return A*ridge*Math.sin(Math.min(1,q*1.4)*Math.PI*0.5); }
+  // molar / premolar — ring of cusps with cross fissures + central fossa
+  const bump=Math.exp(-Math.pow((q-0.52)/0.34,2));
+  const fossa=-0.5*A*Math.pow(q,2);
+  let prof;
+  if(type==='molar'){let p=0;[45,135,225,315].forEach(d=>{const a=d*Math.PI/180;p=Math.max(p,Math.exp(-Math.pow(angDiff(theta,a)/0.46,2)))});prof=p;}
+  else{let p=0;[90,270].forEach(d=>{const a=d*Math.PI/180;p=Math.max(p,Math.exp(-Math.pow(angDiff(theta,a)/0.55,2)))});prof=p;}
+  return A*prof*bump + fossa;
 }
 function angleRegion(theta){
   const c=Math.cos(theta),s=Math.sin(theta);
@@ -132,24 +138,27 @@ function angleRegion(theta){
 function colLin(hex){return new THREE.Color(hex).convertSRGBToLinear();}
 
 function buildCrown(type){
-  const T=TYPES[type], SU=120, SV=90;
+  const T=TYPES[type], SU=128, SVw=64, SVc=40, cTop=0.82;
   const P=[],C=[],R=[],IDX=[];
-  const white=colLin(ENAMEL);
-  for(let iv=0;iv<=SV;iv++){const c=iv/SV;
-    for(let iu=0;iu<=SU;iu++){const theta=iu/SU*Math.PI*2;
-      const w=crownW(c), n=T.nexp, ct=Math.cos(theta), st=Math.sin(theta);
-      const sx=Math.sign(ct)*Math.pow(Math.abs(ct),2/n), sz=Math.sign(st)*Math.pow(Math.abs(st),2/n);
-      let x=sx*T.md*w, z=sz*T.bl*w, y=T.crownH*c;
-      const env=Math.max(0,1-Math.pow(Math.abs((c-0.78)/0.4),2));
-      y+=T.cuspAmp*env*cuspProfile(type,theta);
-      const noise=0.009*Math.sin(theta*7+c*22)*Math.sin(c*16); x+=noise*ct; z+=noise*st;
-      P.push(x,y,z); C.push(white.r,white.g,white.b);
-      R.push(c>0.76?'occlusal':angleRegion(theta));
-    }
+  const white=colLin(ENAMEL), n=T.nexp, stride=SU+1;
+  let rings=0;
+  function sec(theta){const ct=Math.cos(theta),st=Math.sin(theta);return [Math.sign(ct)*Math.pow(Math.abs(ct),2/n),Math.sign(st)*Math.pow(Math.abs(st),2/n)];}
+  function addRing(fn,reg){
+    for(let iu=0;iu<=SU;iu++){const theta=iu/SU*Math.PI*2;const p=fn(theta);P.push(p[0],p[1],p[2]);C.push(white.r,white.g,white.b);R.push(reg(theta));}
+    rings++;
   }
-  for(let iv=0;iv<SV;iv++)for(let iu=0;iu<SU;iu++){const a=iv*(SU+1)+iu,b=a+1,cc=a+(SU+1),d=cc+1;IDX.push(a,cc,b,b,cc,d);}
-  // bottom cap
-  const center=(SV+1)*(SU+1); P.push(0,0,0); C.push(white.r,white.g,white.b); R.push('_base');
+  // crown walls (cervix → occlusal rim)
+  for(let iv=0;iv<=SVw;iv++){const cc=iv/SVw, c=cc*cTop, w=wallW(cc);
+    addRing(theta=>{const[sx,sz]=sec(theta);return [sx*T.md*w, T.crownH*c, sz*T.bl*w];}, angleRegion);
+  }
+  // sculpted occlusal cap (rim → center) with cusps/fissures/fossa
+  const topY=T.crownH*cTop, rimW=wallW(1);
+  for(let iv=1;iv<=SVc;iv++){const q=iv/SVc;
+    addRing(theta=>{const[sx,sz]=sec(theta);const rad=rimW*(1-q);const h=occl(type,theta,q)-occl(type,theta,0);return [sx*T.md*rad, topY+h, sz*T.bl*rad];}, ()=>'occlusal');
+  }
+  for(let r=0;r<rings-1;r++)for(let iu=0;iu<SU;iu++){const a=r*stride+iu,b=a+1,cc=a+stride,d=cc+1;IDX.push(a,cc,b,b,cc,d);}
+  // bottom disk (hidden under roots)
+  const center=P.length/3; P.push(0,0,0); C.push(white.r,white.g,white.b); R.push('_base');
   for(let iu=0;iu<SU;iu++) IDX.push(center, iu+1, iu);
   const g=new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));
