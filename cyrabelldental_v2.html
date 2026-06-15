@@ -5772,11 +5772,17 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
             h('div',{className:'lmb-title'},'Admin / Staff'),
             h('div',{className:'lmb-desc'},'Login required')
           ),
-          h('button',{className:'login-mode-btn',onClick:onPickKiosk},
-            h('div',{className:'lmb-icon'},'🏥'),
-            h('div',{className:'lmb-title'},'Kiosk Mode'),
-            h('div',{className:'lmb-desc'},'Patient check-in')
-          )
+          planHas('kioskMode')
+            ? h('button',{className:'login-mode-btn',onClick:onPickKiosk},
+                h('div',{className:'lmb-icon'},'🏥'),
+                h('div',{className:'lmb-title'},'Kiosk Mode'),
+                h('div',{className:'lmb-desc'},'Patient check-in')
+              )
+            : h('button',{className:'login-mode-btn',disabled:true,style:{opacity:.45,cursor:'not-allowed',position:'relative'}},
+                h('div',{className:'lmb-icon'},'🏥'),
+                h('div',{className:'lmb-title'},'Kiosk Mode ',h('span',{style:{fontSize:10,color:'#d4a017'}},'🔒')),
+                h('div',{className:'lmb-desc'},'Professional plan required')
+              )
         ),
         h('div',{style:{textAlign:'center',marginTop:18}},
           h('button',{
@@ -11898,20 +11904,22 @@ function ReminderForm({patients,reminder,onClose,onSave}){
     ),
     h(Field,{label:'Reminder Type *'},
       h('div',{className:'rmnd-type-grid'},
-        Object.entries(REMINDER_TYPES).map(([k,t])=>
-          h('div',{
+        Object.entries(REMINDER_TYPES).map(([k,t])=>{
+          const starterTypes=['cleaning','checkup','custom'];
+          const locked=!planHas('allReminderTypes')&&!starterTypes.includes(k);
+          return h('div',{
             key:k,
-            className:'rmnd-type-card'+(f.type===k?' sel':''),
-            onClick:()=>ht(k),
-            style:{borderColor:f.type===k?t.color:undefined}
+            className:'rmnd-type-card'+(f.type===k?' sel':'')+(locked?' locked':''),
+            onClick:locked?undefined:()=>ht(k),
+            style:{borderColor:f.type===k?t.color:undefined,opacity:locked?.4:1,cursor:locked?'not-allowed':'pointer',position:'relative'}
           },
             h('div',{className:'rt-icon',style:{background:t.color+'18',color:t.color}},t.icon),
             h('div',{className:'rt-info'},
-              h('div',{className:'rt-name'},t.label),
+              h('div',{className:'rt-name'},t.label,locked&&h('span',{style:{fontSize:10,color:'#d4a017',marginLeft:4}},'🔒')),
               h('div',{className:'rt-desc'},'Every '+(t.interval>=365?'year':t.interval>=180?'6 months':t.interval>=90?'3 months':t.interval+' days'))
             )
-          )
-        )
+          );
+        })
       )
     ),
     h('div',{className:'fg2'},
@@ -13588,7 +13596,9 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
             onClick:()=>setViewMode('calendar')
           },'📅 Calendar')
         ),
-        h('button',{className:'btn bg2',onClick:()=>setShowAnalysis(true),title:'View conflict analysis'},'🔍 Analysis'),
+        planHas('conflictAnalysis')
+          ? h('button',{className:'btn bg2',onClick:()=>setShowAnalysis(true),title:'View conflict analysis'},'🔍 Analysis')
+          : h('button',{className:'btn bg2',disabled:true,title:'Upgrade to Professional to unlock Conflict Analysis',style:{opacity:.45,cursor:'not-allowed'}},'🔍 Analysis ',h('span',{style:{fontSize:10,color:'#d4a017'}},'🔒')),
         h('button',{className:'btn bp',onClick:()=>setModal(true)},h(Svg,{d:IC.plus,size:14}),' New')
       )
     ),
@@ -15905,7 +15915,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
     canDo(user,'manage_users')&&{id:'users',l:'User & Roles',d:IC.users},
     canDo(user,'view_sync')&&{id:'sync',l:'Sync & Backup',d:IC.cloud},
     canDo(user,'export_data')&&{id:'export',l:'Export',d:IC.dl},
-    canDo(user,'view_analytics')&&{id:'analytics',l:'Analytics',d:IC.report},
+    canDo(user,'view_analytics')&&planHas('advancedAnalytics')&&{id:'analytics',l:'Analytics',d:IC.report},
     canDo(user,'view_logs')&&{id:'logs', l:'🪵 Logs', d:IC.bell, sec:''},
   ].filter(Boolean);
   const BOT=[
@@ -15934,7 +15944,11 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
       if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),services:getActiveSvcs(),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,setServices:(svcs)=>{try{localStorage.setItem(LS_KEYS.SERVICES,JSON.stringify(svcs));}catch(e){}},addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='notifications')return h(Notifications,{notifications:safe(notifications),setNotifications,appointments:safe(appointments),addToast});
       if(page==='export')return canDo(user,'export_data')?h(ExportPage,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
-      if(page==='analytics')return canDo(user,'view_analytics')?h(Analytics,{appointments:safe(appointments),payments:safe(payments),patients:safe(patients)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+      if(page==='analytics'){
+        if(!canDo(user,'view_analytics')) return h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+        if(!planHas('advancedAnalytics')) return h('div',{style:{padding:30,textAlign:'center'}},h(UpgradeBadge,{feature:'advancedAnalytics'}),h('p',{style:{marginTop:12,color:'var(--md)',fontSize:14}},'Advanced Analytics requires the Professional plan.'));
+        return h(Analytics,{appointments:safe(appointments),payments:safe(payments),patients:safe(patients)});
+      }
       if(page==='logs') return canDo(user,'view_logs')?h(ErrorBoundary,null,h(LogsViewer,{addToast})):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       return h('div',{style:{padding:30,textAlign:'center',color:'var(--md)'}}, 'Page not found: ' + page);
     } catch (err) {
