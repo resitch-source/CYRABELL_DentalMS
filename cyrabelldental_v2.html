@@ -9769,8 +9769,8 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
       )
     ),
     h('div',{className:'tabs'},
-      ['info','dental','appointments','payments','attachments','history'].map(t=>{
-        const labels = {info:'Info', dental:'🦷 Dental Chart'+(conditionCount>0?' ('+conditionCount+')':''), appointments:'Appointments', payments:'Payments', attachments:'📎 Files'+(safe(patient.attachments).length>0?' ('+safe(patient.attachments).length+')':''), history:'📋 History'+(safe(patient.history).length>0?' ('+safe(patient.history).length+')':'')};
+      ['info','dental','visits','attachments','history'].map(t=>{
+        const labels = {info:'Info', dental:'🦷 Dental Chart'+(conditionCount>0?' ('+conditionCount+')':''), visits:'📅 Visits'+(appts.length>0?' ('+appts.length+')':''), attachments:'📎 Files'+(safe(patient.attachments).length>0?' ('+safe(patient.attachments).length+')':''), history:'📋 History'+(safe(patient.history).length>0?' ('+safe(patient.history).length+')':'')};
         return h('button',{key:t,className:'tab'+(tab===t?' act':''),onClick:()=>setTab(t)},labels[t]);
       }),
       // ── Document issue buttons ──────────────────────────────────────
@@ -9781,47 +9781,89 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
     ),
     tab==='info'&&h('div',{className:'ig'},infoRows.map(([l,v])=>h('div',{key:l},h('div',{className:'ilb'},l),h('div',{className:'ivl'},v)))),
     tab==='dental'&&h(DentalChart3D,{teethData,onToothEdit}),
-    tab==='appointments'&&(appts.length===0?h('div',{className:'empty'},'No appointments'):
-      h('div',{style:{display:'flex',flexDirection:'column',gap:12}},appts.map(a=>h('div',{key:a.id,className:'mc'},
-        h('div',{className:'mc-top'},
-          h('div',null,
-            h('div',{className:'mc-nm'},svcStr(a)),
-            h('div',{style:{fontSize:11,color:'var(--md)',marginTop:2}},fmtDateWithDay(a.date)+' · '+fmtTime(a.time)+' · '+a.dentist)
-          ),
-          h(SBadge,{status:a.status})
+    tab==='visits'&&(appts.length===0&&pays.length===0?h('div',{className:'empty'},'No visits recorded'):
+      h('div',{style:{display:'flex',flexDirection:'column',gap:14}},
+        // Summary bar
+        h('div',{style:{display:'flex',gap:10,flexWrap:'wrap',marginBottom:2}},
+          h('div',{style:{background:'var(--tp)',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,color:'var(--t)'}},
+            '📅 '+appts.length+' Appointment'+(appts.length!==1?'s':'')),
+          h('div',{style:{background:'#e8f4ff',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,color:'var(--bl)'}},
+            '💳 '+pays.length+' Payment'+(pays.length!==1?'s':'')),
+          pays.length>0&&h('div',{style:{background: pays.reduce((s,p)=>s+(p.amount||0),0)>0?'#fde8e8':'#e8f7f0',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:700,color:pays.reduce((s,p)=>s+(p.amount||0),0)>0?'var(--re)':'var(--gr)'}},
+            '₱'+p$(pays.reduce((s,p)=>s+(p.amount||0),0))+' Total Paid')
         ),
-        svcList(a).length > 0 && h('div',{style:{margin:'6px 0'}},
-          h('table',{className:'appt-svc-table'},
-            h('thead',null,h('tr',null,
-              h('th',null,'#'),h('th',null,'Service'),h('th',null,'Category'),h('th',null,'Note'),h('th',null,'Fee (₱)')
-            )),
-            h('tbody',null,
-              svcList(a).map((sv,i)=>{
-                const cat=(getActiveSvcs().find(x=>x.name===sv)||{}).cat||'—';
-                const fee=(getActiveSvcs().find(x=>x.name===sv)||{}).fee;
-                const note=((a.serviceNotes||{})[sv])||'';
-                return h('tr',{key:i},
-                  h('td',{style:{color:'var(--md)',fontWeight:600}},i+1),
-                  h('td',null,h('strong',null,sv)),
-                  h('td',{style:{color:'var(--md)',fontSize:11.5}},cat),
-                  h('td',{style:{color:'var(--dk)',fontSize:11.5}},note||'—'),
-                  h('td',{style:{fontWeight:600,color:'var(--t)',whiteSpace:'nowrap'}},fee!=null?'₱'+p$(fee):'—')
-                );
-              })
-            )
-          )
+        // Appointments with linked payments
+        appts.length>0&&h('div',{style:{display:'flex',flexDirection:'column',gap:12}},
+          appts.sort((a,b)=>b.date.localeCompare(a.date)).map(a=>{
+            const linked=pays.filter(p=>p.patientId===patient.id&&(p.date===a.date||p.ref==='auto-'+a.id));
+            return h('div',{key:a.id,style:{background:'var(--cr)',border:'1.5px solid var(--bd)',borderRadius:12,overflow:'hidden'}},
+              // Appointment header
+              h('div',{style:{padding:'12px 14px',borderBottom: linked.length?'1px solid var(--bd)':'none'}},
+                h('div',{style:{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8,marginBottom:6}},
+                  h('div',null,
+                    h('div',{style:{fontWeight:700,fontSize:14,color:'var(--dk)'}},svcStr(a)),
+                    h('div',{style:{fontSize:11.5,color:'var(--md)',marginTop:2}},
+                      fmtDateWithDay(a.date)+(a.time?' · '+fmtTime(a.time):'')+' · '+a.dentist)
+                  ),
+                  h(SBadge,{status:a.status})
+                ),
+                svcList(a).length>0&&h('table',{className:'appt-svc-table',style:{marginTop:6}},
+                  h('thead',null,h('tr',null,
+                    h('th',null,'#'),h('th',null,'Service'),h('th',null,'Category'),h('th',null,'Note'),h('th',null,'Fee (₱)')
+                  )),
+                  h('tbody',null,svcList(a).map((sv,i)=>{
+                    const svcObj=getActiveSvcs().find(x=>x.name===sv)||{};
+                    return h('tr',{key:i},
+                      h('td',{style:{color:'var(--md)',fontWeight:600}},i+1),
+                      h('td',null,h('strong',null,sv)),
+                      h('td',{style:{color:'var(--md)',fontSize:11.5}},svcObj.cat||'—'),
+                      h('td',{style:{color:'var(--dk)',fontSize:11.5}},(a.serviceNotes&&a.serviceNotes[sv])||'—'),
+                      h('td',{style:{fontWeight:600,color:'var(--t)',whiteSpace:'nowrap'}},svcObj.fee!=null?'₱'+p$(svcObj.fee):'—')
+                    );
+                  }))
+                ),
+                h('div',{style:{display:'flex',justifyContent:'space-between',marginTop:8,fontSize:13}},
+                  h('span',{style:{color:'var(--md)'}},a.notes||''),
+                  h('span',{style:{fontWeight:700,color:'var(--t)'}},'Appointment Fee: ₱'+p$(a.fee))
+                )
+              ),
+              // Linked payments
+              linked.length>0&&h('div',{style:{background:'#f0f7ff',padding:'10px 14px'}},
+                h('div',{style:{fontSize:11,fontWeight:700,color:'var(--bl)',marginBottom:6,textTransform:'uppercase',letterSpacing:.5}},'💳 Payment'),
+                linked.map(p=>h('div',{key:p.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:13}},
+                  h('span',null,p.method+' · '+p.date),
+                  h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                    h(SBadge,{status:p.status}),
+                    h('span',{style:{fontWeight:700,color:'var(--t)'}},'₱'+p$(p.amount))
+                  )
+                ))
+              )
+            );
+          })
         ),
-        h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Total Fee'),h('span',{className:'mc-val',style:{fontWeight:700,color:'var(--t)'}},'₱'+p$(a.fee))),
-        a.notes && h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Notes'),h('span',{className:'mc-val',style:{color:'var(--dk)',whiteSpace:'pre-wrap'}},a.notes))
-      )))
-    ),
-    tab==='payments'&&(pays.length===0?h('div',{className:'empty'},'No payments'):
-      h('div',{style:{display:'flex',flexDirection:'column',gap:10}},pays.map(p=>h('div',{key:p.id,className:'mc'},
-        h('div',{className:'mc-top'},h('div',{className:'mc-nm'},svcStr(p)),h(SBadge,{status:p.status})),
-        h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Amount'),h('span',{className:'mc-val',style:{color:'var(--t)',fontWeight:700}},'₱'+p$(p.amount))),
-        h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Method'),h('span',{className:'mc-val'},p.method)),
-        h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Date'),h('span',{className:'mc-val'},p.date))
-      )))
+        // Payments not linked to any appointment
+        (()=>{
+          const linkedDates=new Set(appts.map(a=>a.date));
+          const linkedRefs=new Set(appts.map(a=>'auto-'+a.id));
+          const orphan=pays.filter(p=>!linkedDates.has(p.date)&&!linkedRefs.has(p.ref));
+          return orphan.length>0&&h('div',null,
+            h('div',{style:{fontSize:11,fontWeight:700,color:'var(--md)',marginBottom:6,textTransform:'uppercase',letterSpacing:.5}},'Other Payments'),
+            h('div',{style:{display:'flex',flexDirection:'column',gap:8}},orphan.map(p=>
+              h('div',{key:p.id,style:{background:'var(--cr)',border:'1.5px solid var(--bd)',borderRadius:10,padding:'10px 14px'}},
+                h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+                  h('div',null,
+                    h('div',{style:{fontWeight:600,fontSize:13}},svcStr(p)),
+                    h('div',{style:{fontSize:11.5,color:'var(--md)'}},p.method+' · '+p.date)
+                  ),
+                  h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                    h(SBadge,{status:p.status}),
+                    h('span',{style:{fontWeight:700,color:'var(--t)'}},'₱'+p$(p.amount))
+                  )
+                )
+              )
+            ))
+          );
+        })()
     ),
     showAIAnalysis && h(AIAssistant,{appointments:appts,patients:[patient],payments:pays,addToast,onClose:()=>setShowAIAnalysis(false),defaultTab:'analyze'}),
     tab==='attachments' && h(AttachmentPanel, {
