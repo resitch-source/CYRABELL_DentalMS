@@ -15986,8 +15986,11 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
         ),
         h('div',{className:'sb-ft'},
           h('div',{style:{marginBottom:8}},
-            h('button',{className:'btn bs',style:{width:'100%',justifyContent:'center',fontSize:12,padding:'7px 12px'},onClick:onGoKiosk},
-              h(Svg,{d:IC.globe,size:13}),' Open Kiosk Mode')
+            planHas('kioskMode')
+              ? h('button',{className:'btn bs',style:{width:'100%',justifyContent:'center',fontSize:12,padding:'7px 12px'},onClick:onGoKiosk},
+                  h(Svg,{d:IC.globe,size:13}),' Open Kiosk Mode')
+              : h('button',{className:'btn bs',style:{width:'100%',justifyContent:'center',fontSize:12,padding:'7px 12px',opacity:0.45,cursor:'not-allowed'},disabled:true,title:'Professional plan required'},
+                  h(Svg,{d:IC.globe,size:13}),' 🔒 Open Kiosk Mode')
           ),
           h('div',{className:'uc',onClick:onLogout,title:'Click to log out'},
             h('div',{className:'ua'},userInitial),
