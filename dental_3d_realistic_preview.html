@@ -80,7 +80,7 @@ const CONDITIONS = {
   veneer:     {label:'Veneer',     color:0xec4899, css:'#ec4899', symbol:'◆'},
 };
 const CONDS=Object.keys(CONDITIONS);
-const ENAMEL=0xf8f4ed, ROOT_TOP=0xe7dcc6, ROOT_BOT=0xc6a679;
+const ENAMEL=0xfaf8f2, ROOT_TOP=0xe3c79b, ROOT_BOT=0xcaa472;
 
 const TYPES={
   incisor:  {label:'Incisor',  md:0.46, bl:0.30, crownH:0.95, nexp:2.4, cuspAmp:0.06, front:'Labial', top:'Incisal'},
@@ -223,8 +223,9 @@ function init(){
   const rim=new THREE.DirectionalLight(0xd6ecff,0.75);rim.position.set(-1,-1,-5);scene.add(rim);
 
   group=new THREE.Group();scene.add(group);
-  const enMat=new THREE.MeshPhysicalMaterial({vertexColors:true,color:0xffffff,roughness:0.24,metalness:0,clearcoat:0.9,clearcoatRoughness:0.16,sheen:0.6,sheenColor:new THREE.Color(0xfff6ea),reflectivity:0.5});
-  const rtMat=new THREE.MeshPhysicalMaterial({vertexColors:true,color:0xffffff,roughness:0.62,metalness:0,clearcoat:0.12,clearcoatRoughness:0.55});
+  // polished dental study-model look: smooth, glossy clearcoat, soft highlights
+  const enMat=new THREE.MeshPhysicalMaterial({vertexColors:true,color:0xffffff,roughness:0.34,metalness:0,clearcoat:1.0,clearcoatRoughness:0.12,sheen:0.35,sheenColor:new THREE.Color(0xfff8ef),reflectivity:0.45});
+  const rtMat=new THREE.MeshPhysicalMaterial({vertexColors:true,color:0xffffff,roughness:0.4,metalness:0,clearcoat:0.55,clearcoatRoughness:0.22,reflectivity:0.4});
   crown=new THREE.Mesh(buildCrown(curType),enMat);crown.castShadow=true;crown.receiveShadow=true;crown.position.y=CENTER_Y;
   roots=new THREE.Mesh(buildRoots(curType),rtMat);roots.castShadow=true;roots.receiveShadow=true;roots.position.y=CENTER_Y;
   group.add(crown);group.add(roots);
