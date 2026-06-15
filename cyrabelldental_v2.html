@@ -14639,13 +14639,20 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
               : h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,lineHeight:1.5}},'Get from developers.facebook.com → My Apps → WhatsApp → API Setup. Free: 1,000 msgs/month')
           ),
           h(Field,{label:'🟣 Viber Bot Token'},
-            h('div',{style:{display:'flex',gap:6}},
-              h('input',{type:'password',className:'inp',value:viberToken,onChange:e=>{setViberToken(e.target.value);lsSet(LS_KEYS.VIBER_TOKEN,e.target.value.trim());},placeholder:'Viber Bot authentication token',style:{fontSize:12,fontFamily:'monospace',flex:1}}),
-              h('button',{className:'btn bgh bsm',onClick:()=>setShowViberToken(s=>!s),style:{whiteSpace:'nowrap'}},showViberToken?'🙈 Hide':'👁 Show')
-            ),
-            viberToken
-              ? h('div',{style:{fontSize:11.5,color:'#22c55e',marginTop:4}},'✓ Viber Bot token saved — Viber messages will send automatically')
-              : h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,lineHeight:1.5}},'Create a Viber Bot at partners.viber.com → get auth token')
+            planHas('viber')
+              ? h(Fragment,null,
+                  h('div',{style:{display:'flex',gap:6}},
+                    h('input',{type:'password',className:'inp',value:viberToken,onChange:e=>{setViberToken(e.target.value);lsSet(LS_KEYS.VIBER_TOKEN,e.target.value.trim());},placeholder:'Viber Bot authentication token',style:{fontSize:12,fontFamily:'monospace',flex:1}}),
+                    h('button',{className:'btn bgh bsm',onClick:()=>setShowViberToken(s=>!s),style:{whiteSpace:'nowrap'}},showViberToken?'🙈 Hide':'👁 Show')
+                  ),
+                  viberToken
+                    ? h('div',{style:{fontSize:11.5,color:'#22c55e',marginTop:4}},'✓ Viber Bot token saved — Viber messages will send automatically')
+                    : h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,lineHeight:1.5}},'Create a Viber Bot at partners.viber.com → get auth token')
+                )
+              : h('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'#f8f8f8',borderRadius:8,border:'1px solid var(--bd)',opacity:0.6}},
+                  h('span',{style:{fontSize:18}},'🔒'),
+                  h('span',{style:{fontSize:12,color:'var(--md)'}},'Viber Bot Token — Available on Professional plan and above')
+                )
           ),
           h(Field,{label:'Gemini API Key'},
             h('div',{style:{display:'flex',gap:6}},
@@ -14708,22 +14715,27 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
                 h('div',{style:{display:'flex',flexWrap:'wrap',gap:8}},
                   ALL_CH.map(ch=>{
                     const on=(apptNotifCfg[tr.id]||[]).includes(ch.id);
+                    const locked=(ch.id==='viber'&&!planHas('viber'))||(ch.id==='messenger'&&!planHas('messenger'));
                     return h('button',{
                       key:ch.id,
                       type:'button',
-                      onClick:()=>toggleApptNotifCh(tr.id,ch.id),
+                      onClick:locked?undefined:()=>toggleApptNotifCh(tr.id,ch.id),
+                      disabled:locked,
+                      title:locked?'Professional plan required':undefined,
                       style:{
-                        padding:'7px 16px',borderRadius:50,fontSize:13,fontWeight:600,cursor:'pointer',
-                        border: on ? '2px solid #0a7c6e' : '2px solid var(--bd)',
-                        background: on ? '#0a7c6e' : '#fff',
-                        color: on ? '#fff' : 'var(--md)',
+                        padding:'7px 16px',borderRadius:50,fontSize:13,fontWeight:600,
+                        cursor:locked?'not-allowed':'pointer',
+                        border: locked ? '2px solid var(--bd)' : on ? '2px solid #0a7c6e' : '2px solid var(--bd)',
+                        background: locked ? '#f0f0f0' : on ? '#0a7c6e' : '#fff',
+                        color: locked ? '#aaa' : on ? '#fff' : 'var(--md)',
+                        opacity: locked ? 0.5 : 1,
                         transition:'all .15s',
                         display:'flex',alignItems:'center',gap:5,
-                        boxShadow: on ? '0 2px 8px rgba(10,124,110,.3)' : 'none',
+                        boxShadow: on&&!locked ? '0 2px 8px rgba(10,124,110,.3)' : 'none',
                       }
                     },
                       ch.label,
-                      on && h('span',{style:{fontSize:12,fontWeight:900}},' ✓')
+                      locked ? h('span',{style:{fontSize:12}},' 🔒') : on && h('span',{style:{fontSize:12,fontWeight:900}},' ✓')
                     );
                   })
                 )
