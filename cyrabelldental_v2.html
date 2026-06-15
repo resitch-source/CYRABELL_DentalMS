@@ -12260,9 +12260,16 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
     tab!=='log'&&h(Fragment,null,
       h('div',{className:'filters'},
         h('button',{className:'fb'+(filterType==='all'?' act':''),onClick:()=>setFilterType('all')},'All Types'),
-        Object.entries(REMINDER_TYPES).map(([k,t])=>
-          h('button',{key:k,className:'fb'+(filterType===k?' act':''),onClick:()=>setFilterType(k)},t.icon+' '+t.label)
-        )
+        Object.entries(REMINDER_TYPES).map(([k,t])=>{
+          const starterTypes=['cleaning','checkup','custom'];
+          const locked=!planHas('allReminderTypes')&&!starterTypes.includes(k);
+          return h('button',{key:k,className:'fb'+(filterType===k?' act':''),
+            onClick:locked?undefined:()=>setFilterType(k),
+            disabled:locked,
+            title:locked?'Professional plan required':undefined,
+            style:locked?{opacity:0.4,cursor:'not-allowed'}:undefined
+          },t.icon+' '+t.label+(locked?' 🔒':''));
+        })
       ),
       h('div',{className:'tsr',style:{width:'100%',maxWidth:320,marginBottom:14}},
         h(Svg,{d:IC.search,size:13,color:'var(--lt)'}),
