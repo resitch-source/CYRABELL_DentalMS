@@ -5772,11 +5772,17 @@ function LoginScreen({onAuth,onPickKiosk,onPublicBooking}){
             h('div',{className:'lmb-title'},'Admin / Staff'),
             h('div',{className:'lmb-desc'},'Login required')
           ),
-          h('button',{className:'login-mode-btn',onClick:onPickKiosk},
-            h('div',{className:'lmb-icon'},'🏥'),
-            h('div',{className:'lmb-title'},'Kiosk Mode'),
-            h('div',{className:'lmb-desc'},'Patient check-in')
-          )
+          planHas('kioskMode')
+            ? h('button',{className:'login-mode-btn',onClick:onPickKiosk},
+                h('div',{className:'lmb-icon'},'🏥'),
+                h('div',{className:'lmb-title'},'Kiosk Mode'),
+                h('div',{className:'lmb-desc'},'Patient check-in')
+              )
+            : h('button',{className:'login-mode-btn',disabled:true,style:{opacity:.45,cursor:'not-allowed',position:'relative'}},
+                h('div',{className:'lmb-icon'},'🏥'),
+                h('div',{className:'lmb-title'},'Kiosk Mode ',h('span',{style:{fontSize:10,color:'#d4a017'}},'🔒')),
+                h('div',{className:'lmb-desc'},'Professional plan required')
+              )
         ),
         h('div',{style:{textAlign:'center',marginTop:18}},
           h('button',{
@@ -9702,6 +9708,86 @@ function buildRxHTML({patName, patAddress, age, rx, rxDate, ptrNo, preview}) {
 }
 
 
+function VisitsTab({appts,pays,patient}){
+  const sortedAppts=[...appts].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const totalPaid=pays.reduce((s,p)=>s+parseFloat(p.amount||0),0);
+  const linkedPayRefs=new Set(appts.map(a=>'auto-'+a.id));
+  const linkedPayDates=new Set(appts.map(a=>a.date).filter(Boolean));
+  const orphanPays=pays.filter(p=>!linkedPayDates.has(p.date)&&!linkedPayRefs.has(p.ref));
+  if(!appts.length&&!pays.length) return h('div',{className:'empty'},'No visits recorded');
+  return h('div',{style:{display:'flex',flexDirection:'column',gap:14}},
+    h('div',{style:{display:'flex',gap:10,flexWrap:'wrap',marginBottom:2}},
+      h('div',{style:{background:'var(--tp)',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,color:'var(--t)'}},
+        '📅 '+appts.length+' Appointment'+(appts.length!==1?'s':'')),
+      h('div',{style:{background:'#e8f4ff',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:600,color:'#3a7bd5'}},
+        '💳 '+pays.length+' Payment'+(pays.length!==1?'s':'')),
+      pays.length>0&&h('div',{style:{background:totalPaid>0?'#e8f7f0':'#fde8e8',borderRadius:8,padding:'8px 14px',fontSize:12,fontWeight:700,color:totalPaid>0?'#1a8a6a':'#e05252'}},
+        '₱'+p$(totalPaid)+' Total Paid')
+    ),
+    sortedAppts.map(a=>{
+      const linked=pays.filter(p=>(p.date&&p.date===a.date)||(p.ref&&p.ref==='auto-'+a.id));
+      return h('div',{key:a.id,style:{background:'#fff',border:'1.5px solid #dde8ec',borderRadius:12,overflow:'hidden'}},
+        h('div',{style:{padding:'12px 14px',borderBottom:linked.length?'1px solid #dde8ec':'none'}},
+          h('div',{style:{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8,marginBottom:6}},
+            h('div',null,
+              h('div',{style:{fontWeight:700,fontSize:14,color:'#1a2332'}},svcStr(a)),
+              h('div',{style:{fontSize:11.5,color:'#4a6275',marginTop:2}},
+                (a.date?fmtDateWithDay(a.date):'—')+(a.time?' · '+fmtTime(a.time):'')+' · '+(a.dentist||''))
+            ),
+            h(SBadge,{status:a.status})
+          ),
+          svcList(a).length>0&&h('table',{className:'appt-svc-table',style:{marginTop:6}},
+            h('thead',null,h('tr',null,
+              h('th',null,'#'),h('th',null,'Service'),h('th',null,'Category'),h('th',null,'Note'),h('th',null,'Fee (₱)')
+            )),
+            h('tbody',null,svcList(a).map((sv,i)=>{
+              const svcObj=getActiveSvcs().find(x=>x.name===sv)||{};
+              return h('tr',{key:i},
+                h('td',{style:{color:'#4a6275',fontWeight:600}},i+1),
+                h('td',null,h('strong',null,sv)),
+                h('td',{style:{color:'#4a6275',fontSize:11.5}},svcObj.cat||'—'),
+                h('td',{style:{fontSize:11.5}},((a.serviceNotes||{})[sv])||'—'),
+                h('td',{style:{fontWeight:600,color:'#0a7c6e',whiteSpace:'nowrap'}},svcObj.fee!=null?'₱'+p$(svcObj.fee):'—')
+              );
+            }))
+          ),
+          h('div',{style:{display:'flex',justifyContent:'space-between',marginTop:8,fontSize:13}},
+            h('span',{style:{color:'#4a6275'}},a.notes||''),
+            h('span',{style:{fontWeight:700,color:'#0a7c6e'}},'Fee: ₱'+p$(a.fee||0))
+          )
+        ),
+        linked.length>0&&h('div',{style:{background:'#f0f7ff',padding:'10px 14px'}},
+          h('div',{style:{fontSize:11,fontWeight:700,color:'#3a7bd5',marginBottom:6,textTransform:'uppercase',letterSpacing:.5}},'💳 Payment'),
+          linked.map(pay=>h('div',{key:pay.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:13}},
+            h('span',null,(pay.method||'')+(pay.date?' · '+pay.date:'')),
+            h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+              h(SBadge,{status:pay.status}),
+              h('span',{style:{fontWeight:700,color:'#0a7c6e'}},'₱'+p$(pay.amount||0))
+            )
+          ))
+        )
+      );
+    }),
+    orphanPays.length>0&&h('div',null,
+      h('div',{style:{fontSize:11,fontWeight:700,color:'#4a6275',margin:'4px 0 8px',textTransform:'uppercase',letterSpacing:.5}},'Other Payments'),
+      h('div',{style:{display:'flex',flexDirection:'column',gap:8}},orphanPays.map(p=>
+        h('div',{key:p.id,style:{background:'#fff',border:'1.5px solid #dde8ec',borderRadius:10,padding:'10px 14px'}},
+          h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+            h('div',null,
+              h('div',{style:{fontWeight:600,fontSize:13}},svcStr(p)),
+              h('div',{style:{fontSize:11.5,color:'#4a6275'}},(p.method||'')+(p.date?' · '+p.date:''))
+            ),
+            h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+              h(SBadge,{status:p.status}),
+              h('span',{style:{fontWeight:700,color:'#0a7c6e'}},'₱'+p$(p.amount||0))
+            )
+          )
+        )
+      ))
+    )
+  );
+}
+
 function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addToast,syncUrl}){
   // Local copy so file/history updates reflect instantly without waiting for parent re-render
   const [localPat, setLocalPat] = useState(patientProp);
@@ -9752,7 +9838,9 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
     }
   };
   return h(Modal,{title:patient.name,sub:patient.id+' · '+patient.phone,xl:true,onClose,footer:h(Fragment,null,
-    h('button',{className:'btn bg2',onClick:()=>setShowAIAnalysis(true),style:{marginRight:'auto'}},'🤖 AI Analysis'),
+    planHas('aiAssistant')
+      ? h('button',{className:'btn bg2',onClick:()=>setShowAIAnalysis(true),style:{marginRight:'auto'}},'🤖 AI Analysis')
+      : h('button',{className:'btn bg2',disabled:true,title:'Professional plan required',style:{marginRight:'auto',opacity:0.45,cursor:'not-allowed'}},'🤖 🔒 AI Analysis'),
     h('button',{className:'btn bgh',onClick:onClose},'Close')
   )},
     h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:16}},
@@ -9769,8 +9857,8 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
       )
     ),
     h('div',{className:'tabs'},
-      ['info','dental','appointments','payments','attachments','history'].map(t=>{
-        const labels = {info:'Info', dental:'🦷 Dental Chart'+(conditionCount>0?' ('+conditionCount+')':''), appointments:'Appointments', payments:'Payments', attachments:'📎 Files'+(safe(patient.attachments).length>0?' ('+safe(patient.attachments).length+')':''), history:'📋 History'+(safe(patient.history).length>0?' ('+safe(patient.history).length+')':'')};
+      ['info','dental','visits','attachments','history'].map(t=>{
+        const labels = {info:'Info', dental:'🦷 Dental Chart'+(conditionCount>0?' ('+conditionCount+')':''), visits:'📅 Visits'+(appts.length>0?' ('+appts.length+')':''), attachments:'📎 Files'+(safe(patient.attachments).length>0?' ('+safe(patient.attachments).length+')':''), history:'📋 History'+(safe(patient.history).length>0?' ('+safe(patient.history).length+')':'')};
         return h('button',{key:t,className:'tab'+(tab===t?' act':''),onClick:()=>setTab(t)},labels[t]);
       }),
       // ── Document issue buttons ──────────────────────────────────────
@@ -9781,48 +9869,7 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
     ),
     tab==='info'&&h('div',{className:'ig'},infoRows.map(([l,v])=>h('div',{key:l},h('div',{className:'ilb'},l),h('div',{className:'ivl'},v)))),
     tab==='dental'&&h(DentalChart3D,{teethData,onToothEdit}),
-    tab==='appointments'&&(appts.length===0?h('div',{className:'empty'},'No appointments'):
-      h('div',{style:{display:'flex',flexDirection:'column',gap:12}},appts.map(a=>h('div',{key:a.id,className:'mc'},
-        h('div',{className:'mc-top'},
-          h('div',null,
-            h('div',{className:'mc-nm'},svcStr(a)),
-            h('div',{style:{fontSize:11,color:'var(--md)',marginTop:2}},fmtDateWithDay(a.date)+' · '+fmtTime(a.time)+' · '+a.dentist)
-          ),
-          h(SBadge,{status:a.status})
-        ),
-        svcList(a).length > 0 && h('div',{style:{margin:'6px 0'}},
-          h('table',{className:'appt-svc-table'},
-            h('thead',null,h('tr',null,
-              h('th',null,'#'),h('th',null,'Service'),h('th',null,'Category'),h('th',null,'Note'),h('th',null,'Fee (₱)')
-            )),
-            h('tbody',null,
-              svcList(a).map((sv,i)=>{
-                const cat=(getActiveSvcs().find(x=>x.name===sv)||{}).cat||'—';
-                const fee=(getActiveSvcs().find(x=>x.name===sv)||{}).fee;
-                const note=((a.serviceNotes||{})[sv])||'';
-                return h('tr',{key:i},
-                  h('td',{style:{color:'var(--md)',fontWeight:600}},i+1),
-                  h('td',null,h('strong',null,sv)),
-                  h('td',{style:{color:'var(--md)',fontSize:11.5}},cat),
-                  h('td',{style:{color:'var(--dk)',fontSize:11.5}},note||'—'),
-                  h('td',{style:{fontWeight:600,color:'var(--t)',whiteSpace:'nowrap'}},fee!=null?'₱'+p$(fee):'—')
-                );
-              })
-            )
-          )
-        ),
-        h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Total Fee'),h('span',{className:'mc-val',style:{fontWeight:700,color:'var(--t)'}},'₱'+p$(a.fee))),
-        a.notes && h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Notes'),h('span',{className:'mc-val',style:{color:'var(--dk)',whiteSpace:'pre-wrap'}},a.notes))
-      )))
-    ),
-    tab==='payments'&&(pays.length===0?h('div',{className:'empty'},'No payments'):
-      h('div',{style:{display:'flex',flexDirection:'column',gap:10}},pays.map(p=>h('div',{key:p.id,className:'mc'},
-        h('div',{className:'mc-top'},h('div',{className:'mc-nm'},svcStr(p)),h(SBadge,{status:p.status})),
-        h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Amount'),h('span',{className:'mc-val',style:{color:'var(--t)',fontWeight:700}},'₱'+p$(p.amount))),
-        h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Method'),h('span',{className:'mc-val'},p.method)),
-        h('div',{className:'mc-row'},h('span',{className:'mc-lbl'},'Date'),h('span',{className:'mc-val'},p.date))
-      )))
-    ),
+    tab==='visits'&&h(VisitsTab,{appts:appts||[],pays:pays||[],patient}),
     showAIAnalysis && h(AIAssistant,{appointments:appts,patients:[patient],payments:pays,addToast,onClose:()=>setShowAIAnalysis(false),defaultTab:'analyze'}),
     tab==='attachments' && h(AttachmentPanel, {
       attachments: safe(patient.attachments),
@@ -11690,15 +11737,19 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
         h('div',{className:'fg',style:{marginBottom:12}},h('label',null,'Type'),
           h('div',{className:'ntg'},
             [
-              ['sms','📱','SMS','Text message'],
-              ['email','📧','Email','To inbox'],
-              ['whatsapp','💬','WhatsApp','Opens WhatsApp'],
-              ['viber','🟣','Viber','Opens Viber'],
-              ['messenger','💙','Messenger','Opens FB Messenger'],
-            ].map(([v,e,n,d])=>
-              h('div',{key:v,className:'ntc'+(ntype===v?' sel':''),onClick:()=>setNtype(v)},
+              ['sms','📱','SMS','Text message',false],
+              ['email','📧','Email','To inbox',false],
+              ['whatsapp','💬','WhatsApp','Opens WhatsApp',false],
+              ['viber','🟣','Viber','Opens Viber',!planHas('viber')],
+              ['messenger','💙','Messenger','Opens FB Messenger',!planHas('messenger')],
+            ].map(([v,e,n,d,locked])=>
+              h('div',{key:v,className:'ntc'+(ntype===v&&!locked?' sel':''),
+                onClick:locked?undefined:()=>setNtype(v),
+                title:locked?'Professional plan required':undefined,
+                style:locked?{opacity:0.4,cursor:'not-allowed',position:'relative'}:undefined
+              },
                 h('div',{className:'ntic',style:{background:v==='sms'?'#e8f5f3':v==='email'?'#e8eeff':v==='whatsapp'?'#dcfce7':v==='viber'?'#f3e8ff':'#dbeafe'}},h('span',{style:{fontSize:17}},e)),
-                h('div',{className:'ntn'},n),h('div',{className:'ntd'},d)
+                h('div',{className:'ntn'},n,locked&&h('span',{style:{fontSize:10,marginLeft:3}},'🔒')),h('div',{className:'ntd'},d)
               )
             )
           )
@@ -11859,20 +11910,22 @@ function ReminderForm({patients,reminder,onClose,onSave}){
     ),
     h(Field,{label:'Reminder Type *'},
       h('div',{className:'rmnd-type-grid'},
-        Object.entries(REMINDER_TYPES).map(([k,t])=>
-          h('div',{
+        Object.entries(REMINDER_TYPES).map(([k,t])=>{
+          const starterTypes=['cleaning','checkup','custom'];
+          const locked=!planHas('allReminderTypes')&&!starterTypes.includes(k);
+          return h('div',{
             key:k,
-            className:'rmnd-type-card'+(f.type===k?' sel':''),
-            onClick:()=>ht(k),
-            style:{borderColor:f.type===k?t.color:undefined}
+            className:'rmnd-type-card'+(f.type===k?' sel':'')+(locked?' locked':''),
+            onClick:locked?undefined:()=>ht(k),
+            style:{borderColor:f.type===k?t.color:undefined,opacity:locked?.4:1,cursor:locked?'not-allowed':'pointer',position:'relative'}
           },
             h('div',{className:'rt-icon',style:{background:t.color+'18',color:t.color}},t.icon),
             h('div',{className:'rt-info'},
-              h('div',{className:'rt-name'},t.label),
+              h('div',{className:'rt-name'},t.label,locked&&h('span',{style:{fontSize:10,color:'#d4a017',marginLeft:4}},'🔒')),
               h('div',{className:'rt-desc'},'Every '+(t.interval>=365?'year':t.interval>=180?'6 months':t.interval>=90?'3 months':t.interval+' days'))
             )
-          )
-        )
+          );
+        })
       )
     ),
     h('div',{className:'fg2'},
@@ -12211,9 +12264,16 @@ function Reminders({reminders,setReminders,reminderLog,setReminderLog,patients,a
     tab!=='log'&&h(Fragment,null,
       h('div',{className:'filters'},
         h('button',{className:'fb'+(filterType==='all'?' act':''),onClick:()=>setFilterType('all')},'All Types'),
-        Object.entries(REMINDER_TYPES).map(([k,t])=>
-          h('button',{key:k,className:'fb'+(filterType===k?' act':''),onClick:()=>setFilterType(k)},t.icon+' '+t.label)
-        )
+        Object.entries(REMINDER_TYPES).map(([k,t])=>{
+          const starterTypes=['cleaning','checkup','custom'];
+          const locked=!planHas('allReminderTypes')&&!starterTypes.includes(k);
+          return h('button',{key:k,className:'fb'+(filterType===k?' act':''),
+            onClick:locked?undefined:()=>setFilterType(k),
+            disabled:locked,
+            title:locked?'Professional plan required':undefined,
+            style:locked?{opacity:0.4,cursor:'not-allowed'}:undefined
+          },t.icon+' '+t.label+(locked?' 🔒':''));
+        })
       ),
       h('div',{className:'tsr',style:{width:'100%',maxWidth:320,marginBottom:14}},
         h(Svg,{d:IC.search,size:13,color:'var(--lt)'}),
@@ -13549,7 +13609,9 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
             onClick:()=>setViewMode('calendar')
           },'📅 Calendar')
         ),
-        h('button',{className:'btn bg2',onClick:()=>setShowAnalysis(true),title:'View conflict analysis'},'🔍 Analysis'),
+        planHas('conflictAnalysis')
+          ? h('button',{className:'btn bg2',onClick:()=>setShowAnalysis(true),title:'View conflict analysis'},'🔍 Analysis')
+          : h('button',{className:'btn bg2',disabled:true,title:'Upgrade to Professional to unlock Conflict Analysis',style:{opacity:.45,cursor:'not-allowed'}},'🔍 Analysis ',h('span',{style:{fontSize:10,color:'#d4a017'}},'🔒')),
         h('button',{className:'btn bp',onClick:()=>setModal(true)},h(Svg,{d:IC.plus,size:14}),' New')
       )
     ),
@@ -14577,13 +14639,20 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
               : h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,lineHeight:1.5}},'Get from developers.facebook.com → My Apps → WhatsApp → API Setup. Free: 1,000 msgs/month')
           ),
           h(Field,{label:'🟣 Viber Bot Token'},
-            h('div',{style:{display:'flex',gap:6}},
-              h('input',{type:'password',className:'inp',value:viberToken,onChange:e=>{setViberToken(e.target.value);lsSet(LS_KEYS.VIBER_TOKEN,e.target.value.trim());},placeholder:'Viber Bot authentication token',style:{fontSize:12,fontFamily:'monospace',flex:1}}),
-              h('button',{className:'btn bgh bsm',onClick:()=>setShowViberToken(s=>!s),style:{whiteSpace:'nowrap'}},showViberToken?'🙈 Hide':'👁 Show')
-            ),
-            viberToken
-              ? h('div',{style:{fontSize:11.5,color:'#22c55e',marginTop:4}},'✓ Viber Bot token saved — Viber messages will send automatically')
-              : h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,lineHeight:1.5}},'Create a Viber Bot at partners.viber.com → get auth token')
+            planHas('viber')
+              ? h(Fragment,null,
+                  h('div',{style:{display:'flex',gap:6}},
+                    h('input',{type:'password',className:'inp',value:viberToken,onChange:e=>{setViberToken(e.target.value);lsSet(LS_KEYS.VIBER_TOKEN,e.target.value.trim());},placeholder:'Viber Bot authentication token',style:{fontSize:12,fontFamily:'monospace',flex:1}}),
+                    h('button',{className:'btn bgh bsm',onClick:()=>setShowViberToken(s=>!s),style:{whiteSpace:'nowrap'}},showViberToken?'🙈 Hide':'👁 Show')
+                  ),
+                  viberToken
+                    ? h('div',{style:{fontSize:11.5,color:'#22c55e',marginTop:4}},'✓ Viber Bot token saved — Viber messages will send automatically')
+                    : h('div',{style:{fontSize:11,color:'var(--md)',marginTop:4,lineHeight:1.5}},'Create a Viber Bot at partners.viber.com → get auth token')
+                )
+              : h('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'#f8f8f8',borderRadius:8,border:'1px solid var(--bd)',opacity:0.6}},
+                  h('span',{style:{fontSize:18}},'🔒'),
+                  h('span',{style:{fontSize:12,color:'var(--md)'}},'Viber Bot Token — Available on Professional plan and above')
+                )
           ),
           h(Field,{label:'Gemini API Key'},
             h('div',{style:{display:'flex',gap:6}},
@@ -14646,22 +14715,27 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
                 h('div',{style:{display:'flex',flexWrap:'wrap',gap:8}},
                   ALL_CH.map(ch=>{
                     const on=(apptNotifCfg[tr.id]||[]).includes(ch.id);
+                    const locked=(ch.id==='viber'&&!planHas('viber'))||(ch.id==='messenger'&&!planHas('messenger'));
                     return h('button',{
                       key:ch.id,
                       type:'button',
-                      onClick:()=>toggleApptNotifCh(tr.id,ch.id),
+                      onClick:locked?undefined:()=>toggleApptNotifCh(tr.id,ch.id),
+                      disabled:locked,
+                      title:locked?'Professional plan required':undefined,
                       style:{
-                        padding:'7px 16px',borderRadius:50,fontSize:13,fontWeight:600,cursor:'pointer',
-                        border: on ? '2px solid #0a7c6e' : '2px solid var(--bd)',
-                        background: on ? '#0a7c6e' : '#fff',
-                        color: on ? '#fff' : 'var(--md)',
+                        padding:'7px 16px',borderRadius:50,fontSize:13,fontWeight:600,
+                        cursor:locked?'not-allowed':'pointer',
+                        border: locked ? '2px solid var(--bd)' : on ? '2px solid #0a7c6e' : '2px solid var(--bd)',
+                        background: locked ? '#f0f0f0' : on ? '#0a7c6e' : '#fff',
+                        color: locked ? '#aaa' : on ? '#fff' : 'var(--md)',
+                        opacity: locked ? 0.5 : 1,
                         transition:'all .15s',
                         display:'flex',alignItems:'center',gap:5,
-                        boxShadow: on ? '0 2px 8px rgba(10,124,110,.3)' : 'none',
+                        boxShadow: on&&!locked ? '0 2px 8px rgba(10,124,110,.3)' : 'none',
                       }
                     },
                       ch.label,
-                      on && h('span',{style:{fontSize:12,fontWeight:900}},' ✓')
+                      locked ? h('span',{style:{fontSize:12}},' 🔒') : on && h('span',{style:{fontSize:12,fontWeight:900}},' ✓')
                     );
                   })
                 )
@@ -15866,7 +15940,7 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
     canDo(user,'manage_users')&&{id:'users',l:'User & Roles',d:IC.users},
     canDo(user,'view_sync')&&{id:'sync',l:'Sync & Backup',d:IC.cloud},
     canDo(user,'export_data')&&{id:'export',l:'Export',d:IC.dl},
-    canDo(user,'view_analytics')&&{id:'analytics',l:'Analytics',d:IC.report},
+    canDo(user,'view_analytics')&&planHas('advancedAnalytics')&&{id:'analytics',l:'Analytics',d:IC.report},
     canDo(user,'view_logs')&&{id:'logs', l:'🪵 Logs', d:IC.bell, sec:''},
   ].filter(Boolean);
   const BOT=[
@@ -15895,7 +15969,11 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
       if(page==='sync')return canDo(user,'view_sync')?h(SyncPage,{patients:safe(patients),appointments:safe(appointments),payments:safe(payments),notifications:safe(notifications),reminders:safe(reminders),reminderLog:safe(reminderLog),services:getActiveSvcs(),setPatients,setAppointments,setPayments,setNotifications,setReminders,setReminderLog,setServices:(svcs)=>{try{localStorage.setItem(LS_KEYS.SERVICES,JSON.stringify(svcs));}catch(e){}},addToast}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       if(page==='notifications')return h(Notifications,{notifications:safe(notifications),setNotifications,appointments:safe(appointments),addToast});
       if(page==='export')return canDo(user,'export_data')?h(ExportPage,{appointments:safe(appointments),patients:safe(patients),payments:safe(payments)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
-      if(page==='analytics')return canDo(user,'view_analytics')?h(Analytics,{appointments:safe(appointments),payments:safe(payments),patients:safe(patients)}):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+      if(page==='analytics'){
+        if(!canDo(user,'view_analytics')) return h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
+        if(!planHas('advancedAnalytics')) return h('div',{style:{padding:30,textAlign:'center'}},h(UpgradeBadge,{feature:'advancedAnalytics'}),h('p',{style:{marginTop:12,color:'var(--md)',fontSize:14}},'Advanced Analytics requires the Professional plan.'));
+        return h(Analytics,{appointments:safe(appointments),payments:safe(payments),patients:safe(patients)});
+      }
       if(page==='logs') return canDo(user,'view_logs')?h(ErrorBoundary,null,h(LogsViewer,{addToast})):h('div',{style:{padding:30,textAlign:'center',color:'var(--re)'}},h('p',null,'⛔ Access denied — Administrators only'));
       return h('div',{style:{padding:30,textAlign:'center',color:'var(--md)'}}, 'Page not found: ' + page);
     } catch (err) {
@@ -15933,8 +16011,11 @@ function AdminPanel({user,onLogout,patients,setPatients,appointments,setAppointm
         ),
         h('div',{className:'sb-ft'},
           h('div',{style:{marginBottom:8}},
-            h('button',{className:'btn bs',style:{width:'100%',justifyContent:'center',fontSize:12,padding:'7px 12px'},onClick:onGoKiosk},
-              h(Svg,{d:IC.globe,size:13}),' Open Kiosk Mode')
+            planHas('kioskMode')
+              ? h('button',{className:'btn bs',style:{width:'100%',justifyContent:'center',fontSize:12,padding:'7px 12px'},onClick:onGoKiosk},
+                  h(Svg,{d:IC.globe,size:13}),' Open Kiosk Mode')
+              : h('button',{className:'btn bs',style:{width:'100%',justifyContent:'center',fontSize:12,padding:'7px 12px',opacity:0.45,cursor:'not-allowed'},disabled:true,title:'Professional plan required'},
+                  h(Svg,{d:IC.globe,size:13}),' 🔒 Open Kiosk Mode')
           ),
           h('div',{className:'uc',onClick:onLogout,title:'Click to log out'},
             h('div',{className:'ua'},userInitial),
