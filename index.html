@@ -70,6 +70,14 @@ window._drawQROnCanvas=function(url,canvas,size){
   canvas.width=actual;canvas.height=actual;
   ctx.fillStyle='#ffffff';ctx.fillRect(0,0,actual,actual);
   for(var r=0;r<count;r++)for(var c=0;c<count;c++){ctx.fillStyle=qr.isDark(r,c)?'#0a1628':'#ffffff';ctx.fillRect(c*cell,r*cell,cell,cell);}
+  var cx=actual/2,cy=actual/2,cr=cell*3.5;
+  ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(cx,cy,cr+2,0,2*Math.PI);ctx.fill();
+  ctx.fillStyle='#0a1628';ctx.beginPath();ctx.arc(cx,cy,cr,0,2*Math.PI);ctx.fill();
+  ctx.strokeStyle='#00b4d8';ctx.lineWidth=cr*0.28;ctx.lineCap='round';
+  ctx.beginPath();ctx.arc(cx,cy,cr*0.58,0.45*Math.PI,1.55*Math.PI,false);ctx.stroke();
+  ctx.fillStyle='#d4a017';
+  ctx.beginPath();ctx.arc(cx-Math.sin(0.45*Math.PI)*cr*0.58,cy+Math.cos(0.45*Math.PI)*cr*0.58,cr*0.13,0,2*Math.PI);ctx.fill();
+  ctx.beginPath();ctx.arc(cx-Math.sin(1.55*Math.PI)*cr*0.58,cy+Math.cos(1.55*Math.PI)*cr*0.58,cr*0.13,0,2*Math.PI);ctx.fill();
 };
 })();
 </script>
@@ -3489,6 +3497,7 @@ const LS_KEYS = Object.freeze({
   AUTO_CONFIRM:     'cyrabell_auto_confirm',
   REMINDER_AUTO:    'cyrabell_reminder_auto',
   REMINDER_LAST_RUN:'cyrabell_reminder_last_run',
+  APPT_NOTIF_CFG:   'cyrabell_appt_notif_cfg',
   ERROR_LOG:        'cyrabell_error_log',
   SERVICES:         'cyrabell_v2_services',
   DATA_VERSION:     'cyrabell_data_version',
@@ -5032,6 +5041,53 @@ async function sendNotification(channel, patient, message, syncUrl) {
 }
 
 
+// ── Auto-notification helpers ────────────────────────────────────────────────
+
+// Default per-trigger channel config (all channels that have credentials).
+const APPT_NOTIF_DEFAULT={confirmation:['sms','email','whatsapp','viber'],reminder:['sms','whatsapp'],cancellation:['sms','email','whatsapp','viber']};
+
+function getApptNotifCfg(){
+  try{const s=localStorage.getItem(LS_KEYS.APPT_NOTIF_CFG);if(s)return JSON.parse(s);}catch(e){}
+  return APPT_NOTIF_DEFAULT;
+}
+
+// Returns channels that are (a) configured for this trigger and (b) have API credentials.
+function getEnabledChannels(trigger){
+  const cfg=getApptNotifCfg();
+  const wanted=new Set(cfg[trigger]||cfg.confirmation||[]);
+  const ch=[];
+  try{if(wanted.has('sms')&&localStorage.getItem(LS_KEYS.SEMAPHORE_KEY)) ch.push('sms');}catch(e){}
+  try{if(wanted.has('email')&&localStorage.getItem(LS_KEYS.SYNC_URL))    ch.push('email');}catch(e){}
+  try{if(wanted.has('whatsapp')&&localStorage.getItem(LS_KEYS.WA_TOKEN)&&localStorage.getItem(LS_KEYS.WA_PHONE_ID)) ch.push('whatsapp');}catch(e){}
+  try{if(wanted.has('viber')&&localStorage.getItem(LS_KEYS.VIBER_TOKEN)) ch.push('viber');}catch(e){}
+  if(wanted.has('messenger')) ch.push('messenger');
+  return ch;
+}
+
+// Sends appointment notification on all enabled channels and appends to the
+// notifications log.  type = 'confirmation' | 'cancellation' | 'reminder'
+async function sendApptNotif(type, appt, syncUrl, setNotifications){
+  const channels=getEnabledChannels(type);
+  if(!channels.length||!appt) return;
+  const tmplFn=TMPL[type];
+  if(!tmplFn) return;
+  const message=tmplFn(appt);
+  const patient={name:appt.patientName,phone:appt.phone||'',email:appt.email||'',smsCarrier:appt.smsCarrier||''};
+  const nowStr=new Date().toLocaleString();
+  for(const ch of channels){
+    let status='sent';
+    try{ await sendNotification(ch,patient,message,syncUrl); }
+    catch(e){ status='failed'; }
+    if(setNotifications){
+      setNotifications(prev=>[{
+        id:'N'+uid(),type:ch,recipient:appt.patientName,
+        phone:appt.phone||'—',email:appt.email||'—',
+        message,sentAt:nowStr,status
+      },...prev]);
+    }
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 🤖 AI ASSISTANT — Rule-based scheduling + dental case analysis
 // ═══════════════════════════════════════════════════════════════════════════
@@ -5973,7 +6029,7 @@ function KioskInfoBar({ads}){
 }
 function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a;}
 
-function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patients,syncUrl}){
+function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patients,setPatients,syncUrl}){
   const [step,setStep]=useState('queue'); // 'queue'|'checkin'|'walkin'|'install'|'confirm'|'success'
   const [search,setSearch]=useState('');
   const [picked,setPicked]=useState(null);
@@ -5995,6 +6051,20 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
   const kioskQrMainRef=useRef(null);
 
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date()),30000); return ()=>clearInterval(t); },[]);
+
+  // Real-time queue refresh: listen for localStorage changes from other tabs,
+  // and poll every 15s to catch same-tab updates (e.g. booking confirmations)
+  useEffect(()=>{
+    const reload=()=>{
+      try{
+        const s=localStorage.getItem('cyrabell_v2_appointments');
+        if(s){const d=JSON.parse(s);if(Array.isArray(d))setAppointments(d);}
+      }catch(e){}
+    };
+    window.addEventListener('storage',reload);
+    const t=setInterval(reload,15000);
+    return ()=>{ window.removeEventListener('storage',reload); clearInterval(t); };
+  },[]);
 
   // Draw QR on sidebar install canvas
   useEffect(()=>{
@@ -6087,9 +6157,31 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
     if(walkinMode==='standby'&&todayStandby.length>=4){setWalkinErr('Standby queue is full today (4/4). Please choose a specific time slot.');return;}
     const sv=getActiveSvcs().find(x=>x.name===walkinInfo.service);
     const qNum=walkinMode==='standby'?todayStandby.length+1:null;
+    const nameClean=walkinInfo.name.trim();
+    const phoneClean=walkinInfo.phone.trim();
+    // Find existing patient by phone or name to avoid duplicates
+    const existingPat=(patients||[]).find(p=>
+      (p.phone&&p.phone===phoneClean)||(p.name&&p.name.toLowerCase()===nameClean.toLowerCase())
+    );
+    let patientId;
+    if(existingPat){
+      patientId=existingPat.id;
+    } else {
+      patientId='P'+Date.now().toString().slice(-6);
+      const newPat={
+        id:patientId,name:nameClean,phone:phoneClean,email:'',
+        dob:'',sex:'',bloodType:'',allergies:'',occupation:'',maritalStatus:'',
+        teeth:{},attachments:[],history:[],lastVisit:localToday(),photoDataUrl:'',photoFileId:'',
+      };
+      if(setPatients) setPatients(prev=>[newPat,...prev]);
+      try{
+        const stored=JSON.parse(localStorage.getItem('cyrabell_v2_patients')||'[]');
+        localStorage.setItem('cyrabell_v2_patients',JSON.stringify([newPat,...stored]));
+      }catch(e){}
+    }
     const appt={
-      id:'A'+uid(),patientId:'P'+uid(),patientName:walkinInfo.name.trim(),
-      phone:walkinInfo.phone.trim(),email:'',
+      id:'A'+uid(),patientId,patientName:nameClean,
+      phone:phoneClean,email:'',
       service:walkinInfo.service,services:[walkinInfo.service],fee:sv?sv.fee:0,
       date:walkinInfo.date,time:walkinMode==='scheduled'?walkinInfo.time:'',
       dentist:'Dr. Arnold Colao',notes:'Walk-in booking via Kiosk',
@@ -6098,6 +6190,7 @@ function KioskMode({appointments,setAppointments,onCheckIn,onExit,addToast,patie
     };
     if(setAppointments) setAppointments(prev=>[appt,...prev]);
     if(syncUrl) syncOneRecord('appointments',appt,syncUrl);
+    sendApptNotif('confirmation',appt,syncUrl,null);
     setWalkinDone(appt);
   };
 
@@ -13416,10 +13509,10 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
       syncOneRecord('appointments', updated, syncUrl);
       return updated;
     }));
-    const msgs={confirmed:'Confirmed! Auto-SMS sent.',completed:'Marked complete.',cancelled:'Appointment cancelled.'};
+    const msgs={confirmed:'Confirmed! Notifications sent.',completed:'Marked complete.',cancelled:'Appointment cancelled.'};
     addToast(msgs[status]||'Updated.',status==='cancelled'?'error':'success');
     if(status==='confirmed'&&a){
-      setNotifications(prev=>[{id:'N'+uid(),type:'sms',recipient:a.patientName,phone:a.phone||'—',email:a.email||'—',message:TMPL.confirmation(a),sentAt:new Date().toLocaleString(),status:'sent'},...prev]);
+      sendApptNotif('confirmation',a,syncUrl,setNotifications);
       if (setPayments && a.fee > 0) {
         const refTag = 'auto-' + a.id;
         setPayments(prev => {
@@ -13432,6 +13525,9 @@ function Appointments({appointments,setAppointments,patients,setPatients,setNoti
           }, ...prev];
         });
       }
+    }
+    if(status==='cancelled'&&a){
+      sendApptNotif('cancellation',a,syncUrl,setNotifications);
     }
   };
 
@@ -14068,6 +14164,17 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
   const [licKey, setLicKey]       = useState(()=>getLicense().licenseKey||'');
   const [licClinic, setLicClinic] = useState(()=>getLicense().clinicName||'');
   const [licMsg, setLicMsg]       = useState('');
+  const [apptNotifCfg, setApptNotifCfg] = useState(getApptNotifCfg);
+  const toggleApptNotifCh=(trigger,ch)=>{
+    setApptNotifCfg(prev=>{
+      const cur=prev[trigger]||[];
+      const next={...prev,[trigger]:cur.includes(ch)?cur.filter(x=>x!==ch):[...cur,ch]};
+      try{localStorage.setItem(LS_KEYS.APPT_NOTIF_CFG,JSON.stringify(next));}catch(e){}
+      return next;
+    });
+  };
+  const ALL_CH=[{id:'sms',label:'📱 SMS'},{id:'email',label:'📧 Email'},{id:'whatsapp',label:'💬 WhatsApp'},{id:'viber',label:'🟣 Viber'},{id:'messenger',label:'💙 Messenger'}];
+  const TRIGGERS=[{id:'confirmation',label:'✅ Confirmation'},{id:'reminder',label:'⏰ 30-min Reminder'},{id:'cancellation',label:'❌ Cancellation'}];
   const fileInputRef = useRef(null);
 
   const saveGeminiKey = (v) => {
@@ -14523,6 +14630,46 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
               } catch(e) { addToast('❌ Test failed: ' + e.message,'error'); }
             },
           }, '🔬 Test Gemini Key')
+        )
+      ),
+
+      // ───── Auto-Notification Channels card ─────
+      h('div',{className:'card'},
+        h('div',{className:'ch'},h('div',{className:'ct'},'🔔 Auto-Notification Channels')),
+        h('div',{className:'cb'},
+          h('div',{style:{fontSize:13,color:'var(--md)',marginBottom:16,lineHeight:1.5}},
+            'Choose which channels to use for each automatic notification trigger. Only channels with API credentials configured above will actually send.'),
+          h('div',{style:{display:'flex',flexDirection:'column',gap:16}},
+            TRIGGERS.map(tr=>
+              h('div',{key:tr.id,style:{background:'var(--cr)',borderRadius:10,padding:'14px 16px',border:'1px solid var(--bd)'}},
+                h('div',{style:{fontWeight:700,fontSize:13,color:'var(--t)',marginBottom:10}},tr.label),
+                h('div',{style:{display:'flex',flexWrap:'wrap',gap:8}},
+                  ALL_CH.map(ch=>{
+                    const on=(apptNotifCfg[tr.id]||[]).includes(ch.id);
+                    return h('button',{
+                      key:ch.id,
+                      type:'button',
+                      onClick:()=>toggleApptNotifCh(tr.id,ch.id),
+                      style:{
+                        padding:'7px 16px',borderRadius:50,fontSize:13,fontWeight:600,cursor:'pointer',
+                        border: on ? '2px solid #0a7c6e' : '2px solid var(--bd)',
+                        background: on ? '#0a7c6e' : '#fff',
+                        color: on ? '#fff' : 'var(--md)',
+                        transition:'all .15s',
+                        display:'flex',alignItems:'center',gap:5,
+                        boxShadow: on ? '0 2px 8px rgba(10,124,110,.3)' : 'none',
+                      }
+                    },
+                      ch.label,
+                      on && h('span',{style:{fontSize:12,fontWeight:900}},' ✓')
+                    );
+                  })
+                )
+              )
+            )
+          ),
+          h('div',{style:{marginTop:14,fontSize:12,color:'var(--md)',lineHeight:1.6}},
+            '💡 Messenger uses a deep link (no token needed). SMS requires Semaphore key, Email requires Sync URL, WhatsApp requires WA Token + Phone ID, Viber requires Viber Token.')
         )
       ),
 
@@ -16441,6 +16588,36 @@ function App(){
   }, [user, reminders, patients]);
 
   // ─────────────────────────────────────────────────────────────────────────
+  // 30-MINUTE PRE-APPOINTMENT REMINDER: checks every minute, sends once per
+  // appointment (tracked in sessionStorage to survive re-renders but reset on
+  // page reload so staff don't get duplicate reminders across days).
+  useEffect(()=>{
+    const sentKey='cyrabell_30min_sent';
+    const getSent=()=>{try{return JSON.parse(sessionStorage.getItem(sentKey)||'[]');}catch(e){return [];}};
+    const markSent=(id)=>{const s=getSent();s.push(id);try{sessionStorage.setItem(sentKey,JSON.stringify(s));}catch(e){}};
+    const check=()=>{
+      const now=new Date();
+      const today2=localToday();
+      const sent=getSent();
+      (appointments||[]).forEach(a=>{
+        if(a.date!==today2) return;
+        if(a.status==='cancelled'||a.status==='completed') return;
+        if(sent.includes(a.id)) return;
+        if(!a.time) return;
+        const [hh,mm]=(a.time).split(':').map(Number);
+        const apptMs=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm).getTime();
+        const diffMin=(apptMs-now.getTime())/60000;
+        if(diffMin>=28&&diffMin<=32){
+          markSent(a.id);
+          sendApptNotif('reminder',a,syncUrl,setNotifications);
+        }
+      });
+    };
+    const t=setInterval(check,60000);
+    return ()=>clearInterval(t);
+  },[appointments,syncUrl]);
+
+  // ─────────────────────────────────────────────────────────────────────────
   // AUTO-SYNC: push to Google Sheets on every data change.
   //
   // Design notes:
@@ -16708,6 +16885,7 @@ function App(){
       onExit:()=>setView(user?'admin':'login'),
       addToast,
       patients,
+      setPatients,
       syncUrl,
     }),
     h(Toast,{toasts,rm:id=>setToasts(p=>p.filter(t=>t.id!==id))})
