@@ -14165,11 +14165,13 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
   const [licClinic, setLicClinic] = useState(()=>getLicense().clinicName||'');
   const [licMsg, setLicMsg]       = useState('');
   const [apptNotifCfg, setApptNotifCfg] = useState(getApptNotifCfg);
-  const saveApptNotifCfg=(next)=>{setApptNotifCfg(next);try{localStorage.setItem(LS_KEYS.APPT_NOTIF_CFG,JSON.stringify(next));}catch(e){}};
   const toggleApptNotifCh=(trigger,ch)=>{
-    const cur=apptNotifCfg[trigger]||[];
-    const next={...apptNotifCfg,[trigger]:cur.includes(ch)?cur.filter(x=>x!==ch):[...cur,ch]};
-    saveApptNotifCfg(next);
+    setApptNotifCfg(prev=>{
+      const cur=prev[trigger]||[];
+      const next={...prev,[trigger]:cur.includes(ch)?cur.filter(x=>x!==ch):[...cur,ch]};
+      try{localStorage.setItem(LS_KEYS.APPT_NOTIF_CFG,JSON.stringify(next));}catch(e){}
+      return next;
+    });
   };
   const ALL_CH=[{id:'sms',label:'📱 SMS'},{id:'email',label:'📧 Email'},{id:'whatsapp',label:'💬 WhatsApp'},{id:'viber',label:'🟣 Viber'},{id:'messenger',label:'💙 Messenger'}];
   const TRIGGERS=[{id:'confirmation',label:'✅ Confirmation'},{id:'reminder',label:'⏰ 30-min Reminder'},{id:'cancellation',label:'❌ Cancellation'}];
@@ -14635,35 +14637,37 @@ function SyncPage({patients, appointments, payments, notifications, reminders, r
       h('div',{className:'card'},
         h('div',{className:'ch'},h('div',{className:'ct'},'🔔 Auto-Notification Channels')),
         h('div',{className:'cb'},
-          h('div',{style:{fontSize:13,color:'var(--md)',marginBottom:14,lineHeight:1.5}},
+          h('div',{style:{fontSize:13,color:'var(--md)',marginBottom:16,lineHeight:1.5}},
             'Choose which channels to use for each automatic notification trigger. Only channels with API credentials configured above will actually send.'),
-          h('div',{style:{overflowX:'auto'}},
-            h('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:13}},
-              h('thead',null,
-                h('tr',null,
-                  h('th',{style:{textAlign:'left',padding:'6px 10px',borderBottom:'2px solid var(--bd)',color:'var(--t)',fontWeight:700,whiteSpace:'nowrap'}},'Trigger'),
-                  ALL_CH.map(ch=>h('th',{key:ch.id,style:{textAlign:'center',padding:'6px 8px',borderBottom:'2px solid var(--bd)',color:'var(--t)',fontWeight:700,whiteSpace:'nowrap'}},ch.label))
-                )
-              ),
-              h('tbody',null,
-                TRIGGERS.map((tr,ti)=>h('tr',{key:tr.id,style:{background:ti%2===0?'transparent':'rgba(0,0,0,.02)'}},
-                  h('td',{style:{padding:'10px 10px',fontWeight:600,color:'var(--t)',whiteSpace:'nowrap'}},tr.label),
+          h('div',{style:{display:'flex',flexDirection:'column',gap:16}},
+            TRIGGERS.map(tr=>
+              h('div',{key:tr.id,style:{background:'var(--cr)',borderRadius:10,padding:'14px 16px',border:'1px solid var(--bd)'}},
+                h('div',{style:{fontWeight:700,fontSize:13,color:'var(--t)',marginBottom:10}},tr.label),
+                h('div',{style:{display:'flex',flexWrap:'wrap',gap:8}},
                   ALL_CH.map(ch=>{
                     const on=(apptNotifCfg[tr.id]||[]).includes(ch.id);
-                    return h('td',{key:ch.id,style:{textAlign:'center',padding:'10px 8px'}},
-                      h('input',{
-                        type:'checkbox',
-                        checked:on,
-                        onChange:()=>toggleApptNotifCh(tr.id,ch.id),
-                        style:{width:18,height:18,cursor:'pointer',accentColor:'var(--pr)'}
-                      })
+                    return h('button',{
+                      key:ch.id,
+                      type:'button',
+                      onClick:()=>toggleApptNotifCh(tr.id,ch.id),
+                      style:{
+                        padding:'7px 14px',borderRadius:50,fontSize:13,fontWeight:600,cursor:'pointer',
+                        border: on ? '2px solid var(--pr)' : '2px solid var(--bd)',
+                        background: on ? 'var(--pr)' : 'var(--bg)',
+                        color: on ? '#fff' : 'var(--md)',
+                        transition:'all .15s',
+                        display:'flex',alignItems:'center',gap:5,
+                      }
+                    },
+                      ch.label,
+                      on && h('span',{style:{fontSize:11,fontWeight:800,opacity:.9}},' ✓')
                     );
                   })
-                ))
+                )
               )
             )
           ),
-          h('div',{style:{marginTop:12,fontSize:12,color:'var(--md)',lineHeight:1.5}},
+          h('div',{style:{marginTop:14,fontSize:12,color:'var(--md)',lineHeight:1.6}},
             '💡 Messenger uses a deep link (no token needed). SMS requires Semaphore key, Email requires Sync URL, WhatsApp requires WA Token + Phone ID, Viber requires Viber Token.')
         )
       ),
