@@ -11737,15 +11737,19 @@ function Notifications({notifications,setNotifications,appointments,addToast}){
         h('div',{className:'fg',style:{marginBottom:12}},h('label',null,'Type'),
           h('div',{className:'ntg'},
             [
-              ['sms','📱','SMS','Text message'],
-              ['email','📧','Email','To inbox'],
-              ['whatsapp','💬','WhatsApp','Opens WhatsApp'],
-              ['viber','🟣','Viber','Opens Viber'],
-              ['messenger','💙','Messenger','Opens FB Messenger'],
-            ].map(([v,e,n,d])=>
-              h('div',{key:v,className:'ntc'+(ntype===v?' sel':''),onClick:()=>setNtype(v)},
+              ['sms','📱','SMS','Text message',false],
+              ['email','📧','Email','To inbox',false],
+              ['whatsapp','💬','WhatsApp','Opens WhatsApp',false],
+              ['viber','🟣','Viber','Opens Viber',!planHas('viber')],
+              ['messenger','💙','Messenger','Opens FB Messenger',!planHas('messenger')],
+            ].map(([v,e,n,d,locked])=>
+              h('div',{key:v,className:'ntc'+(ntype===v&&!locked?' sel':''),
+                onClick:locked?undefined:()=>setNtype(v),
+                title:locked?'Professional plan required':undefined,
+                style:locked?{opacity:0.4,cursor:'not-allowed',position:'relative'}:undefined
+              },
                 h('div',{className:'ntic',style:{background:v==='sms'?'#e8f5f3':v==='email'?'#e8eeff':v==='whatsapp'?'#dcfce7':v==='viber'?'#f3e8ff':'#dbeafe'}},h('span',{style:{fontSize:17}},e)),
-                h('div',{className:'ntn'},n),h('div',{className:'ntd'},d)
+                h('div',{className:'ntn'},n,locked&&h('span',{style:{fontSize:10,marginLeft:3}},'🔒')),h('div',{className:'ntd'},d)
               )
             )
           )
