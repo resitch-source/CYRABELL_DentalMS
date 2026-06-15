@@ -9864,6 +9864,7 @@ function PatProfile({patient: patientProp,appts,pays,onClose,onUpdateTeeth,addTo
             ))
           );
         })()
+      )
     ),
     showAIAnalysis && h(AIAssistant,{appointments:appts,patients:[patient],payments:pays,addToast,onClose:()=>setShowAIAnalysis(false),defaultTab:'analyze'}),
     tab==='attachments' && h(AttachmentPanel, {
