@@ -1,0 +1,354 @@
+{
+  "accessors": [
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 46626,
+      "max": [
+        3.49025821685791,
+        3.920480489730835,
+        6.797249794006348
+      ],
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 559512,
+      "componentType": 5126,
+      "count": 46626,
+      "max": [
+        0.9999796748161316,
+        0.9999938011169434,
+        0.999912440776825
+      ],
+      "min": [
+        -0.9999991059303284,
+        -0.9999896287918091,
+        -0.9997670650482178
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 46626,
+      "max": [
+        0.9882352948188782,
+        0.9725490212440491,
+        0.9529411792755127,
+        1.0
+      ],
+      "min": [
+        0.7764706015586853,
+        0.6313725709915161,
+        0.42352941632270813,
+        1.0
+      ],
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 279744,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 1119024,
+      "componentType": 5126,
+      "count": 805,
+      "max": [
+        1.9004087448120117,
+        3.3734934329986572,
+        0.3927497863769531
+      ],
+      "min": [
+        0.8853559494018555,
+        0.27218103408813477,
+        0.028100013732910156
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 1128684,
+      "componentType": 5126,
+      "count": 805,
+      "max": [
+        0.940732479095459,
+        0.9996581673622131,
+        0.9803569316864014
+      ],
+      "min": [
+        -0.9951155781745911,
+        -0.9998711347579956,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 1118976,
+      "componentType": 5125,
+      "count": 1893,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 1138344,
+      "componentType": 5126,
+      "count": 3032,
+      "max": [
+        2.7027463912963867,
+        3.436006546020508,
+        4.598607063293457
+      ],
+      "min": [
+        0.8184661865234375,
+        0.23386478424072266,
+        0.03472423553466797
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 1174728,
+      "componentType": 5126,
+      "count": 3032,
+      "max": [
+        0.9996629953384399,
+        0.999422550201416,
+        0.9999898076057434
+      ],
+      "min": [
+        -0.9994930028915405,
+        -0.9997493624687195,
+        -0.9998571276664734
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 1126548,
+      "componentType": 5125,
+      "count": 17043,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "University of Dundee, School of Dentistry (https://sketchfab.com/DundeeDental)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/maxillary-first-molar-with-two-root-canals-9481d0b5150b44f2bfbbb53b688cdf87",
+      "title": "Maxillary First Molar with Two Root Canals"
+    },
+    "generator": "Sketchfab-15.18.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 1194720,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 1211112,
+      "byteOffset": 1194720,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 746016,
+      "byteOffset": 2405832,
+      "byteStride": 16,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 3151848,
+      "uri": "scene.bin"
+    }
+  ],
+  "materials": [
+    {
+      "alphaMode": "BLEND",
+      "name": "material_0",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          0.65
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.6
+      }
+    },
+    {
+      "doubleSided": true,
+      "emissiveFactor": [
+        0.3066245675921233,
+        0.0,
+        0.0
+      ],
+      "name": "material_1",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.6358071275813759,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.6
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Object_0",
+      "primitives": [
+        {
+          "attributes": {
+            "COLOR_0": 2,
+            "NORMAL": 1,
+            "POSITION": 0
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_1",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4
+          },
+          "indices": 6,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_2",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 8,
+            "POSITION": 7
+          },
+          "indices": 9,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "matrix": [
+        -0.435894250869751,
+        1.2347878707383447e-16,
+        2.741779849243164e-32,
+        0.0,
+        0.0,
+        9.678796672346634e-17,
+        -0.435894250869751,
+        0.0,
+        -1.2347878707383447e-16,
+        -0.435894250869751,
+        -9.678796672346634e-17,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2
+      ],
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        -8.33995246887207,
+        -6.264347076416016,
+        11.33028507232666,
+        1.0
+      ],
+      "name": "zbrush_concat.osgb.cleaner.gles"
+    },
+    {
+      "children": [
+        3,
+        5
+      ],
+      "name": "Object_2"
+    },
+    {
+      "children": [
+        4
+      ],
+      "name": "/sketchfab-data/processing/e6d0229fbc154849a950118cc68f804c/preprocess/SubTool-0-11410130.OBJ"
+    },
+    {
+      "mesh": 0,
+      "name": "Object_4"
+    },
+    {
+      "children": [
+        6,
+        7
+      ],
+      "name": "/sketchfab-data/processing/e6d0229fbc154849a950118cc68f804c/preprocess/SubTool-1-6170422.OBJ"
+    },
+    {
+      "mesh": 1,
+      "name": "Object_6"
+    },
+    {
+      "mesh": 2,
+      "name": "Object_7"
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ]
+}
