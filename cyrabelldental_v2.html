@@ -6696,7 +6696,100 @@ function toothSvgPath(type, upper) {
 // Clinical FDI dental chart — professional layout
 // Renders ONE tooth as a 3D-looking SVG with FDI number badge
 
+// Map an FDI tooth to its rendered real-scan sprite base name (mirrors toothModelUrl)
+function toothSpriteBase(fdi){
+  const type = toothType(fdi);
+  const last = Number(String(fdi).slice(-1));
+  if (type === 'incisor') return isUpperTooth(fdi) ? 'incisor_upper' : 'incisor_lower';
+  if (type === 'canine') return 'canine';
+  if (type === 'premolar') return last === 4 ? 'premolar_1' : 'premolar_2';
+  return last === 6 ? 'molar_1' : last === 7 ? 'molar_2' : 'molar_3';
+}
+
 function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMode}){
+  // Two view modes: 'buccal' (default - side view) or 'occlusal' (top-down chewing surface)
+  viewMode = viewMode || 'buccal';
+  const cond = CONDITIONS[condition || 'healthy'];
+  const type = toothType(fdi);
+  const isUpper = isUpperTooth(fdi);
+  const missing = condition === 'missing';
+  const hasIssues = (condition && condition !== 'healthy') ||
+                    (surfaceData && Object.values(surfaceData).some(v => v && v !== 'healthy'));
+
+  // ── Real-scan sprite rendering (photogrammetry teeth captured as 2D images) ──
+  const spriteView = viewMode === 'occlusal' ? 'top' : 'side';
+  const spriteUrl = 'assets/teeth/sprites/' + toothSpriteBase(fdi) + '_' + spriteView + '.png';
+  // Surface dot positions as % of the sprite box, per view
+  const dotPos = (surf) => {
+    if (spriteView === 'top') {
+      if (surf === 'mesial') return {left:'8%', top:'50%'};
+      if (surf === 'distal') return {left:'92%', top:'50%'};
+      if (surf === 'buccal' || surf === 'labial') return {left:'50%', top:'10%'};
+      if (surf === 'lingual') return {left:'50%', top:'90%'};
+      return {left:'50%', top:'50%'}; // occlusal/incisal centre
+    }
+    if (surf === 'mesial') return {left:'10%', top:'42%'};
+    if (surf === 'distal') return {left:'90%', top:'42%'};
+    if (surf === 'occlusal' || surf === 'incisal') return {left:'50%', top: isUpper ? '78%' : '12%'};
+    if (surf === 'buccal' || surf === 'labial') return {left:'50%', top:'50%'};
+    if (surf === 'lingual') return {left:'50%', top:'58%'};
+    return {left:'50%', top:'50%'};
+  };
+  const washColor = condition && condition !== 'healthy' && !missing ? cond.color : null;
+  return h('div', {
+    className: 'clin-tooth clin-sprite' + (viewMode === 'occlusal' ? ' occlusal-view' : '') + (selected ? ' sel' : '') + (missing ? ' miss' : '') + (hasIssues ? ' issue' : ''),
+    onClick: e => { e.stopPropagation(); onSelect(fdi); },
+    onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onSelect(fdi); } },
+    tabIndex: 0,
+    role: 'button',
+    'aria-label': '#' + fdi + ' ' + toothName(fdi) + ' (' + cond.label + ')' + (missing ? ' — missing' : ''),
+    'aria-pressed': selected,
+    title: '#' + fdi + ' · ' + toothName(fdi) + ' · ' + cond.label,
+    style: {position:'relative', width:42, height: spriteView === 'top' ? 42 : 54}
+  },
+    // base sprite (the real scan)
+    h('img', {
+      src: spriteUrl, alt: '', draggable: false,
+      style: {width:'100%', height:'100%', objectFit:'contain', display:'block',
+        opacity: missing ? 0.28 : 1,
+        filter: selected ? 'drop-shadow(0 0 3px rgba(10,124,110,.9))' : 'none',
+        pointerEvents:'none', userSelect:'none'}
+    }),
+    // whole-tooth condition wash, masked to the tooth silhouette via the sprite itself
+    washColor && h('div', {
+      style: {position:'absolute', inset:0, background: washColor, opacity:0.5,
+        WebkitMaskImage:'url('+spriteUrl+')', maskImage:'url('+spriteUrl+')',
+        WebkitMaskSize:'contain', maskSize:'contain',
+        WebkitMaskPosition:'center', maskPosition:'center',
+        WebkitMaskRepeat:'no-repeat', maskRepeat:'no-repeat',
+        mixBlendMode:'multiply', pointerEvents:'none'}
+    }),
+    // surface-level condition dots
+    surfaceData && Object.entries(surfaceData).map(([surf, cnd]) => {
+      if (!cnd || cnd === 'healthy') return null;
+      const sCond = CONDITIONS[cnd] || cond;
+      const p = dotPos(surf);
+      return h('span', {key: surf, title: surf + ': ' + sCond.label,
+        style: {position:'absolute', left:p.left, top:p.top, transform:'translate(-50%,-50%)',
+          width:7, height:7, borderRadius:'50%', background:sCond.color,
+          border:'1px solid '+sCond.stroke, boxShadow:'0 0 0 1px rgba(255,255,255,.7)',
+          pointerEvents:'none'}});
+    }),
+    // condition symbol badge
+    !missing && cond.symbol && h('span', {
+      style: {position:'absolute', top:1, right:1, fontSize:9, fontWeight:800, lineHeight:1,
+        color: condition === 'cavity' ? '#fff' : '#1a2332',
+        background: condition === 'cavity' ? cond.stroke : 'rgba(255,255,255,.85)',
+        borderRadius:4, padding:'1px 3px', pointerEvents:'none'}
+    }, cond.symbol),
+    // missing-tooth red ✕
+    missing && h('svg', {viewBox:'0 0 42 42', style:{position:'absolute', inset:0, width:'100%', height:'100%', pointerEvents:'none'}},
+      h('path', {d:'M 10 10 L 32 32 M 32 10 L 10 32', stroke:'#dc2626', strokeWidth:2.5, strokeLinecap:'round'})
+    )
+  );
+}
+
+function ClinicalToothLegacySVG({fdi, condition, surfaceData, selected, onSelect, viewMode}){
   // Two view modes: 'buccal' (default - side view) or 'occlusal' (top-down chewing surface)
   viewMode = viewMode || 'buccal';
   const cond = CONDITIONS[condition || 'healthy'];
