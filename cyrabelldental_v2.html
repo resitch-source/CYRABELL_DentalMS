@@ -6707,8 +6707,8 @@ function toothSpriteBase(fdi){
   if (type === 'incisor') return isUpperTooth(fdi) ? 'incisor_upper' : 'incisor_lower';
   if (type === 'canine') return 'canine';
   if (type === 'premolar') return last === 4 ? 'premolar_1' : 'premolar_2';
-  // x8 -> 3rd molar; x6/x7 -> standard molar (molar_1 root-canal cutaway removed)
-  return last === 8 ? 'molar_3' : 'molar_2';
+  // molar: x6 -> 1st, x7 -> 2nd, x8 -> 3rd
+  return last === 6 ? 'molar_1' : last === 7 ? 'molar_2' : 'molar_3';
 }
 
 function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMode}){
@@ -7346,8 +7346,8 @@ function toothModelUrl(fdi){
   if (type === 'incisor') return isUpperTooth(fdi) ? 'assets/teeth/incisor_upper/scene.gltf' : 'assets/teeth/incisor_lower/scene.gltf';
   if (type === 'canine') return 'assets/teeth/canine/scene.gltf';
   if (type === 'premolar') return last === 4 ? 'assets/teeth/premolar_1/scene.gltf' : 'assets/teeth/premolar_2/scene.gltf';
-  // molar: x8 -> 3rd molar; x6/x7 -> standard molar scan (molar_1 root-canal cutaway removed)
-  return last === 8 ? 'assets/teeth/molar_3/scene.gltf' : 'assets/teeth/molar_2/scene.gltf';
+  // molar: x6 -> 1st, x7 -> 2nd, x8 -> 3rd
+  return last === 6 ? 'assets/teeth/molar_1/scene.gltf' : last === 7 ? 'assets/teeth/molar_2/scene.gltf' : 'assets/teeth/molar_3/scene.gltf';
 }
 
 // Real interactive 3D tooth (lazy-loaded scan). Falls back to a 2D view if the
