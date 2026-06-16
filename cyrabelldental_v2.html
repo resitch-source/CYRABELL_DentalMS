@@ -2979,6 +2979,8 @@ textarea.hist-field-input{resize:vertical;min-height:48px;}
 .standby-note{background:rgba(0,200,255,.08);border:1px solid rgba(0,200,255,.2);border-radius:8px;padding:10px 12px;font-size:12.5px;color:rgba(255,255,255,.75);margin:8px 0;line-height:1.6;}
 .standby-full{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#dc2626;margin:8px 0;}
 </style>
+<!-- Real 3D tooth viewer (lazy-loaded photogrammetry scans; requires http(s) serving) -->
+<script type="module" src="assets/lib/tooth-viewer.js"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -7239,6 +7241,107 @@ function Tooth5SurfaceView({meta, condition, surfaceData, onSurfaceChange, onCon
   );
 }
 
+// Map an FDI tooth number to one of the 8 real photogrammetry scan files
+function toothModelUrl(fdi){
+  const type = toothType(fdi);
+  const last = Number(String(fdi).slice(-1));
+  if (type === 'incisor') return isUpperTooth(fdi) ? 'assets/teeth/incisor_upper/scene.gltf' : 'assets/teeth/incisor_lower/scene.gltf';
+  if (type === 'canine') return 'assets/teeth/canine/scene.gltf';
+  if (type === 'premolar') return last === 4 ? 'assets/teeth/premolar_1/scene.gltf' : 'assets/teeth/premolar_2/scene.gltf';
+  // molar: x6 -> 1st, x7 -> 2nd, x8 -> 3rd
+  return last === 6 ? 'assets/teeth/molar_1/scene.gltf' : last === 7 ? 'assets/teeth/molar_2/scene.gltf' : 'assets/teeth/molar_3/scene.gltf';
+}
+
+// Real interactive 3D tooth (lazy-loaded scan). Falls back to a 2D view if the
+// 3D module is unavailable (e.g. opened via file:// where ES modules are blocked).
+function RealTooth3DViewer({fdi, meta, surfaceData, onSurfaceChange, fallback}){
+  const hostRef = useRef(null);
+  const handleRef = useRef(null);
+  const condRef = useRef('cavity');
+  const [selCond, setSelCond] = useState('cavity');
+  const [status, setStatus] = useState('init'); // init | loading | ready | unavailable
+  condRef.current = selCond;
+
+  useEffect(() => {
+    let cancelled = false, tries = 0;
+    function tryMount(){
+      if (cancelled) return;
+      if (!window.CyrabellMountTooth) {
+        if (tries++ > 40) { console.warn('[RT3D] CyrabellMountTooth never ready'); setStatus('unavailable'); return; } // ~4s
+        return void setTimeout(tryMount, 100);
+      }
+      if (!hostRef.current) return void setTimeout(tryMount, 100);
+      setStatus('loading');
+      try {
+        handleRef.current = window.CyrabellMountTooth(hostRef.current, {
+          modelUrl: toothModelUrl(fdi),
+          toothClass: meta.type,
+          view: 'iso',
+          onReady: () => { if (!cancelled) { setStatus('ready'); handleRef.current && handleRef.current.setSurfaces(surfaceData || {}, CONDITIONS); } },
+          onError: (e) => { console.warn('[RT3D] model load error', e); if (!cancelled) setStatus('unavailable'); },
+          onPick: (surf) => { if (!cancelled) onSurfaceChange(fdi, surf, condRef.current); }
+        });
+      } catch(e) { console.warn('[RT3D] mount threw', e); setStatus('unavailable'); }
+    }
+    tryMount();
+    return () => { cancelled = true; if (handleRef.current) { try{ handleRef.current.dispose(); }catch(e){} handleRef.current = null; } };
+  // eslint-disable-next-line
+  }, [fdi]);
+
+  // push surface changes into the 3D markers
+  useEffect(() => {
+    if (status === 'ready' && handleRef.current) handleRef.current.setSurfaces(surfaceData || {}, CONDITIONS);
+  }, [surfaceData, status]);
+
+  if (status === 'unavailable') {
+    return h('div', null,
+      h('div', {style:{fontSize:11.5, color:'var(--md)', background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:8, padding:'7px 10px', marginBottom:10}},
+        '⚠ Real 3D view needs the app served over http(s). Showing 2D surface view.'),
+      fallback
+    );
+  }
+
+  return h('div', {className:'rt3d-wrap'},
+    h('div', {ref: hostRef, className:'rt3d-canvas',
+      style:{position:'relative', width:'100%', height:340, borderRadius:12,
+        background:'radial-gradient(120% 120% at 50% 14%,#fbfdff 0%,#e6eef3 55%,#d3e0e8 100%)',
+        border:'1px solid var(--bd)', overflow:'hidden'}},
+      status !== 'ready' && h('div', {style:{position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--md)', fontSize:13, fontWeight:600}}, 'Loading real 3D scan…')
+    ),
+    // condition palette — pick one, then click a surface on the model
+    h('div', {style:{marginTop:10}},
+      h('div', {style:{fontSize:11, color:'var(--md)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.5px', marginBottom:6}},
+        'Pick condition · then click a surface on the tooth'),
+      h('div', {style:{display:'flex', flexWrap:'wrap', gap:5}},
+        CONDITION_KEYS.filter(k=>k!=='healthy').map(k => {
+          const c = CONDITIONS[k]; const active = selCond === k;
+          return h('button', {key:k, type:'button',
+            onClick: () => setSelCond(k),
+            title: c.desc,
+            style:{display:'flex', alignItems:'center', gap:5, padding:'4px 9px', borderRadius:20, cursor:'pointer',
+              fontSize:11.5, fontWeight:600, fontFamily:'inherit',
+              border:'1.5px solid ' + (active ? 'var(--t)' : 'var(--bd)'),
+              background: active ? 'var(--tp)' : '#fff', color:'var(--dk)',
+              boxShadow: active ? '0 0 0 2px rgba(10,124,110,.15)' : 'none'}},
+            h('span', {style:{width:12, height:12, borderRadius:3, background:c.color, border:'1px solid '+c.stroke}}),
+            c.label);
+        })
+      )
+    ),
+    // view buttons
+    h('div', {style:{display:'flex', flexWrap:'wrap', gap:5, marginTop:8}},
+      [['front','Front'],['left','Left'],['right','Right'],['back','Back'],['top','Top'],['iso','3D']].map(([v,l]) =>
+        h('button', {key:v, type:'button',
+          onClick: () => handleRef.current && handleRef.current.setView(v),
+          style:{padding:'5px 10px', borderRadius:7, border:'1.5px solid var(--bd)', background:'#fff',
+            fontSize:11.5, fontWeight:600, color:'var(--md)', cursor:'pointer', fontFamily:'inherit'}}, l)
+      )
+    ),
+    h('div', {style:{fontSize:10.5, color:'var(--lt)', marginTop:7}},
+      '🖱 Drag to rotate · scroll to zoom · click a surface to chart it. Real scan — University of Dundee (CC-BY-4.0).')
+  );
+}
+
 // Per-tooth detail modal — opens when a tooth is selected
 function ToothDetailModal({fdi, condition, surfaceData, onClose, onConditionChange, onSurfaceChange}){
   const [view, setView] = useState('overview'); // 'overview' | 'surfaces' | 'history'
@@ -7257,9 +7360,12 @@ function ToothDetailModal({fdi, condition, surfaceData, onClose, onConditionChan
     footer: h('button', {className: 'btn bgh', onClick: onClose}, 'Close')
   },
     h('div', {className: 'tooth-detail-grid'},
-      // ─── Left: 5-surface 2D realistic diagram ─────────────────────────────
+      // ─── Left: real interactive 3D scan (falls back to 2D surface diagram) ──
       h('div', {className: 'tooth-detail-3d'},
-        h(Tooth5SurfaceView, {meta, condition, surfaceData, onSurfaceChange, onConditionChange, fdi})
+        h(RealTooth3DViewer, {
+          fdi, meta, surfaceData, onSurfaceChange,
+          fallback: h(Tooth5SurfaceView, {meta, condition, surfaceData, onSurfaceChange, onConditionChange, fdi})
+        })
       ),
 
       // ─── Right: Info & controls ────────────────────────────────────────
