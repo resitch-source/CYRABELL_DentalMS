@@ -174,8 +174,9 @@ const {createElement:h,useState,useEffect,useCallback,useRef,Fragment,useMemo}=R
 })();
 
 
-const p$=n=>Number(n||0).toLocaleString();
-const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+// p$, uid, S, safe already defined in config.js — skip redeclaration
+if(typeof p$==='undefined') var p$=n=>Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+if(typeof uid==='undefined') var uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 
 const IC={
   tooth:'M12 2C8.5 2 5 4.5 5 8c0 2 .5 3.5 1 5 .5 1.5 1 3 1 5 0 1.5.5 2 1 2h8c.5 0 1-.5 1-2 0-2 .5-3.5 1-5 .5-1.5 1-3 1-5 0-3.5-3.5-6-7-6z',
@@ -1111,11 +1112,9 @@ function dateOffsetStr(n) {
   return toLocalDateStr(d);
 }
 
-// Defensive string coercion — handles null, undefined, numbers, etc.
-// Sheets sometimes returns "09171234567" as a Number, which has no .includes/.toLowerCase
-const S = (v) => (v === null || v === undefined) ? '' : String(v);
-/** safe(arr) — returns arr if Array, else []. Prevents crashes on null data. */
-const safe = (arr) => Array.isArray(arr) ? arr : [];
+// S, safe already defined in config.js as early utilities — skip redeclaration
+if(typeof S==='undefined') var S = (v) => (v === null || v === undefined) ? '' : String(v);
+if(typeof safe==='undefined') var safe = (arr) => Array.isArray(arr) ? arr : [];
 
 
 // Normalize a name for comparison: lowercase, trim, collapse whitespace
