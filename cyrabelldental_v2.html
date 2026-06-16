@@ -7563,11 +7563,13 @@ function toothModelUrl(fdi){
 
 // Real interactive 3D tooth (lazy-loaded scan). Falls back to a 2D view if the
 // 3D module is unavailable (e.g. opened via file:// where ES modules are blocked).
-function RealTooth3DViewer({fdi, meta, surfaceData, onSurfaceChange, fallback}){
+function RealTooth3DViewer({fdi, meta, condition, surfaceData, onSurfaceChange, fallback}){
   const hostRef = useRef(null);
   const handleRef = useRef(null);
-  const condRef = useRef('cavity');
-  const [selCond, setSelCond] = useState('cavity');
+  // Default active condition to whatever this tooth already has (or cavity if healthy)
+  const initCond = (condition && condition !== 'healthy' && condition !== 'missing') ? condition : 'cavity';
+  const condRef = useRef(initCond);
+  const [selCond, setSelCond] = useState(initCond);
   const [status, setStatus] = useState('init'); // init | loading | ready | unavailable
   condRef.current = selCond;
 
@@ -7672,7 +7674,7 @@ function ToothDetailModal({fdi, condition, surfaceData, onClose, onConditionChan
       // ─── Left: real interactive 3D scan (falls back to 2D surface diagram) ──
       h('div', {className: 'tooth-detail-3d'},
         h(RealTooth3DViewer, {
-          fdi, meta, surfaceData, onSurfaceChange,
+          fdi, meta, condition, surfaceData, onSurfaceChange,
           fallback: h(Tooth5SurfaceView, {meta, condition, surfaceData, onSurfaceChange, onConditionChange, fdi})
         })
       ),

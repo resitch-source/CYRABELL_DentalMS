@@ -226,13 +226,23 @@ export function mountToothViewer(container, opts){
     setView,
     setSurfaces: (s,c)=>{ handle._s=s; handle._c=c; if(model) setSurfaces(s,c); },
     isReady: ()=>!!model,
-    dispose(){ disposed=true; window.removeEventListener('resize',onResize); try{renderer.dispose();}catch(e){} if(renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement); }
+    dispose(){
+      disposed=true;
+      window.removeEventListener('resize',onResize);
+      // Free per-instance cloned geometries and cloned materials
+      meshes.forEach(o=>{ try{ o.geometry.dispose(); }catch(e){} });
+      try{ renderer.dispose(); }catch(e){}
+      if(renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
+    }
   };
 
   loadModel(opts.modelUrl).then(src=>{
     if (disposed) return;
     model = src.clone(true);
-    model.traverse(o=>{ if(o.isMesh){ meshes.push(o); } });
+    // Deep-clone geometries so each tooth viewer has its own isolated buffers.
+    // Three.js .clone(true) shares geometry references between instances of the
+    // same cached model, so tinting tooth 16 would corrupt tooth 26's buffers.
+    model.traverse(o=>{ if(o.isMesh){ o.geometry = o.geometry.clone(); meshes.push(o); } });
     root.add(model);
     frame(model);
     prepareTinting(model);
