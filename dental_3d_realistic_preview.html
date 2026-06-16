@@ -68,7 +68,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
 </script>
 <script>
-/* Realistic 3D tooth — white enamel crown + tan multi-root system (Dundee-style) */
+/* Photorealistic 3D tooth — physically-based enamel with environment map, AO, SSS, gradient */
 (function(){
 const CONDITIONS = {
   healthy:    {label:'Healthy',    color:0xf1ebdd, css:'#f1ebdd', symbol:''},
@@ -80,27 +80,31 @@ const CONDITIONS = {
   veneer:     {label:'Veneer',     color:0xec4899, css:'#ec4899', symbol:'◆'},
 };
 const CONDS=Object.keys(CONDITIONS);
-const ENAMEL=0xfaf8f2, ROOT_TOP=0xe3c79b, ROOT_BOT=0xcaa472;
+
+// Refined palette — warm white crown, ivory cervical gradient, caramel-tan root
+const ENAMEL_TIP   = 0xfdfcfa; // near-white cusp tips
+const ENAMEL_BODY  = 0xf7f2e8; // main crown body (warm ivory)
+const ENAMEL_CERV  = 0xede4d0; // cervical collar (warmer, slightly amber)
+const FISSURE_DARK = 0xc8b89a; // fissure / central fossa darkening (AO proxy)
+const ROOT_TOP     = 0xe0c08a; // cervical root color
+const ROOT_MID     = 0xcfad72; // mid-root
+const ROOT_BOT     = 0xb89055; // apex
 
 const TYPES={
-  incisor:  {label:'Incisor',  md:0.46, bl:0.30, crownH:0.95, nexp:2.4, cuspAmp:0.06, front:'Labial', top:'Incisal'},
-  canine:   {label:'Canine',   md:0.46, bl:0.42, crownH:1.05, nexp:2.7, cuspAmp:0.11, front:'Labial', top:'Incisal'},
-  premolar: {label:'Premolar', md:0.58, bl:0.60, crownH:0.92, nexp:3.2, cuspAmp:0.17, front:'Buccal', top:'Occlusal'},
-  molar:    {label:'Molar',    md:0.82, bl:0.72, crownH:0.92, nexp:4.2, cuspAmp:0.20, front:'Buccal', top:'Occlusal'},
+  incisor:  {label:'Incisor',  md:0.46, bl:0.30, crownH:0.95, nexp:2.4, cuspAmp:0.06, front:'Labial',  top:'Incisal'},
+  canine:   {label:'Canine',   md:0.46, bl:0.42, crownH:1.05, nexp:2.7, cuspAmp:0.12, front:'Labial',  top:'Incisal'},
+  premolar: {label:'Premolar', md:0.58, bl:0.60, crownH:0.92, nexp:3.2, cuspAmp:0.18, front:'Buccal',  top:'Occlusal'},
+  molar:    {label:'Molar',    md:0.82, bl:0.72, crownH:0.92, nexp:4.2, cuspAmp:0.22, front:'Buccal',  top:'Occlusal'},
 };
-// root limbs per type: each limb = array of {x,y,z,rx,rz} from neck to apex
+
 const ROOTS={
   incisor:[[{x:0,y:0.14,z:0,rx:0.34,rz:0.27},{x:0,y:-0.55,z:0.02,rx:0.20,rz:0.16},{x:0,y:-1.15,z:0.03,rx:0.09,rz:0.08},{x:0,y:-1.62,z:0.02,rx:0,rz:0}]],
   canine:[[{x:0,y:0.14,z:0,rx:0.36,rz:0.36},{x:0,y:-0.65,z:0.02,rx:0.24,rz:0.23},{x:0,y:-1.4,z:0.04,rx:0.12,rz:0.11},{x:0,y:-2.0,z:0.03,rx:0,rz:0}]],
   premolar:[[{x:0,y:0.14,z:0,rx:0.40,rz:0.40},{x:0,y:-0.55,z:0,rx:0.24,rz:0.22},{x:0.05,y:-1.25,z:0,rx:0.10,rz:0.09},{x:0.06,y:-1.65,z:0,rx:0,rz:0}]],
   molar:[
-    // root trunk (wide, fills the crown neck, then narrows toward furcation)
     [{x:0,y:0.26,z:0,rx:0.62,rz:0.57},{x:0,y:-0.02,z:0,rx:0.45,rz:0.41},{x:0,y:-0.28,z:0,rx:0.34,rz:0.31}],
-    // palatal root (lingual, -z)
     [{x:0,y:-0.18,z:-0.06,rx:0.20,rz:0.20},{x:0,y:-0.72,z:-0.24,rx:0.14,rz:0.14},{x:0,y:-1.2,z:-0.38,rx:0.07,rz:0.07},{x:0,y:-1.46,z:-0.44,rx:0,rz:0}],
-    // mesiobuccal (-x,+z)
     [{x:-0.20,y:-0.18,z:0.10,rx:0.17,rz:0.17},{x:-0.30,y:-0.72,z:0.17,rx:0.13,rz:0.13},{x:-0.39,y:-1.2,z:0.24,rx:0.06,rz:0.06},{x:-0.42,y:-1.44,z:0.26,rx:0,rz:0}],
-    // distobuccal (+x,+z)
     [{x:0.20,y:-0.18,z:0.10,rx:0.17,rz:0.17},{x:0.30,y:-0.72,z:0.17,rx:0.13,rz:0.13},{x:0.39,y:-1.2,z:0.24,rx:0.06,rz:0.06},{x:0.42,y:-1.44,z:0.26,rx:0,rz:0}],
   ],
 };
@@ -110,55 +114,114 @@ const state={};
 Object.keys(TYPES).forEach(t=>state[t]={mesial:'healthy',distal:'healthy',buccal:'healthy',lingual:'healthy',occlusal:'healthy'});
 
 function lerp(a,b,t){return a+(b-a)*Math.max(0,Math.min(1,t));}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
 function angDiff(a,b){let d=Math.abs(a-b)%(Math.PI*2);return d>Math.PI?Math.PI*2-d:d;}
-// crown wall profile over cc in [0,1] (cervix→occlusal rim) — fuller, near-vertical walls
+function colLin(hex){return new THREE.Color(hex).convertSRGBToLinear();}
+function lerpCol(h1,h2,t){return new THREE.Color(h1).convertSRGBToLinear().lerp(new THREE.Color(h2).convertSRGBToLinear(),clamp(t,0,1));}
+
 function wallW(cc){
-  if(cc<0.30) return lerp(0.92,1.05,cc/0.30);   // cervical neck → crown bulge
-  if(cc<0.88) return lerp(1.05,0.98,(cc-0.30)/0.58); // near-vertical wall
-  return lerp(0.98,0.90,(cc-0.88)/0.12);        // slight inward at occlusal rim
+  if(cc<0.28) return lerp(0.90,1.06,cc/0.28);
+  if(cc<0.88) return lerp(1.06,0.99,(cc-0.28)/0.60);
+  return lerp(0.99,0.91,(cc-0.88)/0.12);
 }
-// occlusal relief over q in [0(rim)..1(center)] — real cusps, fissures, central fossa
+
 function occl(type,theta,q){
   const A=TYPES[type].cuspAmp;
-  if(type==='canine'){ return A*Math.pow(q,1.5)*2.2; } // tall single cusp tip
+  if(type==='canine'){ return A*Math.pow(q,1.5)*2.2; }
   if(type==='incisor'){ const ridge=Math.pow(Math.abs(Math.cos(theta)),1.4); return A*ridge*Math.sin(Math.min(1,q*1.4)*Math.PI*0.5); }
-  // molar / premolar — ring of cusps with cross fissures + central fossa
   const bump=Math.exp(-Math.pow((q-0.52)/0.34,2));
-  const fossa=-0.5*A*Math.pow(q,2);
+  const fossa=-0.6*A*Math.pow(q,2);
   let prof;
-  if(type==='molar'){let p=0;[45,135,225,315].forEach(d=>{const a=d*Math.PI/180;p=Math.max(p,Math.exp(-Math.pow(angDiff(theta,a)/0.46,2)))});prof=p;}
-  else{let p=0;[90,270].forEach(d=>{const a=d*Math.PI/180;p=Math.max(p,Math.exp(-Math.pow(angDiff(theta,a)/0.55,2)))});prof=p;}
+  if(type==='molar'){
+    let p=0;
+    [45,135,225,315].forEach(d=>{const a=d*Math.PI/180;p=Math.max(p,Math.exp(-Math.pow(angDiff(theta,a)/0.44,2)));});
+    prof=p;
+  } else {
+    let p=0;
+    [90,270].forEach(d=>{const a=d*Math.PI/180;p=Math.max(p,Math.exp(-Math.pow(angDiff(theta,a)/0.52,2)));});
+    prof=p;
+  }
   return A*prof*bump + fossa;
 }
+
+// Compute AO factor for occlusal surface — dark in fissures, bright on cusp tips
+function occlAO(type,theta,q){
+  if(type==='canine'||type==='incisor') return 1.0;
+  // cusp directions
+  const cusps=(type==='molar')?[45,135,225,315]:[90,270];
+  let maxCusp=0;
+  cusps.forEach(d=>{const a=d*Math.PI/180; maxCusp=Math.max(maxCusp,Math.exp(-Math.pow(angDiff(theta,a)/0.44,2)));});
+  // on cusp tips (high q, near cusp angle): bright; in central fossa or cross fissures: dark
+  const cuspiness=maxCusp*Math.exp(-Math.pow((q-0.52)/0.28,2));
+  // cross fissures — dark lines
+  const isFissure=Math.exp(-Math.pow(Math.min(angDiff(theta,0),angDiff(theta,Math.PI/2),angDiff(theta,Math.PI),angDiff(theta,Math.PI*3/2))/0.18,2));
+  // central fossa dark
+  const fossDark=Math.exp(-Math.pow(q/0.32,2));
+  const dark=clamp(isFissure*0.7 + fossDark*0.5, 0, 1);
+  return clamp(1.0 - dark*0.55 + cuspiness*0.08, 0.15, 1.0);
+}
+
 function angleRegion(theta){
   const c=Math.cos(theta),s=Math.sin(theta);
   if(Math.abs(c)>Math.abs(s)) return c>0?'distal':'mesial';
   return s>0?'buccal':'lingual';
 }
-function colLin(hex){return new THREE.Color(hex).convertSRGBToLinear();}
+
+// Per-vertex enamel color: gradient from tip to cervical, with AO on occlusal
+function enamelColor(cc, theta, isOcclusal, q_occ, type){
+  // cc in [0,1] wall ring progression (0=cervix, 1=occlusal)
+  let baseCol;
+  if(isOcclusal){
+    // occlusal: warm body color + AO darkening in fissures
+    const ao = occlAO(type, theta, q_occ);
+    baseCol = lerpCol(FISSURE_DARK, ENAMEL_TIP, ao*0.85+0.15);
+  } else {
+    // crown wall: cervical warm → body → cusp-tip bright
+    if(cc < 0.22) baseCol = lerpCol(ENAMEL_CERV, ENAMEL_BODY, cc/0.22);
+    else if(cc < 0.80) baseCol = lerpCol(ENAMEL_BODY, ENAMEL_BODY, (cc-0.22)/0.58);
+    else baseCol = lerpCol(ENAMEL_BODY, ENAMEL_TIP, (cc-0.80)/0.20);
+  }
+  return baseCol;
+}
 
 function buildCrown(type){
-  const T=TYPES[type], SU=128, SVw=64, SVc=40, cTop=0.82;
+  const T=TYPES[type], SU=140, SVw=72, SVc=48, cTop=0.82;
   const P=[],C=[],R=[],IDX=[];
-  const white=colLin(ENAMEL), n=T.nexp, stride=SU+1;
   let rings=0;
-  function sec(theta){const ct=Math.cos(theta),st=Math.sin(theta);return [Math.sign(ct)*Math.pow(Math.abs(ct),2/n),Math.sign(st)*Math.pow(Math.abs(st),2/n)];}
-  function addRing(fn,reg){
-    for(let iu=0;iu<=SU;iu++){const theta=iu/SU*Math.PI*2;const p=fn(theta);P.push(p[0],p[1],p[2]);C.push(white.r,white.g,white.b);R.push(reg(theta));}
+  function sec(theta){const ct=Math.cos(theta),st=Math.sin(theta);const n=T.nexp;return [Math.sign(ct)*Math.pow(Math.abs(ct),2/n),Math.sign(st)*Math.pow(Math.abs(st),2/n)];}
+  function addRing(fn, colFn, regFn){
+    for(let iu=0;iu<=SU;iu++){
+      const theta=iu/SU*Math.PI*2;
+      const p=fn(theta), c=colFn(theta);
+      P.push(p[0],p[1],p[2]);
+      C.push(c.r,c.g,c.b);
+      R.push(regFn(theta));
+    }
     rings++;
   }
   // crown walls (cervix → occlusal rim)
-  for(let iv=0;iv<=SVw;iv++){const cc=iv/SVw, c=cc*cTop, w=wallW(cc);
-    addRing(theta=>{const[sx,sz]=sec(theta);return [sx*T.md*w, T.crownH*c, sz*T.bl*w];}, angleRegion);
+  for(let iv=0;iv<=SVw;iv++){
+    const cc=iv/SVw, c=cc*cTop, w=wallW(cc);
+    addRing(
+      theta=>{const[sx,sz]=sec(theta);return [sx*T.md*w, T.crownH*c, sz*T.bl*w];},
+      theta=>enamelColor(cc, theta, false, 0, type),
+      angleRegion
+    );
   }
-  // sculpted occlusal cap (rim → center) with cusps/fissures/fossa
+  // sculpted occlusal cap
   const topY=T.crownH*cTop, rimW=wallW(1);
-  for(let iv=1;iv<=SVc;iv++){const q=iv/SVc;
-    addRing(theta=>{const[sx,sz]=sec(theta);const rad=rimW*(1-q);const h=occl(type,theta,q)-occl(type,theta,0);return [sx*T.md*rad, topY+h, sz*T.bl*rad];}, ()=>'occlusal');
+  for(let iv=1;iv<=SVc;iv++){
+    const q=iv/SVc;
+    addRing(
+      theta=>{const[sx,sz]=sec(theta);const rad=rimW*(1-q);const h=occl(type,theta,q)-occl(type,theta,0);return [sx*T.md*rad, topY+h, sz*T.bl*rad];},
+      theta=>enamelColor(1.0, theta, true, q, type),
+      ()=>'occlusal'
+    );
   }
+  const stride=SU+1;
   for(let r=0;r<rings-1;r++)for(let iu=0;iu<SU;iu++){const a=r*stride+iu,b=a+1,cc=a+stride,d=cc+1;IDX.push(a,cc,b,b,cc,d);}
-  // bottom disk (hidden under roots)
-  const center=P.length/3; P.push(0,0,0); C.push(white.r,white.g,white.b); R.push('_base');
+  const center=P.length/3; P.push(0,0,0);
+  const baseCol=colLin(ENAMEL_CERV); C.push(baseCol.r,baseCol.g,baseCol.b); R.push('_base');
   for(let iu=0;iu<SU;iu++) IDX.push(center, iu+1, iu);
   const g=new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));
@@ -177,19 +240,27 @@ function densify(samples,n){
   }
   return out;
 }
+
 function buildRoots(type){
-  const limbs=ROOTS[type], segs=26;
+  const limbs=ROOTS[type], segs=30;
   const P=[],C=[],IDX=[]; let base=0;
   limbs.forEach(s=>{
-    const ring=densify(s,44), start=base;
+    const ring=densify(s,48), start=base;
     for(let i=0;i<ring.length;i++){
       const o=ring[i].p, rx=ring[i].rx, rz=ring[i].rz;
-      const tcol=colLin(new THREE.Color(ROOT_TOP).lerp(new THREE.Color(ROOT_BOT),Math.min(1,Math.max(0,-o.y/1.8))).getHex());
-      const wob=1+0.05*Math.sin(o.y*9); // subtle organic taper variation
+      const depthT=clamp(-o.y/2.0, 0, 1);
+      // 3-stop root gradient
+      let rcol;
+      if(depthT<0.45) rcol=lerpCol(ROOT_TOP, ROOT_MID, depthT/0.45);
+      else rcol=lerpCol(ROOT_MID, ROOT_BOT, (depthT-0.45)/0.55);
+      // subtle longitudinal streaking (veins) — sine wave on hue/value
+      const vein=0.04*Math.sin(o.y*14 + 1.3);
+      rcol.r=clamp(rcol.r+vein,0,1); rcol.g=clamp(rcol.g+vein*0.8,0,1); rcol.b=clamp(rcol.b+vein*0.5,0,1);
+      const wob=1+0.035*Math.sin(o.y*9.7+0.4);
       for(let j=0;j<=segs;j++){
         const a=j/segs*Math.PI*2;
         P.push(o.x+Math.cos(a)*rx*wob, o.y, o.z+Math.sin(a)*rz*wob);
-        C.push(tcol.r,tcol.g,tcol.b);
+        C.push(rcol.r,rcol.g,rcol.b);
       }
     }
     for(let i=0;i<ring.length-1;i++)for(let j=0;j<segs;j++){
@@ -204,57 +275,199 @@ function buildRoots(type){
   return g;
 }
 
-let scene,camera,renderer,group,crown,roots,raycaster;
+// Build a synthetic environment map cube for real reflections
+function buildEnvMap(renderer){
+  const pmrem=new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  // Create a gradient sky scene
+  const envScene=new THREE.Scene();
+  // Sky dome
+  const skyGeo=new THREE.SphereGeometry(50,32,16);
+  const skyMat=new THREE.ShaderMaterial({
+    side:THREE.BackSide,
+    uniforms:{},
+    vertexShader:`varying vec3 vPos;void main(){vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader:`varying vec3 vPos;void main(){
+      vec3 dir=normalize(vPos);
+      float y=dir.y*0.5+0.5;
+      // Studio gradient: bright warm top, mid neutral, blue-grey bottom
+      vec3 top=vec3(0.96,0.95,0.92);
+      vec3 mid=vec3(0.72,0.75,0.78);
+      vec3 bot=vec3(0.42,0.46,0.52);
+      vec3 col=mix(bot,mid,smoothstep(0.0,0.45,y));
+      col=mix(col,top,smoothstep(0.45,1.0,y));
+      // Key light hot spot upper-left
+      float spot=max(0.0,dot(dir,normalize(vec3(-0.5,1.0,0.7))));
+      col+=vec3(1.0,0.97,0.92)*pow(spot,18.0)*0.55;
+      // Fill light right
+      float fill=max(0.0,dot(dir,normalize(vec3(1.0,0.3,-0.5))));
+      col+=vec3(0.85,0.88,0.92)*pow(fill,12.0)*0.22;
+      // Rim light behind
+      float rim=max(0.0,dot(dir,normalize(vec3(0.0,0.2,-1.0))));
+      col+=vec3(0.8,0.88,1.0)*pow(rim,20.0)*0.35;
+      gl_FragColor=vec4(col,1.0);
+    }`
+  });
+  envScene.add(new THREE.Mesh(skyGeo,skyMat));
+  // Ground reflection card (bright white)
+  const gndGeo=new THREE.PlaneGeometry(80,80);
+  const gndMat=new THREE.MeshBasicMaterial({color:0xf0ede8});
+  const gnd=new THREE.Mesh(gndGeo,gndMat);
+  gnd.rotation.x=-Math.PI/2; gnd.position.y=-8;
+  envScene.add(gnd);
+  const envRT=pmrem.fromScene(envScene, 0.04);
+  skyMat.dispose(); gndMat.dispose(); skyGeo.dispose(); gndGeo.dispose();
+  pmrem.dispose();
+  return envRT.texture;
+}
+
+let scene,camera,renderer,group,crown,roots,raycaster,enMat,rtMat;
 const vp=document.getElementById('vp');
 const CENTER_Y=0.45;
+
 function init(){
   scene=new THREE.Scene();
   const W=vp.clientWidth,H=vp.clientHeight;
-  camera=new THREE.PerspectiveCamera(33,W/H,0.1,100);camera.position.set(0,0,6.2);
-  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
-  renderer.setSize(W,H);renderer.setPixelRatio(Math.min(2,window.devicePixelRatio));
-  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
+  camera=new THREE.PerspectiveCamera(32,W/H,0.1,100);
+  camera.position.set(0,0,6.5);
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,preserveDrawingBuffer:true});
+  renderer.setSize(W,H);
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio));
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.15;
   vp.appendChild(renderer.domElement);
-  scene.add(new THREE.HemisphereLight(0xffffff,0x9a8a78,0.7));
-  const key=new THREE.DirectionalLight(0xffffff,1.8);key.position.set(3,5,4);key.castShadow=true;
-  key.shadow.mapSize.set(1024,1024);key.shadow.camera.near=1;key.shadow.camera.far=20;key.shadow.bias=-0.0006;scene.add(key);
-  const fill=new THREE.DirectionalLight(0xfff0e0,0.5);fill.position.set(-4,1,-2);scene.add(fill);
-  const rim=new THREE.DirectionalLight(0xd6ecff,0.75);rim.position.set(-1,-1,-5);scene.add(rim);
 
-  group=new THREE.Group();scene.add(group);
-  // polished dental study-model look: smooth, glossy clearcoat, soft highlights
-  const enMat=new THREE.MeshPhysicalMaterial({vertexColors:true,color:0xffffff,roughness:0.34,metalness:0,clearcoat:1.0,clearcoatRoughness:0.12,sheen:0.35,sheenColor:new THREE.Color(0xfff8ef),reflectivity:0.45});
-  const rtMat=new THREE.MeshPhysicalMaterial({vertexColors:true,color:0xffffff,roughness:0.4,metalness:0,clearcoat:0.55,clearcoatRoughness:0.22,reflectivity:0.4});
-  crown=new THREE.Mesh(buildCrown(curType),enMat);crown.castShadow=true;crown.receiveShadow=true;crown.position.y=CENTER_Y;
-  roots=new THREE.Mesh(buildRoots(curType),rtMat);roots.castShadow=true;roots.receiveShadow=true;roots.position.y=CENTER_Y;
-  group.add(crown);group.add(roots);
+  // Background — warm studio gradient
+  scene.background=new THREE.Color(0xe8eef2);
+
+  // Environment map for physically correct reflections
+  const envMap=buildEnvMap(renderer);
+  scene.environment=envMap;
+
+  // Lighting — 4-point studio setup
+  const hemi=new THREE.HemisphereLight(0xfaf7f0, 0x8a9aaa, 0.55);
+  scene.add(hemi);
+
+  const key=new THREE.DirectionalLight(0xfff9f0, 2.1);
+  key.position.set(3.5,5.5,3.5);
+  key.castShadow=true;
+  key.shadow.mapSize.set(2048,2048);
+  key.shadow.camera.near=1; key.shadow.camera.far=22;
+  key.shadow.bias=-0.0004;
+  scene.add(key);
+
+  const fill=new THREE.DirectionalLight(0xdde8f5, 0.65);
+  fill.position.set(-4.5,1.0,-1.5);
+  scene.add(fill);
+
+  const rim=new THREE.DirectionalLight(0xb8cfff, 0.90);
+  rim.position.set(-0.5,-1.5,-5.5);
+  scene.add(rim);
+
+  const top=new THREE.DirectionalLight(0xffffff, 0.35);
+  top.position.set(0,8,0);
+  scene.add(top);
+
+  // Materials — PBR enamel: clearcoat + transmission for SSS
+  enMat=new THREE.MeshPhysicalMaterial({
+    vertexColors:true,
+    color:0xffffff,
+    roughness:0.22,           // polished enamel is very smooth
+    metalness:0.0,
+    clearcoat:1.0,
+    clearcoatRoughness:0.08,  // very glossy clearcoat layer
+    transmission:0.06,        // subtle SSS / translucency at thin edges
+    thickness:0.4,
+    ior:1.55,                 // enamel refractive index
+    sheen:0.28,
+    sheenRoughness:0.42,
+    sheenColor:new THREE.Color(0xfff5e8),
+    reflectivity:0.52,
+    envMapIntensity:0.9,
+  });
+
+  rtMat=new THREE.MeshPhysicalMaterial({
+    vertexColors:true,
+    color:0xffffff,
+    roughness:0.48,           // cementum is rougher than enamel
+    metalness:0.0,
+    clearcoat:0.30,
+    clearcoatRoughness:0.35,
+    reflectivity:0.28,
+    envMapIntensity:0.5,
+  });
+
+  group=new THREE.Group();
+  scene.add(group);
+  crown=new THREE.Mesh(buildCrown(curType),enMat);
+  crown.castShadow=true; crown.receiveShadow=true;
+  crown.position.y=CENTER_Y;
+  roots=new THREE.Mesh(buildRoots(curType),rtMat);
+  roots.castShadow=true; roots.receiveShadow=true;
+  roots.position.y=CENTER_Y;
+  group.add(crown); group.add(roots);
   applyColors();
-  const plane=new THREE.Mesh(new THREE.PlaneGeometry(14,14),new THREE.ShadowMaterial({opacity:0.2}));
-  plane.rotation.x=-Math.PI/2;plane.position.y=-1.55;plane.receiveShadow=true;scene.add(plane);
+
+  // Shadow ground
+  const plane=new THREE.Mesh(
+    new THREE.PlaneGeometry(18,18),
+    new THREE.ShadowMaterial({opacity:0.28})
+  );
+  plane.rotation.x=-Math.PI/2;
+  plane.position.y=-1.65;
+  plane.receiveShadow=true;
+  scene.add(plane);
+
   raycaster=new THREE.Raycaster();
-  setView('iso');animate();
+  setView('iso');
+  animate();
 }
-function rebuild(){crown.geometry.dispose();roots.geometry.dispose();crown.geometry=buildCrown(curType);roots.geometry=buildRoots(curType);applyColors();}
+
+function rebuild(){
+  crown.geometry.dispose();
+  roots.geometry.dispose();
+  crown.geometry=buildCrown(curType);
+  roots.geometry=buildRoots(curType);
+  applyColors();
+}
+
 function applyColors(){
-  const g=crown.geometry,reg=g._regions,col=g.attributes.color,white=colLin(ENAMEL);
+  const g=crown.geometry, reg=g._regions, col=g.attributes.color;
+  const baseColors=g.attributes.color.array.slice(); // keep original gradient
+  // Re-apply original enamel vertex colors first (rebuild baked them already)
+  // Then overlay condition colors on affected surfaces
   for(let i=0;i<reg.length;i++){
-    let c=white;
-    if(reg[i]!=='_base'){const s=state[curType][reg[i]];if(s&&s!=='healthy')c=colLin(CONDITIONS[s].color);}
-    col.setXYZ(i,c.r,c.g,c.b);
+    if(reg[i]==='_base') continue;
+    const s=state[curType][reg[i]];
+    if(s&&s!=='healthy'){
+      const c=colLin(CONDITIONS[s].color);
+      col.setXYZ(i,c.r,c.g,c.b);
+    }
   }
   col.needsUpdate=true;
 }
-const VIEWS={front:[0.12,0],lingual:[0.12,Math.PI],mesial:[0.12,-Math.PI/2],distal:[0.12,Math.PI/2],occlusal:[Math.PI/2-0.15,0],iso:[0.28,0.62]};
+
+function resetCrownColors(){
+  // Rebuild geometry to restore original gradient vertex colors
+  crown.geometry.dispose();
+  crown.geometry=buildCrown(curType);
+  applyColors();
+}
+
+const VIEWS={front:[0.10,0],lingual:[0.10,Math.PI],mesial:[0.10,-Math.PI/2],distal:[0.10,Math.PI/2],occlusal:[Math.PI/2-0.12,0],iso:[0.28,0.62]};
 let tgtX=0,tgtY=0;
 function setView(v){const[a,b]=VIEWS[v];tgtX=a;tgtY=b;curView=v;markBtns();}
-function animate(){requestAnimationFrame(animate);if(autoSpin)tgtY+=0.012;group.rotation.x+=(tgtX-group.rotation.x)*0.15;group.rotation.y+=(tgtY-group.rotation.y)*0.15;renderer.render(scene,camera);}
+function animate(){requestAnimationFrame(animate);if(autoSpin)tgtY+=0.010;group.rotation.x+=(tgtX-group.rotation.x)*0.13;group.rotation.y+=(tgtY-group.rotation.y)*0.13;renderer.render(scene,camera);}
 
 let down=false,moved=false,lx=0,ly=0;
 vp.addEventListener('pointerdown',e=>{down=true;moved=false;lx=e.clientX;ly=e.clientY;vp.setPointerCapture(e.pointerId);});
-vp.addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-lx,dy=e.clientY-ly;if(Math.abs(dx)+Math.abs(dy)>3)moved=true;tgtY+=dx*0.01;tgtX+=dy*0.01;tgtX=Math.max(-1.4,Math.min(1.4,tgtX));lx=e.clientX;ly=e.clientY;});
+vp.addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-lx,dy=e.clientY-ly;if(Math.abs(dx)+Math.abs(dy)>3)moved=true;tgtY+=dx*0.010;tgtX+=dy*0.010;tgtX=Math.max(-1.4,Math.min(1.4,tgtX));lx=e.clientX;ly=e.clientY;});
 vp.addEventListener('pointerup',e=>{down=false;if(!moved)pick(e);});
 vp.addEventListener('pointercancel',()=>down=false);
+
 function pick(e){
   const r=renderer.domElement.getBoundingClientRect();
   const m=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
@@ -263,8 +476,9 @@ function pick(e){
   if(!hit)return;
   const region=crown.geometry._regions[hit.face.a];
   if(!region||region==='_base')return;
-  selSurf=region;if(curCond)state[curType][region]=curCond;applyColors();renderPanels();
+  selSurf=region; if(curCond)state[curType][region]=curCond; applyColors(); renderPanels();
 }
+
 function labelFor(k){const isF=(curType==='incisor'||curType==='canine');if(k==='buccal')return isF?'Labial':'Buccal';if(k==='occlusal')return isF?'Incisal':'Occlusal';return k.charAt(0).toUpperCase()+k.slice(1);}
 function markBtns(){
   document.querySelectorAll('#typeBtns .b').forEach(b=>b.classList.toggle('act',b.dataset.t===curType));
@@ -282,19 +496,23 @@ function renderPanels(){
     d.onclick=()=>{selSurf=k;renderPanels();};el.appendChild(d);
   });
 }
+
 const typeBtns=document.getElementById('typeBtns');
-Object.entries(TYPES).forEach(([k,v])=>{const b=document.createElement('button');b.className='b';b.dataset.t=k;b.textContent=v.label;b.onclick=()=>{curType=k;selSurf=null;rebuild();renderPanels();};typeBtns.appendChild(b);});
+Object.entries(TYPES).forEach(([k,v])=>{const b=document.createElement('button');b.className='b';b.dataset.t=k;b.textContent=v.label;b.onclick=()=>{curType=k;selSurf=null;Object.keys(state[curType]).forEach(s=>state[curType][s]=state[curType][s]||'healthy');resetCrownColors();roots.geometry.dispose();roots.geometry=buildRoots(curType);renderPanels();};typeBtns.appendChild(b);});
+
 const viewBtns=document.getElementById('viewBtns');
 [['front','Front'],['lingual','Back'],['mesial','Mesial'],['distal','Distal'],['occlusal','Top'],['iso','3D']].forEach(([v,l])=>{const b=document.createElement('button');b.className='b';b.dataset.v=v;b.textContent=l;b.onclick=()=>setView(v);viewBtns.appendChild(b);});
+
 const condPick=document.getElementById('condPick');
 CONDS.forEach(k=>{const c=CONDITIONS[k];const b=document.createElement('button');b.className='cp';b.dataset.c=k;b.innerHTML=`<span class="sw" style="background:${c.css}"></span>${c.label}`;b.onclick=()=>{curCond=k;if(selSurf)state[curType][selSurf]=k;applyColors();renderPanels();};condPick.appendChild(b);});
+
 document.getElementById('spin').addEventListener('change',e=>{autoSpin=e.target.checked;});
-document.getElementById('reset').addEventListener('click',()=>{Object.keys(state[curType]).forEach(k=>state[curType][k]='healthy');selSurf=null;applyColors();renderPanels();});
+document.getElementById('reset').addEventListener('click',()=>{Object.keys(state[curType]).forEach(k=>state[curType][k]='healthy');selSurf=null;resetCrownColors();roots.geometry.dispose();roots.geometry=buildRoots(curType);renderPanels();});
 window.addEventListener('resize',()=>{const W=vp.clientWidth,H=vp.clientHeight;camera.aspect=W/H;camera.updateProjectionMatrix();renderer.setSize(W,H);});
 
 init();renderPanels();
-window.__setView=setView;window.__rebuild=rebuild;
+window.__setView=setView;
 window.__demo=function(){state.molar.occlusal='cavity';state.molar.mesial='filling';applyColors();renderPanels();};
-window.__setType=function(t){curType=t;selSurf=null;rebuild();renderPanels();};
+window.__setType=function(t){curType=t;selSurf=null;resetCrownColors();roots.geometry.dispose();roots.geometry=buildRoots(curType);renderPanels();};
 })();
 </script></body></html>
