@@ -9,24 +9,22 @@ const MODEL_CACHE = {}; // url -> Promise<THREE.Object3D (cloneable source)>
 // azimuth0 = world-azimuth (radians, around Y, atan2(z,x)) that corresponds to BUCCAL/LABIAL.
 // dir = +1 or -1 handedness going buccal -> mesial -> lingual -> distal.
 // These are sensible defaults; the side-panel remains the source of truth for exact labels.
-const ORIENT_DEFAULT = { azimuth0: 0, dir: 1, occlusalFrac: 0.62 };
+// azimuth0 = world azimuth (atan2(z,x)) that maps to BUCCAL/LABIAL. PI/2 => +Z (faces camera in Front view).
+const ORIENT_DEFAULT = { azimuth0: Math.PI/2, dir: 1, occlusalFrac: 0.45 };
 
-function classifySurface(localNormal, localPointN, toothClass, orient){
-  // localNormal: face normal in model-local space; localPointN: point normalized in bbox [-1..1]
+// Classify an anatomical surface from a point normalized within the (centered, crown-up) bbox.
+// pN components in [-1..1]; +Y is occlusal/incisal. allowRoot=true keeps a side label even low down.
+function regionForPoint(pN, toothClass, orient, allowRoot){
   const o = orient || ORIENT_DEFAULT;
-  const ny = localNormal.y;
-  // Top-facing & in the crown upper region -> occlusal / incisal
-  if (ny > 0.55 && localPointN.y > (o.occlusalFrac - 1)) {
-    return (toothClass === 'incisor' || toothClass === 'canine') ? 'incisal' : 'occlusal';
-  }
-  // Otherwise classify by horizontal azimuth of the normal
-  let az = Math.atan2(localNormal.z, localNormal.x) - o.azimuth0;
+  const topKey = (toothClass === 'incisor' || toothClass === 'canine') ? 'incisal' : 'occlusal';
+  const buccalKey = (toothClass === 'incisor' || toothClass === 'canine') ? 'labial' : 'buccal';
+  if (pN.y > o.occlusalFrac) return topKey;
+  if (!allowRoot && pN.y < -0.35) return null; // root surface — no charted face
+  let az = Math.atan2(pN.z, pN.x) - (o.azimuth0 || 0);
+  if (o.dir < 0) az = -az;
   while (az > Math.PI) az -= Math.PI*2;
   while (az < -Math.PI) az += Math.PI*2;
-  if (o.dir < 0) az = -az;
-  // Quadrants: buccal(0) -> mesial(90) -> lingual(180) -> distal(270)
-  const q = Math.round(az / (Math.PI/2)) & 3;
-  const buccalKey = (toothClass === 'incisor' || toothClass === 'canine') ? 'labial' : 'buccal';
+  const q = ((Math.round(az / (Math.PI/2)) % 4) + 4) % 4;
   return [buccalKey, 'mesial', 'lingual', 'distal'][q];
 }
 
@@ -102,19 +100,15 @@ export function mountToothViewer(container, opts){
     const hits = raycaster.intersectObjects(meshes, false);
     if (!hits.length) return;
     const hit = hits[0];
-    // normal in world -> model-local (root space)
-    const nWorld = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
-    const nLocal = nWorld.clone(); // root currently rotated; undo root rotation
-    nLocal.applyQuaternion(root.quaternion.clone().invert());
-    // point normalized within bbox
+    // model is centered at origin within root; undo only root rotation to get centered coords
     const pLocal = root.worldToLocal(hit.point.clone());
     const pN = new THREE.Vector3(
-      _bbox.max.x>_bbox.min.x ? (pLocal.x-_center.x)/(_size.x/2) : 0,
-      _bbox.max.y>_bbox.min.y ? (pLocal.y-_center.y)/(_size.y/2) : 0,
-      _bbox.max.z>_bbox.min.z ? (pLocal.z-_center.z)/(_size.z/2) : 0
+      _size.x>0 ? pLocal.x/(_size.x/2) : 0,
+      _size.y>0 ? pLocal.y/(_size.y/2) : 0,
+      _size.z>0 ? pLocal.z/(_size.z/2) : 0
     );
-    const surf = classifySurface(nLocal.normalize(), pN, toothClass, orient);
-    opts.onPick(surf, hit.point.clone());
+    const surf = regionForPoint(pN, toothClass, orient, true);
+    if (surf) opts.onPick(surf, hit.point.clone());
   }
 
   // Detect crown vs root end along Y: roots taper (smaller sustained XZ radius).
@@ -164,32 +158,56 @@ export function mountToothViewer(container, opts){
   const VIEWS = { front:[0.10,0], back:[0.10,Math.PI], left:[0.10,-Math.PI/2], right:[0.10,Math.PI/2], top:[Math.PI/2-0.1,0], iso:[0.28,0.55] };
   function setView(v){ const a=VIEWS[v]||VIEWS.iso; tgtX=a[0]; tgtY=a[1]; }
 
-  // colored surface markers from a surfaces map {surfKey: conditionKey}
+  // Per-vertex region precompute: enables tinting the actual surface area on the mesh.
+  const tintMeshes = []; // {colAttr, base:Float32Array, regions:Array<string|null>}
+  function prepareTinting(obj){
+    tintMeshes.length = 0;
+    obj.updateMatrixWorld(true);
+    const tmp = new THREE.Vector3();
+    meshes.forEach(mesh => {
+      const g = mesh.geometry, pos = g.attributes.position, n = pos.count;
+      const base = new Float32Array(n*3);
+      if (g.attributes.color) { const c=g.attributes.color.array; for(let i=0;i<n*3;i++) base[i]=c[i]; }
+      else base.fill(1);
+      g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(base), 3));
+      // clone material(s) and enable per-vertex colors
+      if (Array.isArray(mesh.material)) mesh.material = mesh.material.map(m=>{ const c=m.clone(); c.vertexColors=true; return c; });
+      else { mesh.material = mesh.material.clone(); mesh.material.vertexColors = true; }
+      const regions = new Array(n);
+      const pN = {x:0,y:0,z:0};
+      for (let i=0;i<n;i++){
+        tmp.fromBufferAttribute(pos,i).applyMatrix4(mesh.matrixWorld); // centered coords (root unrotated)
+        pN.x = _size.x>0 ? tmp.x/(_size.x/2) : 0;
+        pN.y = _size.y>0 ? tmp.y/(_size.y/2) : 0;
+        pN.z = _size.z>0 ? tmp.z/(_size.z/2) : 0;
+        regions[i] = regionForPoint(pN, toothClass, orient, false);
+      }
+      tintMeshes.push({ colAttr: g.attributes.color, base, regions });
+    });
+  }
+
+  // Tint the actual surface regions on the mesh from a surfaces map {surfKey: conditionKey}
+  const _tc = new THREE.Color();
   function setSurfaces(surfaces, conditions){
-    while (markers.children.length) markers.remove(markers.children[0]);
-    if (!surfaces || !model) return;
-    const sphereGeo = new THREE.SphereGeometry(Math.max(_size.x,_size.z)*0.10, 16, 12);
-    const buccalKey = (toothClass==='incisor'||toothClass==='canine') ? 'labial' : 'buccal';
-    const topKey = (toothClass==='incisor'||toothClass==='canine') ? 'incisal' : 'occlusal';
-    // anatomical placement in model-local centered coords
-    const hx=_size.x/2, hy=_size.y/2, hz=_size.z/2;
-    const az0 = orient.azimuth0||0, dir = orient.dir||1;
-    function azPos(stepIndex){ // 0 buccal,1 mesial,2 lingual,3 distal
-      let ang = az0 + dir*stepIndex*(Math.PI/2);
-      return new THREE.Vector3(Math.cos(ang)*hx*0.95, 0, Math.sin(ang)*hz*0.95);
-    }
-    const placements = {
-      [buccalKey]: azPos(0), mesial: azPos(1), lingual: azPos(2), distal: azPos(3),
-      [topKey]: new THREE.Vector3(0, hy*0.85, 0)
-    };
-    Object.entries(surfaces).forEach(([k,cond])=>{
-      if (!cond || cond==='healthy') return;
-      const c = (conditions && conditions[cond]) || null; if(!c) return;
-      const pos = placements[k]; if(!pos) return;
-      const mat = new THREE.MeshStandardMaterial({color:new THREE.Color(c.color), emissive:new THREE.Color(c.color), emissiveIntensity:0.35, roughness:0.4, metalness:0});
-      const s = new THREE.Mesh(sphereGeo, mat);
-      s.position.copy(pos);
-      markers.add(s);
+    if (!tintMeshes.length) return;
+    surfaces = surfaces || {};
+    const A = 0.85;
+    tintMeshes.forEach(tm => {
+      const arr = tm.colAttr.array, base = tm.base, regs = tm.regions;
+      for (let i=0;i<regs.length;i++){
+        const reg = regs[i];
+        const cond = reg ? surfaces[reg] : null;
+        if (cond && cond !== 'healthy' && conditions && conditions[cond]) {
+          // vertexColor multiplies the (light) texture; use a strong, near-opaque sRGB stain so it reads clearly
+          _tc.set(conditions[cond].color);
+          arr[i*3]   = base[i*3]  *(1-A) + _tc.r*A;
+          arr[i*3+1] = base[i*3+1]*(1-A) + _tc.g*A;
+          arr[i*3+2] = base[i*3+2]*(1-A) + _tc.b*A;
+        } else {
+          arr[i*3] = base[i*3]; arr[i*3+1] = base[i*3+1]; arr[i*3+2] = base[i*3+2];
+        }
+      }
+      tm.colAttr.needsUpdate = true;
     });
   }
 
@@ -217,6 +235,7 @@ export function mountToothViewer(container, opts){
     model.traverse(o=>{ if(o.isMesh){ meshes.push(o); } });
     root.add(model);
     frame(model);
+    prepareTinting(model);
     setView(opts.view || 'iso');
     if (handle._s) setSurfaces(handle._s, handle._c);
     if (opts.onReady) opts.onReady();
