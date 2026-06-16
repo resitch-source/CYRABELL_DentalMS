@@ -89,70 +89,76 @@ const C_DEEP    = 0x8aaec0;   // deep shadow / interproximal
 const C_GROOVE  = 0x6a92a8;   // occlusal fissures / grooves
 const C_FOSSA   = 0x4e7a8e;   // central fossa deepest
 
-// Tooth type geometry parameters (matching illustration proportions)
+// Tooth type geometry — real-tooth proportions (crown small, root long & tapering)
 const TYPES={
   incisor:  {label:'Incisor',
-    // wide rectangular crown, tapered root
-    crownW:0.52, crownD:0.26, crownH:0.82, nexp:1.8,
-    cuspAmp:0.03, front:'Labial', top:'Incisal'},
+    // narrow thin blade crown; single long conical root (root ~1.7x crown)
+    crownW:0.40, crownD:0.22, crownH:0.66, nexp:1.7,
+    cuspAmp:0.02, front:'Labial', top:'Incisal'},
   canine:   {label:'Canine',
-    // diamond-section crown, very tall, long single root
-    crownW:0.44, crownD:0.40, crownH:1.00, nexp:2.2,
-    cuspAmp:0.14, front:'Labial', top:'Incisal'},
+    // pointed thick crown; longest single root (root ~2x crown)
+    crownW:0.40, crownD:0.40, crownH:0.78, nexp:2.1,
+    cuspAmp:0.16, front:'Labial', top:'Incisal'},
   premolar: {label:'Premolar',
-    // oval crown, 2 clear bicuspid bumps
-    crownW:0.58, crownD:0.56, crownH:0.86, nexp:2.8,
-    cuspAmp:0.20, front:'Buccal', top:'Occlusal'},
+    // compact rounded-square crown, 2 cusps; moderate root
+    crownW:0.52, crownD:0.52, crownH:0.70, nexp:2.7,
+    cuspAmp:0.19, front:'Buccal', top:'Occlusal'},
   molar:    {label:'Molar',
-    // broad rectangular crown, 4 cusps
-    crownW:0.88, crownD:0.72, crownH:0.84, nexp:3.6,
-    cuspAmp:0.24, front:'Buccal', top:'Occlusal'},
+    // wide boxy crown, 4 cusps; 3 divergent roots
+    crownW:0.92, crownD:0.78, crownH:0.72, nexp:3.6,
+    cuspAmp:0.23, front:'Buccal', top:'Occlusal'},
 };
 
-// Root data — shapes matching illustration
+// Root data — real-tooth proportions: long, finely-tapered roots
 const ROOTS={
+  // single long conical root, slight labial taper, fine apex
   incisor:[[
-    {x:0,y: 0.10,z:0,rx:0.30,rz:0.18},
-    {x:0,y:-0.52,z:0.01,rx:0.18,rz:0.12},
-    {x:0,y:-1.10,z:0.02,rx:0.09,rz:0.07},
-    {x:0,y:-1.65,z:0.01,rx:0.01,rz:0.01}
+    {x:0,y: 0.06,z:0,rx:0.27,rz:0.17},
+    {x:0,y:-0.40,z:0.01,rx:0.21,rz:0.13},
+    {x:0,y:-1.00,z:0.02,rx:0.12,rz:0.08},
+    {x:0,y:-1.55,z:0.03,rx:0.06,rz:0.04},
+    {x:0,y:-1.95,z:0.03,rx:0.01,rz:0.01}
   ]],
+  // longest single root, robust then fine point
   canine:[[
-    {x:0,y: 0.12,z:0,rx:0.30,rz:0.28},
-    {x:0,y:-0.68,z:0.02,rx:0.19,rz:0.18},
-    {x:0,y:-1.50,z:0.03,rx:0.10,rz:0.09},
-    {x:0,y:-2.20,z:0.02,rx:0.01,rz:0.01}
+    {x:0,y: 0.06,z:0,rx:0.30,rz:0.28},
+    {x:0,y:-0.50,z:0.02,rx:0.23,rz:0.22},
+    {x:0,y:-1.25,z:0.03,rx:0.14,rz:0.13},
+    {x:0,y:-2.00,z:0.04,rx:0.07,rz:0.06},
+    {x:0,y:-2.55,z:0.04,rx:0.01,rz:0.01}
   ]],
   premolar:[
+    // short common trunk then bifurcates buccal/palatal
+    [{x:0,y:0.08,z:0,rx:0.34,rz:0.34},{x:0,y:-0.18,z:0,rx:0.27,rz:0.27},{x:0,y:-0.42,z:0,rx:0.22,rz:0.22}],
     // buccal root (front)
-    [{x: 0.00,y: 0.10,z: 0.08,rx:0.20,rz:0.20},
-     {x: 0.03,y:-0.48,z: 0.14,rx:0.14,rz:0.14},
-     {x: 0.04,y:-1.10,z: 0.18,rx:0.07,rz:0.07},
-     {x: 0.05,y:-1.55,z: 0.20,rx:0.01,rz:0.01}],
+    [{x: 0.02,y:-0.40,z: 0.10,rx:0.16,rz:0.16},
+     {x: 0.05,y:-0.95,z: 0.15,rx:0.11,rz:0.11},
+     {x: 0.07,y:-1.55,z: 0.19,rx:0.05,rz:0.05},
+     {x: 0.08,y:-1.95,z: 0.21,rx:0.01,rz:0.01}],
     // palatal root (back)
-    [{x: 0.00,y: 0.10,z:-0.08,rx:0.20,rz:0.20},
-     {x:-0.02,y:-0.48,z:-0.14,rx:0.14,rz:0.14},
-     {x:-0.03,y:-1.10,z:-0.18,rx:0.07,rz:0.07},
-     {x:-0.04,y:-1.55,z:-0.20,rx:0.01,rz:0.01}],
+    [{x:-0.02,y:-0.40,z:-0.10,rx:0.16,rz:0.16},
+     {x:-0.05,y:-0.95,z:-0.15,rx:0.11,rz:0.11},
+     {x:-0.07,y:-1.55,z:-0.19,rx:0.05,rz:0.05},
+     {x:-0.08,y:-1.95,z:-0.21,rx:0.01,rz:0.01}],
   ],
   molar:[
-    // trunk
-    [{x:0,y:0.22,z:0,rx:0.62,rz:0.56},{x:0,y:-0.04,z:0,rx:0.46,rz:0.42},{x:0,y:-0.32,z:0,rx:0.30,rz:0.28}],
-    // palatal (lingual) — longest
-    [{x: 0.00,y:-0.20,z:-0.10,rx:0.20,rz:0.20},
-     {x: 0.00,y:-0.82,z:-0.30,rx:0.15,rz:0.15},
-     {x: 0.00,y:-1.38,z:-0.48,rx:0.07,rz:0.07},
-     {x: 0.00,y:-1.65,z:-0.54,rx:0.01,rz:0.01}],
-    // mesiobuccal
-    [{x:-0.24,y:-0.20,z: 0.14,rx:0.17,rz:0.17},
-     {x:-0.36,y:-0.82,z: 0.22,rx:0.13,rz:0.13},
-     {x:-0.45,y:-1.32,z: 0.28,rx:0.06,rz:0.06},
-     {x:-0.48,y:-1.58,z: 0.30,rx:0.01,rz:0.01}],
-    // distobuccal
-    [{x: 0.24,y:-0.20,z: 0.14,rx:0.17,rz:0.17},
-     {x: 0.36,y:-0.82,z: 0.22,rx:0.13,rz:0.13},
-     {x: 0.45,y:-1.32,z: 0.28,rx:0.06,rz:0.06},
-     {x: 0.48,y:-1.58,z: 0.30,rx:0.01,rz:0.01}],
+    // trunk — wide base under crown, narrows to furcation
+    [{x:0,y:0.18,z:0,rx:0.64,rz:0.58},{x:0,y:-0.06,z:0,rx:0.48,rz:0.43},{x:0,y:-0.34,z:0,rx:0.32,rz:0.29}],
+    // palatal (lingual) — longest, splays back
+    [{x: 0.00,y:-0.30,z:-0.12,rx:0.21,rz:0.21},
+     {x: 0.00,y:-0.95,z:-0.34,rx:0.15,rz:0.15},
+     {x: 0.00,y:-1.60,z:-0.54,rx:0.08,rz:0.08},
+     {x: 0.00,y:-2.05,z:-0.62,rx:0.01,rz:0.01}],
+    // mesiobuccal — splays forward-left
+    [{x:-0.26,y:-0.30,z: 0.16,rx:0.18,rz:0.18},
+     {x:-0.40,y:-0.95,z: 0.25,rx:0.13,rz:0.13},
+     {x:-0.52,y:-1.55,z: 0.32,rx:0.06,rz:0.06},
+     {x:-0.57,y:-1.95,z: 0.35,rx:0.01,rz:0.01}],
+    // distobuccal — splays forward-right
+    [{x: 0.26,y:-0.30,z: 0.16,rx:0.18,rz:0.18},
+     {x: 0.40,y:-0.95,z: 0.25,rx:0.13,rz:0.13},
+     {x: 0.52,y:-1.55,z: 0.32,rx:0.06,rz:0.06},
+     {x: 0.57,y:-1.95,z: 0.35,rx:0.01,rz:0.01}],
   ],
 };
 
@@ -336,13 +342,19 @@ function densify(samples,n){
 }
 
 // Root vertex color matching — same cool-white, slightly more shaded
+// Natural ivory/tan root colors (matching real-tooth reference)
+const R_TOP = 0xeadfca;  // cervical — pale ivory
+const R_MID = 0xdcc7a0;  // mid — warm tan
+const R_BOT = 0xc9ad7e;  // apex — deeper tan
 function rootColor(theta, depthT){
-  const base=lerpCol(C_BASE, C_SHADE, depthT*0.4);
-  // front face slight brightening
+  let base;
+  if(depthT<0.5) base=lerpCol(R_TOP, R_MID, depthT/0.5);
+  else base=lerpCol(R_MID, R_BOT, (depthT-0.5)/0.5);
+  // front face slight brightening (specular catch)
   const front=clamp(1.0-Math.abs(theta)/(Math.PI*0.6),0,1);
   const front2=clamp(1.0-Math.abs(theta-Math.PI*2)/(Math.PI*0.6),0,1);
   const ff=Math.max(front,front2);
-  return lerpCol(base, C_BASE, ff*0.50);
+  return lerpCol(base, 0xf2e8d4, ff*0.45);
 }
 
 function buildRoots(type){
@@ -352,7 +364,7 @@ function buildRoots(type){
     const ring=densify(s,52), start=base;
     for(let i=0;i<ring.length;i++){
       const o=ring[i].p, rx=ring[i].rx, rz=ring[i].rz;
-      const depthT=clamp(-o.y/1.8, 0, 1);
+      const depthT=clamp(-o.y/2.3, 0, 1);
       const wob=1+0.018*Math.sin(o.y*11+0.7);
       for(let j=0;j<=segs;j++){
         const a=j/segs*Math.PI*2;
@@ -470,12 +482,12 @@ function init(){
   rtMat=new THREE.MeshPhysicalMaterial({
     vertexColors:true,
     color:0xffffff,
-    roughness:0.22,
+    roughness:0.62,          // cementum is matte, not glossy
     metalness:0.0,
-    clearcoat:0.60,
-    clearcoatRoughness:0.14,
-    reflectivity:0.40,
-    envMapIntensity:0.9,
+    clearcoat:0.12,
+    clearcoatRoughness:0.5,
+    reflectivity:0.22,
+    envMapIntensity:0.5,
   });
 
   group=new THREE.Group();
