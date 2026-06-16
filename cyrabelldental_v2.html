@@ -6772,16 +6772,21 @@ function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMod
         WebkitMaskRepeat:'no-repeat', maskRepeat:'no-repeat',
         mixBlendMode:'multiply', pointerEvents:'none'}
     }),
-    // surface-level condition dots
+    // surface condition markers — sized to be clearly readable in the overview
     surfaceData && Object.entries(surfaceData).map(([surf, cnd]) => {
       if (!cnd || cnd === 'healthy') return null;
       const sCond = CONDITIONS[cnd] || cond;
       const p = dotPos(surf);
       return h('span', {key: surf, title: surf + ': ' + sCond.label,
         style: {position:'absolute', left:p.left, top:p.top, transform:'translate(-50%,-50%)',
-          width:7, height:7, borderRadius:'50%', background:sCond.color,
-          border:'1px solid '+sCond.stroke, boxShadow:'0 0 0 1px rgba(255,255,255,.7)',
-          pointerEvents:'none'}});
+          minWidth:11, height:11, borderRadius:6, background:sCond.color,
+          border:'1.5px solid '+sCond.stroke,
+          boxShadow:'0 0 0 1.5px rgba(255,255,255,.9), 0 1px 4px rgba(0,0,0,.25)',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontSize:7, fontWeight:800, color: cnd==='cavity'?'#fff':'#1a2332',
+          pointerEvents:'none', padding:'0 2px'}},
+        sCond.symbol || ''
+      );
     }),
     // condition symbol badge
     !missing && cond.symbol && h('span', {
@@ -7042,8 +7047,208 @@ function ClinicalToothLegacySVG({fdi, condition, surfaceData, selected, onSelect
   );
 }
 
-// ── 5-Surface 2D Realistic Tooth Diagram ─────────────────────────────────────
+// ── Sprite-based 2D surface diagram (replaces box-drawing Tooth5SurfaceView) ──
+// Shows the real photogrammetry scan sprite with clickable surface zones overlaid.
+// Side view: occlusal=top strip, mesial=left strip, distal=right strip,
+//            buccal/labial=centre face, lingual=separate button below.
+// Top  view: buccal=top, lingual=bottom, mesial=left, distal=right, occ=centre.
 function Tooth5SurfaceView({meta, condition, surfaceData, onSurfaceChange, onConditionChange, fdi}) {
+  surfaceData = surfaceData || {};
+  const type = meta.type;
+  const isUpper = isUpperTooth(fdi);
+  const [spriteView, setSpriteView] = useState('side'); // 'side' | 'top'
+  const [activeSurf, setActiveSurf] = useState(null);
+  const [pickerSurf, setPickerSurf] = useState(null); // surface whose condition picker is open
+  const cond = CONDITIONS[condition || 'healthy'];
+  const isFront = type === 'incisor' || type === 'canine';
+  const occSurf  = isFront ? 'incisal'  : 'occlusal';
+  const buccSurf = isFront ? 'labial'   : 'buccal';
+  const occLabel  = isFront ? 'Incisal'  : 'Occlusal';
+  const buccLabel = isFront ? 'Labial'   : 'Buccal';
+
+  const spriteUrl = 'assets/teeth/sprites/' + toothSpriteBase(fdi) + '_' + spriteView + '.png';
+
+  const surfCond  = s => CONDITIONS[surfaceData[s]] || CONDITIONS.healthy;
+  const surfColor = s => (surfaceData[s] && surfaceData[s] !== 'healthy') ? surfCond(s).color : null;
+
+  // Mini condition picker inline
+  const CondPicker = ({surf}) => h('div', {
+    style:{position:'absolute', zIndex:200, top:'105%', left:'50%', transform:'translateX(-50%)',
+      background:'#fff', border:'1.5px solid var(--t)', borderRadius:10, padding:8,
+      boxShadow:'0 8px 28px rgba(0,0,0,.20)', minWidth:170, marginTop:2}
+  },
+    h('div', {style:{fontSize:10, fontWeight:700, color:'var(--md)', textTransform:'uppercase', letterSpacing:1, marginBottom:5}}, 'Set condition for ' + surf),
+    CONDITION_KEYS.map(k => {
+      const c = CONDITIONS[k];
+      return h('div', {key:k,
+        onClick: e => { e.stopPropagation(); onSurfaceChange(fdi, surf, k); setPickerSurf(null); },
+        style:{display:'flex', alignItems:'center', gap:7, padding:'5px 6px', borderRadius:6, cursor:'pointer',
+          background: surfaceData[surf] === k ? c.color+'22' : 'transparent',
+          border: surfaceData[surf] === k ? '1px solid '+c.stroke : '1px solid transparent', marginBottom:2}},
+        h('span', {style:{width:14,height:14,borderRadius:3,background:c.color,border:'1.5px solid '+c.stroke,flexShrink:0}}),
+        h('span', {style:{fontSize:11, fontWeight:600, color:'#1e293b'}}, c.label)
+      );
+    })
+  );
+
+  // A surface button — shows label + condition, click → picker
+  const SurfBtn = ({surf, label, style:extraStyle}) => {
+    const sc = surfCond(surf);
+    const active = pickerSurf === surf;
+    const hasC = surfaceData[surf] && surfaceData[surf] !== 'healthy';
+    return h('div', {style:{position:'relative', ...extraStyle}},
+      h('button', {
+        type:'button',
+        onClick: e => { e.stopPropagation(); setPickerSurf(active ? null : surf); },
+        style:{display:'flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius:8, cursor:'pointer',
+          fontFamily:'inherit', fontSize:11.5, fontWeight:700,
+          border:'1.5px solid '+(active?'var(--t)':hasC?sc.stroke:'var(--bd)'),
+          background: active?'var(--tp)': hasC? sc.color+'22' :'#fff',
+          color: hasC?sc.stroke:'var(--md)', whiteSpace:'nowrap',
+          boxShadow: active?'0 0 0 2px rgba(10,124,110,.18)':'none'}},
+        hasC && h('span', {style:{width:10,height:10,borderRadius:2,background:sc.color,border:'1px solid '+sc.stroke,flexShrink:0}}),
+        label,
+        hasC && h('span', {style:{fontSize:10, fontWeight:800}}, ' '+sc.symbol)
+      ),
+      active && h(CondPicker, {surf})
+    );
+  };
+
+  // Zones overlaid on the sprite image (percentage coords of the container)
+  // Side view: mesial=left strip, distal=right strip, occ/incisal=top strip, buccal=centre
+  // Top  view: mesial=left, distal=right, buccal=top, lingual=bottom, occ=centre
+  const ZONES_SIDE = [
+    {surf: buccSurf,  label: buccLabel, top:'22%', left:'20%', width:'60%', height:'40%'},
+    {surf: occSurf,   label: occLabel,  top:'2%',  left:'20%', width:'60%', height:'20%'},
+    {surf: 'mesial',  label: 'Mesial',  top:'22%', left:'2%',  width:'18%', height:'50%'},
+    {surf: 'distal',  label: 'Distal',  top:'22%', left:'80%', width:'18%', height:'50%'},
+  ];
+  const ZONES_TOP = [
+    {surf: occSurf,   label: occLabel,  top:'30%', left:'25%', width:'50%', height:'40%'},
+    {surf: buccSurf,  label: buccLabel, top:'2%',  left:'20%', width:'60%', height:'28%'},
+    {surf: 'lingual', label: 'Lingual', top:'70%', left:'20%', width:'60%', height:'28%'},
+    {surf: 'mesial',  label: 'Mesial',  top:'20%', left:'2%',  width:'22%', height:'60%'},
+    {surf: 'distal',  label: 'Distal',  top:'20%', left:'76%', width:'22%', height:'60%'},
+  ];
+  const zones = spriteView === 'top' ? ZONES_TOP : ZONES_SIDE;
+
+  return h('div', {
+    style:{display:'flex', flexDirection:'column', alignItems:'center', gap:10, minWidth:220},
+    onClick: () => setPickerSurf(null)
+  },
+    // View toggle
+    h('div', {style:{display:'flex', gap:6, alignSelf:'stretch', justifyContent:'center'}},
+      [['side','Side (Buccal)'],['top','Top (Occlusal)']].map(([v,l]) =>
+        h('button', {key:v, type:'button',
+          onClick: e => { e.stopPropagation(); setSpriteView(v); setPickerSurf(null); },
+          style:{flex:1, padding:'5px 0', borderRadius:8, cursor:'pointer', fontFamily:'inherit',
+            fontSize:11.5, fontWeight:700,
+            border:'1.5px solid '+(spriteView===v?'var(--t)':'var(--bd)'),
+            background: spriteView===v?'var(--t)':'#fff',
+            color: spriteView===v?'#fff':'var(--md)'}}, l)
+      )
+    ),
+
+    // Sprite + zone overlays
+    h('div', {style:{position:'relative', width:220, height: spriteView==='top'?180:260,
+      borderRadius:14, overflow:'visible', background:'radial-gradient(ellipse at 50% 40%,#f6f9fb 0%,#e4edf2 100%)',
+      border:'1px solid var(--bd)', display:'flex', alignItems:'center', justifyContent:'center'}},
+      h('img', {src:spriteUrl, alt:'', draggable:false,
+        style:{maxWidth:'88%', maxHeight:'90%', objectFit:'contain', display:'block', pointerEvents:'none', userSelect:'none'}}),
+      // per-surface color zone overlays
+      zones.map(z => {
+        const sc = surfColor(z.surf);
+        return h('div', {key:z.surf+'w',
+          style:{position:'absolute', top:z.top, left:z.left, width:z.width, height:z.height,
+            background: sc ? sc+'55' : 'transparent',
+            border: sc ? '2px solid '+surfCond(z.surf).stroke : '2px solid transparent',
+            borderRadius:6, pointerEvents:'none', transition:'background .2s'}}
+        );
+      }),
+      // clickable transparent hit zones
+      zones.map(z =>
+        h('div', {key:z.surf,
+          title: z.label + (surfaceData[z.surf] ? ' · '+surfCond(z.surf).label : ' · click to set'),
+          onClick: e => { e.stopPropagation(); setPickerSurf(pickerSurf===z.surf?null:z.surf); },
+          style:{position:'absolute', top:z.top, left:z.left, width:z.width, height:z.height,
+            cursor:'pointer', borderRadius:6, zIndex:10,
+            outline: pickerSurf===z.surf?'2.5px solid var(--t)':'none'}}
+        )
+      ),
+      // per-surface label badges on the image
+      zones.map(z => {
+        const sc = surfCond(z.surf);
+        const hasC = surfaceData[z.surf] && surfaceData[z.surf] !== 'healthy';
+        const top = parseFloat(z.top)+parseFloat(z.height)/2+'%';
+        return h('div', {key:z.surf+'lbl', style:{
+          position:'absolute', top:top, left:z.left, width:z.width,
+          transform:'translateY(-50%)',
+          display:'flex', justifyContent:'center', alignItems:'center', pointerEvents:'none'}},
+          h('span', {style:{
+            fontSize:9.5, fontWeight:800, textTransform:'uppercase', letterSpacing:.5,
+            padding:'2px 5px', borderRadius:5,
+            background: hasC ? sc.color : 'rgba(255,255,255,0.80)',
+            color: hasC && z.surf==='cavity'?'#fff': hasC ? sc.stroke : '#475569',
+            border: '1px solid '+(hasC?sc.stroke:'rgba(0,0,0,.10)'),
+            boxShadow:'0 1px 4px rgba(0,0,0,.12)'}},
+            z.label + (hasC ? ' '+sc.symbol : ''))
+        );
+      }),
+      // lingual button (only in side view, it's the hidden back face)
+      spriteView === 'side' && h('div', {style:{position:'absolute', bottom:-38, left:'50%', transform:'translateX(-50%)', zIndex:20}},
+        h('div', {style:{position:'relative'}},
+          h('button', {type:'button',
+            onClick: e => { e.stopPropagation(); setPickerSurf(pickerSurf==='lingual'?null:'lingual'); },
+            style:{padding:'5px 14px', borderRadius:8, cursor:'pointer', fontFamily:'inherit',
+              fontSize:11.5, fontWeight:700,
+              border:'1.5px solid '+(pickerSurf==='lingual'?'var(--t)': surfColor('lingual')?surfCond('lingual').stroke:'var(--bd)'),
+              background: pickerSurf==='lingual'?'var(--tp)': surfColor('lingual')? surfCond('lingual').color+'22':'#fff',
+              color: surfColor('lingual')?surfCond('lingual').stroke:'var(--md)'}},
+            surfColor('lingual')&&h('span',{style:{width:10,height:10,borderRadius:2,background:surfCond('lingual').color,border:'1px solid '+surfCond('lingual').stroke,marginRight:5,display:'inline-block',verticalAlign:'middle'}}),
+            'Lingual' + (surfColor('lingual')?' '+surfCond('lingual').symbol:'')
+          ),
+          pickerSurf === 'lingual' && h(CondPicker, {surf:'lingual'})
+        )
+      )
+    ),
+
+    // Surface summary row
+    h('div', {style:{display:'flex', flexWrap:'wrap', gap:5, justifyContent:'center', marginTop: spriteView==='side'?32:6}},
+      [buccSurf, occSurf, 'mesial', 'distal', 'lingual'].map(surf => {
+        const sc = surfCond(surf);
+        const hasC = surfaceData[surf] && surfaceData[surf] !== 'healthy';
+        return h('div', {key:surf, style:{position:'relative'}},
+          h('button', {type:'button',
+            onClick: e => { e.stopPropagation(); setPickerSurf(pickerSurf===surf?null:surf); },
+            style:{padding:'4px 9px', borderRadius:8, cursor:'pointer', fontFamily:'inherit',
+              fontSize:11, fontWeight:700,
+              border:'1.5px solid '+(pickerSurf===surf?'var(--t)':hasC?sc.stroke:'var(--bd)'),
+              background: pickerSurf===surf?'var(--tp)': hasC? sc.color+'22':'#fff',
+              color: hasC?sc.stroke:'var(--md)', display:'flex', alignItems:'center', gap:4}},
+            hasC&&h('span',{style:{width:9,height:9,borderRadius:2,background:sc.color,border:'1px solid '+sc.stroke,flexShrink:0}}),
+            surf.charAt(0).toUpperCase()+surf.slice(1),
+            hasC&&h('span',{style:{fontSize:10}}, ' '+sc.symbol)
+          ),
+          pickerSurf===surf && h(CondPicker, {surf})
+        );
+      })
+    ),
+
+    // Whole-tooth condition
+    h('div', {style:{marginTop:4, padding:'6px 12px', background:'#f0faf8', borderRadius:8,
+      border:'1px solid #d0e8e4', display:'flex', alignItems:'center', gap:8, alignSelf:'stretch', justifyContent:'center'}},
+      h('span', {style:{fontSize:11, fontWeight:600, color:'var(--md)'}}, 'Whole tooth:'),
+      h('span', {style:{width:16,height:16,borderRadius:4,background:cond.color,border:'1.5px solid '+cond.stroke,
+        display:'inline-flex',alignItems:'center',justifyContent:'center'}},
+        h('span', {style:{fontSize:9,color:condition==='cavity'?'#fff':'#1a2332',fontWeight:700}}, cond.symbol||'')
+      ),
+      h('span', {style:{fontSize:12,fontWeight:700,color:'var(--dk)'}}, cond.label)
+    ),
+    h('div', {style:{fontSize:10, color:'#64748b', textAlign:'center', marginTop:2}}, '👆 Click any surface zone or button to assign a condition')
+  );
+}
+
+function Tooth5SurfaceViewLegacy({meta, condition, surfaceData, onSurfaceChange, onConditionChange, fdi}) {
   surfaceData = surfaceData || {};
   const [activeSurf, setActiveSurf] = useState(null); // which surface picker is open
   const type = meta.type;
