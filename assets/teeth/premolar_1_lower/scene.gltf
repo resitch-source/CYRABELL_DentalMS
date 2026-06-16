@@ -3,69 +3,69 @@
     {
       "bufferView": 2,
       "componentType": 5126,
-      "count": 28875,
+      "count": 23913,
       "max": [
-        2.687089681625366,
-        -5.0778117179870605,
-        5.094022274017334
+        1.9528826475143433,
+        -5.729665279388428,
+        3.3556971549987793
       ],
       "min": [
-        1.6476829051971436,
-        -6.071188449859619,
-        3.3091015815734863
+        1.1677666902542114,
+        -6.496024131774902,
+        1.3255102634429932
       ],
       "type": "VEC3"
     },
     {
       "bufferView": 2,
-      "byteOffset": 346500,
+      "byteOffset": 286956,
       "componentType": 5126,
-      "count": 28875,
+      "count": 23913,
       "max": [
-        0.9999957084655762,
-        0.9999454021453857,
-        0.9998124241828918
+        0.9997398853302002,
+        0.9999669194221497,
+        0.9998500347137451
       ],
       "min": [
-        -0.9998912811279297,
-        -0.9999985098838806,
-        -0.9999690055847168
+        -0.9999952912330627,
+        -0.9999987483024597,
+        -0.9999053478240967
       ],
       "type": "VEC3"
     },
     {
       "bufferView": 3,
       "componentType": 5126,
-      "count": 28875,
+      "count": 23913,
       "max": [
-        0.9999316930770874,
-        0.9999847412109375,
-        0.9592912197113037,
+        0.989190399646759,
+        0.9997775554656982,
+        0.9997560977935791,
         -1.0
       ],
       "min": [
-        -0.9727120995521545,
-        -0.999883234500885,
-        -0.9999591112136841,
+        -0.9999275207519531,
+        -0.8812767267227173,
+        -0.999679446220398,
         -1.0
       ],
       "type": "VEC4"
     },
     {
       "bufferView": 3,
-      "byteOffset": 462000,
+      "byteOffset": 382608,
       "componentType": 5126,
-      "count": 28875,
+      "count": 23913,
       "max": [
-        0.886274516582489,
-        0.8823529481887817,
-        0.8705882430076599,
+        0.9960784316062927,
+        0.9960784316062927,
+        0.9960784316062927,
         1.0
       ],
       "min": [
-        0.7529411911964417,
-        0.7254902124404907,
-        0.6117647290229797,
+        0.7372549176216125,
+        0.7176470756530762,
+        0.5960784554481506,
         1.0
       ],
       "type": "VEC4"
@@ -73,13 +73,13 @@
     {
       "bufferView": 1,
       "componentType": 5126,
-      "count": 28875,
+      "count": 23913,
       "max": [
         0.9980400204658508,
-        0.9980400204658508
+        0.7308700084686279
       ],
       "min": [
-        0.054019998759031296,
+        0.0019499999471008778,
         0.0019499999471008778
       ],
       "type": "VEC2"
@@ -87,7 +87,7 @@
     {
       "bufferView": 0,
       "componentType": 5125,
-      "count": 171024,
+      "count": 141792,
       "type": "SCALAR"
     }
   ],
@@ -95,8 +95,8 @@
     "extras": {
       "author": "University of Dundee, School of Dentistry (https://sketchfab.com/DundeeDental)",
       "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
-      "source": "https://sketchfab.com/3d-models/maxillary-first-molar-e719a474ef7e4bd7abec508f85f1e984",
-      "title": "Maxillary First Molar"
+      "source": "https://sketchfab.com/3d-models/mandibular-first-premolar-935637a703dc49eb9eeec9b15a8a5c4c",
+      "title": "Mandibular First Premolar"
     },
     "generator": "Sketchfab-15.11.0",
     "version": "2.0"
@@ -104,30 +104,30 @@
   "bufferViews": [
     {
       "buffer": 0,
-      "byteLength": 684096,
+      "byteLength": 567168,
       "name": "floatBufferViews",
       "target": 34963
     },
     {
       "buffer": 0,
-      "byteLength": 231000,
-      "byteOffset": 684096,
+      "byteLength": 191304,
+      "byteOffset": 567168,
       "byteStride": 8,
       "name": "floatBufferViews",
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteLength": 693000,
-      "byteOffset": 915096,
+      "byteLength": 573912,
+      "byteOffset": 758472,
       "byteStride": 12,
       "name": "floatBufferViews",
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteLength": 924000,
-      "byteOffset": 1608096,
+      "byteLength": 765216,
+      "byteOffset": 1332384,
       "byteStride": 16,
       "name": "floatBufferViews",
       "target": 34962
@@ -135,7 +135,7 @@
   ],
   "buffers": [
     {
-      "byteLength": 2532096,
+      "byteLength": 2097600,
       "uri": "scene.bin"
     }
   ],
@@ -152,6 +152,7 @@
   ],
   "materials": [
     {
+      "doubleSided": true,
       "extensions": {
         "KHR_materials_specular": {
           "specularColorFactor": [
@@ -159,12 +160,13 @@
             1.0,
             1.0
           ],
-          "specularFactor": 0.01
+          "specularFactor": 0.02
         }
       },
       "name": "defaultMat",
       "normalTexture": {
-        "index": 1
+        "index": 1,
+        "scale": 0.26
       },
       "pbrMetallicRoughness": {
         "baseColorTexture": {
@@ -200,17 +202,17 @@
         1
       ],
       "matrix": [
-        0.4360889494419098,
+        0.43312010169029236,
         0.0,
         0.0,
         0.0,
         0.0,
-        9.683119849100081e-17,
-        -0.4360889494419098,
+        9.617198186491035e-17,
+        -0.43312010169029236,
         0.0,
         0.0,
-        0.4360889494419098,
-        9.683119849100081e-17,
+        0.43312010169029236,
+        9.617198186491035e-17,
         0.0,
         0.0,
         0.0,
@@ -223,7 +225,7 @@
       "children": [
         2
       ],
-      "name": "UL6sketch_1.OBJ.cleaner"
+      "name": "L4sketch_1.OBJ.cleaner"
     },
     {
       "mesh": 0,
@@ -234,12 +236,6 @@
     {
       "magFilter": 9728,
       "minFilter": 9728,
-      "wrapS": 10497,
-      "wrapT": 10497
-    },
-    {
-      "magFilter": 9729,
-      "minFilter": 9987,
       "wrapS": 10497,
       "wrapT": 10497
     }
@@ -259,7 +255,7 @@
       "source": 0
     },
     {
-      "sampler": 1,
+      "sampler": 0,
       "source": 1
     }
   ]
