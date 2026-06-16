@@ -68,7 +68,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
 </script>
 <script>
-/* Photorealistic 3D tooth — matching clinical illustration style */
+/* Tooth 3D — accurate copy of reference illustration style */
 (function(){
 const CONDITIONS = {
   healthy:    {label:'Healthy',    color:0xeef4f8, css:'#eef4f8', symbol:''},
@@ -81,69 +81,82 @@ const CONDITIONS = {
 };
 const CONDS=Object.keys(CONDITIONS);
 
-// Clean cool-white palette matching the reference illustration
-const C_WHITE     = 0xf2f7fc;  // main crown body — pure cool white
-const C_HILIGHT   = 0xffffff;  // specular stripe area — bright white
-const C_SHADOW    = 0xc8dce8;  // shaded side — cool blue-grey
-const C_FISSURE   = 0x7aA0b0;  // fissure/groove — teal-grey dark
-const C_CERV      = 0xddeaf3;  // cervical collar — slightly cooler
-const C_ROOT_TOP  = 0xe0edf6;  // root top — same cool white family
-const C_ROOT_MID  = 0xcddaea;  // root mid
-const C_ROOT_BOT  = 0xb8ccdc;  // root apex
+// Reference image palette — bright white, cool blue-grey shadows
+const C_BRIGHT  = 0xffffff;   // pure white highlight
+const C_BASE    = 0xf0f5fa;   // main surface color
+const C_SHADE   = 0xbaced9;   // shadow side — cool blue-grey
+const C_DEEP    = 0x8aaec0;   // deep shadow / interproximal
+const C_GROOVE  = 0x6a92a8;   // occlusal fissures / grooves
+const C_FOSSA   = 0x4e7a8e;   // central fossa deepest
 
+// Tooth type geometry parameters (matching illustration proportions)
 const TYPES={
-  incisor:  {label:'Incisor',  md:0.44, bl:0.28, crownH:0.90, nexp:2.2, cuspAmp:0.04, front:'Labial',  top:'Incisal'},
-  canine:   {label:'Canine',   md:0.44, bl:0.40, crownH:1.05, nexp:2.6, cuspAmp:0.13, front:'Labial',  top:'Incisal'},
-  premolar: {label:'Premolar', md:0.56, bl:0.58, crownH:0.90, nexp:3.0, cuspAmp:0.19, front:'Buccal',  top:'Occlusal'},
-  molar:    {label:'Molar',    md:0.80, bl:0.70, crownH:0.88, nexp:4.0, cuspAmp:0.22, front:'Buccal',  top:'Occlusal'},
+  incisor:  {label:'Incisor',
+    // wide rectangular crown, tapered root
+    crownW:0.52, crownD:0.26, crownH:0.82, nexp:1.8,
+    cuspAmp:0.03, front:'Labial', top:'Incisal'},
+  canine:   {label:'Canine',
+    // diamond-section crown, very tall, long single root
+    crownW:0.44, crownD:0.40, crownH:1.00, nexp:2.2,
+    cuspAmp:0.14, front:'Labial', top:'Incisal'},
+  premolar: {label:'Premolar',
+    // oval crown, 2 clear bicuspid bumps
+    crownW:0.58, crownD:0.56, crownH:0.86, nexp:2.8,
+    cuspAmp:0.20, front:'Buccal', top:'Occlusal'},
+  molar:    {label:'Molar',
+    // broad rectangular crown, 4 cusps
+    crownW:0.88, crownD:0.72, crownH:0.84, nexp:3.6,
+    cuspAmp:0.24, front:'Buccal', top:'Occlusal'},
 };
 
-// Root limb data — clear separation especially on molar
+// Root data — shapes matching illustration
 const ROOTS={
   incisor:[[
-    {x:0,y:0.12,z:0,rx:0.32,rz:0.24},
-    {x:0,y:-0.60,z:0.02,rx:0.18,rz:0.14},
-    {x:0,y:-1.25,z:0.03,rx:0.08,rz:0.07},
-    {x:0,y:-1.70,z:0.02,rx:0,rz:0}
+    {x:0,y: 0.10,z:0,rx:0.30,rz:0.18},
+    {x:0,y:-0.52,z:0.01,rx:0.18,rz:0.12},
+    {x:0,y:-1.10,z:0.02,rx:0.09,rz:0.07},
+    {x:0,y:-1.65,z:0.01,rx:0.01,rz:0.01}
   ]],
   canine:[[
-    {x:0,y:0.14,z:0,rx:0.34,rz:0.34},
-    {x:0,y:-0.70,z:0.02,rx:0.22,rz:0.21},
-    {x:0,y:-1.55,z:0.04,rx:0.10,rz:0.10},
-    {x:0,y:-2.15,z:0.03,rx:0,rz:0}
+    {x:0,y: 0.12,z:0,rx:0.30,rz:0.28},
+    {x:0,y:-0.68,z:0.02,rx:0.19,rz:0.18},
+    {x:0,y:-1.50,z:0.03,rx:0.10,rz:0.09},
+    {x:0,y:-2.20,z:0.02,rx:0.01,rz:0.01}
   ]],
   premolar:[
-    [{x:-0.06,y:0.12,z:0,rx:0.22,rz:0.24},
-     {x:-0.10,y:-0.55,z:0,rx:0.16,rz:0.18},
-     {x:-0.12,y:-1.20,z:0,rx:0.08,rz:0.09},
-     {x:-0.13,y:-1.60,z:0,rx:0,rz:0}],
-    [{x:0.06,y:0.12,z:0,rx:0.22,rz:0.24},
-     {x:0.10,y:-0.55,z:0,rx:0.16,rz:0.18},
-     {x:0.12,y:-1.20,z:0,rx:0.08,rz:0.09},
-     {x:0.13,y:-1.60,z:0,rx:0,rz:0}],
+    // buccal root (front)
+    [{x: 0.00,y: 0.10,z: 0.08,rx:0.20,rz:0.20},
+     {x: 0.03,y:-0.48,z: 0.14,rx:0.14,rz:0.14},
+     {x: 0.04,y:-1.10,z: 0.18,rx:0.07,rz:0.07},
+     {x: 0.05,y:-1.55,z: 0.20,rx:0.01,rz:0.01}],
+    // palatal root (back)
+    [{x: 0.00,y: 0.10,z:-0.08,rx:0.20,rz:0.20},
+     {x:-0.02,y:-0.48,z:-0.14,rx:0.14,rz:0.14},
+     {x:-0.03,y:-1.10,z:-0.18,rx:0.07,rz:0.07},
+     {x:-0.04,y:-1.55,z:-0.20,rx:0.01,rz:0.01}],
   ],
   molar:[
-    // trunk — wide base connecting crown to roots
-    [{x:0,y:0.22,z:0,rx:0.60,rz:0.55},{x:0,y:-0.05,z:0,rx:0.44,rz:0.40},{x:0,y:-0.30,z:0,rx:0.32,rz:0.29}],
-    // palatal (lingual, longer)
-    [{x:0,y:-0.20,z:-0.08,rx:0.19,rz:0.19},
-     {x:0,y:-0.80,z:-0.28,rx:0.14,rz:0.14},
-     {x:0,y:-1.30,z:-0.45,rx:0.07,rz:0.07},
-     {x:0,y:-1.58,z:-0.50,rx:0,rz:0}],
+    // trunk
+    [{x:0,y:0.22,z:0,rx:0.62,rz:0.56},{x:0,y:-0.04,z:0,rx:0.46,rz:0.42},{x:0,y:-0.32,z:0,rx:0.30,rz:0.28}],
+    // palatal (lingual) — longest
+    [{x: 0.00,y:-0.20,z:-0.10,rx:0.20,rz:0.20},
+     {x: 0.00,y:-0.82,z:-0.30,rx:0.15,rz:0.15},
+     {x: 0.00,y:-1.38,z:-0.48,rx:0.07,rz:0.07},
+     {x: 0.00,y:-1.65,z:-0.54,rx:0.01,rz:0.01}],
     // mesiobuccal
-    [{x:-0.22,y:-0.20,z:0.12,rx:0.16,rz:0.16},
-     {x:-0.33,y:-0.80,z:0.20,rx:0.12,rz:0.12},
-     {x:-0.42,y:-1.28,z:0.27,rx:0.06,rz:0.06},
-     {x:-0.45,y:-1.52,z:0.29,rx:0,rz:0}],
+    [{x:-0.24,y:-0.20,z: 0.14,rx:0.17,rz:0.17},
+     {x:-0.36,y:-0.82,z: 0.22,rx:0.13,rz:0.13},
+     {x:-0.45,y:-1.32,z: 0.28,rx:0.06,rz:0.06},
+     {x:-0.48,y:-1.58,z: 0.30,rx:0.01,rz:0.01}],
     // distobuccal
-    [{x:0.22,y:-0.20,z:0.12,rx:0.16,rz:0.16},
-     {x:0.33,y:-0.80,z:0.20,rx:0.12,rz:0.12},
-     {x:0.42,y:-1.28,z:0.27,rx:0.06,rz:0.06},
-     {x:0.45,y:-1.52,z:0.29,rx:0,rz:0}],
+    [{x: 0.24,y:-0.20,z: 0.14,rx:0.17,rz:0.17},
+     {x: 0.36,y:-0.82,z: 0.22,rx:0.13,rz:0.13},
+     {x: 0.45,y:-1.32,z: 0.28,rx:0.06,rz:0.06},
+     {x: 0.48,y:-1.58,z: 0.30,rx:0.01,rz:0.01}],
   ],
 };
 
-let curType='molar', curCond='cavity', selSurf=null, autoSpin=false, curView='iso';
+let curType='molar', curCond='cavity', selSurf=null, autoSpin=false, curView='front';
 const state={};
 Object.keys(TYPES).forEach(t=>state[t]={mesial:'healthy',distal:'healthy',buccal:'healthy',lingual:'healthy',occlusal:'healthy'});
 
@@ -151,63 +164,100 @@ function lerp(a,b,t){return a+(b-a)*Math.max(0,Math.min(1,t));}
 function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
 function angDiff(a,b){let d=Math.abs(a-b)%(Math.PI*2);return d>Math.PI?Math.PI*2-d:d;}
 function colLin(hex){return new THREE.Color(hex).convertSRGBToLinear();}
-function lerpCol(h1,h2,t){return new THREE.Color(h1).convertSRGBToLinear().lerp(new THREE.Color(h2).convertSRGBToLinear(),clamp(t,0,1));}
-
-// Crown wall profile
-function wallW(cc){
-  if(cc<0.25) return lerp(0.88,1.08,cc/0.25);
-  if(cc<0.85) return lerp(1.08,1.00,(cc-0.25)/0.60);
-  return lerp(1.00,0.90,(cc-0.85)/0.15);
+function lerpCol(h1,h2,t){
+  const a=new THREE.Color(h1).convertSRGBToLinear();
+  const b=new THREE.Color(h2).convertSRGBToLinear();
+  return a.lerp(b,clamp(t,0,1));
 }
 
-// Occlusal relief — pronounced cusps for molar/premolar
-function occl(type,theta,q){
+// Superellipse profile
+function superEllipse(theta,n){
+  const ct=Math.cos(theta),st=Math.sin(theta);
+  return [Math.sign(ct)*Math.pow(Math.abs(ct),2/n), Math.sign(st)*Math.pow(Math.abs(st),2/n)];
+}
+
+// Crown wall profile cc∈[0,1] cervix→occlusal rim
+function wallProfile(cc){
+  if(cc<0.20) return lerp(0.86,1.10,cc/0.20);   // cervical flare
+  if(cc<0.82) return lerp(1.10,1.02,(cc-0.20)/0.62); // near-vertical wall
+  return lerp(1.02,0.92,(cc-0.82)/0.18);          // slight taper at rim
+}
+
+// Occlusal relief
+function occlH(type,theta,q){
   const A=TYPES[type].cuspAmp;
-  if(type==='canine'){ return A*Math.pow(q,1.4)*2.4; }
   if(type==='incisor'){
-    const ridge=Math.pow(Math.abs(Math.cos(theta)),1.6);
-    return A*ridge*Math.sin(clamp(q*1.5,0,1)*Math.PI*0.5);
+    const ridge=Math.pow(Math.abs(Math.cos(theta)),1.8);
+    return A*0.6*ridge*Math.sin(clamp(q*1.6,0,1)*Math.PI*0.5);
   }
-  const bump=Math.exp(-Math.pow((q-0.50)/0.32,2));
-  const fossa=-0.70*A*Math.pow(q,1.8);
-  let prof;
+  if(type==='canine'){
+    return A*Math.pow(q,1.3)*2.6;
+  }
+  // molar / premolar
+  const fossDip = -0.75*A*Math.pow(q,1.6);
+  const bump=Math.exp(-Math.pow((q-0.52)/0.30,2));
+  let cusp=0;
   if(type==='molar'){
-    let p=0;
-    [45,135,225,315].forEach(d=>{const a=d*Math.PI/180;p=Math.max(p,Math.exp(-Math.pow(angDiff(theta,a)/0.42,2)));});
-    prof=p;
+    [45,135,225,315].forEach(d=>{const a=d*Math.PI/180;cusp=Math.max(cusp,Math.exp(-Math.pow(angDiff(theta,a)/0.40,2)));});
   } else {
-    let p=0;
-    [90,270].forEach(d=>{const a=d*Math.PI/180;p=Math.max(p,Math.exp(-Math.pow(angDiff(theta,a)/0.50,2)));});
-    prof=p;
+    [90,270].forEach(d=>{const a=d*Math.PI/180;cusp=Math.max(cusp,Math.exp(-Math.pow(angDiff(theta,a)/0.48,2)));});
   }
-  return A*prof*bump + fossa;
+  return A*cusp*bump + fossDip;
 }
 
-// Specular highlight stripe — vertical band on buccal/front face
-function specularity(theta, cc){
-  // theta=0 → buccal/labial front face
-  const facingFront = Math.exp(-Math.pow(theta/0.9,2)) + Math.exp(-Math.pow((theta-Math.PI*2)/0.9,2));
-  const stripe = clamp(facingFront, 0, 1);
-  // upper two-thirds of crown gets the bright stripe
-  const vertMask = clamp(cc*1.4-0.1, 0, 1);
-  return stripe*vertMask;
-}
-
-// AO factor for occlusal — dark fissures, bright cusp tips
-function occlAO(type, theta, q){
-  if(type==='canine'||type==='incisor') return 1.0;
+// Occlusal vertex color — bright cusps, very dark fissures/fossa
+function occlColor(type, theta, q){
+  if(type==='incisor'||type==='canine'){
+    // incisal edge — mostly base with slight shading at center
+    return lerpCol(C_BASE, C_SHADE, q*0.4);
+  }
+  // fissure detection — cross pattern (0°,90°,180°,270°)
+  const axes=[0,Math.PI/2,Math.PI,Math.PI*3/2];
+  let minAx=Math.PI;
+  axes.forEach(a=>{minAx=Math.min(minAx,angDiff(theta,a));});
+  const fissureMask=Math.exp(-Math.pow(minAx/0.14,2));
+  // central fossa
+  const fossaMask=Math.exp(-Math.pow(q/0.30,2));
+  // cusp tip brightness
   const cusps=(type==='molar')?[45,135,225,315]:[90,270];
-  let maxCusp=0;
-  cusps.forEach(d=>{const a=d*Math.PI/180; maxCusp=Math.max(maxCusp,Math.exp(-Math.pow(angDiff(theta,a)/0.42,2)));});
-  const cuspiness=maxCusp*Math.exp(-Math.pow((q-0.50)/0.26,2));
-  // cross fissure lines
-  const axes=[0, Math.PI/2, Math.PI, Math.PI*3/2];
-  let minAxDist=Math.PI;
-  axes.forEach(a=>{ minAxDist=Math.min(minAxDist,angDiff(theta,a)); });
-  const fissure=Math.exp(-Math.pow(minAxDist/0.15,2));
-  const fossDark=Math.exp(-Math.pow(q/0.28,2));
-  const dark=clamp(fissure*0.85 + fossDark*0.60, 0, 1);
-  return clamp(1.0 - dark*0.70 + cuspiness*0.05, 0.08, 1.0);
+  let cuspMask=0;
+  cusps.forEach(d=>{const a=d*Math.PI/180;cuspMask=Math.max(cuspMask,Math.exp(-Math.pow(angDiff(theta,a)/0.38,2)));});
+  const onCuspTip=cuspMask*Math.exp(-Math.pow((q-0.52)/0.24,2));
+
+  const darkFactor=clamp(fissureMask*0.90 + fossaMask*0.70, 0, 1.0);
+  // blend: dark groove → base → bright tip
+  let col=lerpCol(C_FOSSA, C_GROOVE, clamp(1-fossaMask,0,1));
+  col=lerpCol(col, C_BASE, clamp(1-darkFactor*0.85,0,1));
+  col=lerpCol(col, C_BRIGHT, onCuspTip*0.55);
+  return col;
+}
+
+// Crown wall vertex color
+// theta=0 → buccal/labial face (front), theta=π → lingual (back)
+function wallColor(cc, theta){
+  // front-face highlight: bright stripe going down center of buccal face
+  const buccalFacing = clamp(1.0 - Math.abs(theta)/(Math.PI*0.55), 0, 1);
+  const buccalFacing2 = clamp(1.0 - Math.abs(theta-Math.PI*2)/(Math.PI*0.55), 0, 1);
+  const frontFace = Math.max(buccalFacing, buccalFacing2);
+
+  // lingual shadow side
+  const lingualFace = Math.exp(-Math.pow(angDiff(theta,Math.PI)/0.80,2));
+  // interproximal (mesial/distal) dimming
+  const proxFace = Math.exp(-Math.pow(angDiff(theta,Math.PI*0.5)/0.60,2))*0.5
+                 + Math.exp(-Math.pow(angDiff(theta,Math.PI*1.5)/0.60,2))*0.5;
+
+  // cervical is slightly more shaded
+  const cervFactor = clamp(1.0-cc*1.6, 0, 1)*0.2;
+
+  // compose: shadow+prox → base → bright front highlight
+  let col = lerpCol(C_DEEP, C_SHADE, clamp(1.0-lingualFace*0.85,0,1));
+  col = lerpCol(col, C_BASE, clamp(frontFace*0.70+proxFace*0.00,0,0.9));
+  col = lerpCol(col, C_BRIGHT, clamp(frontFace*frontFace*0.72,0,1));
+  // cervical darkening
+  col.r=clamp(col.r-cervFactor*0.08,0,1);
+  col.g=clamp(col.g-cervFactor*0.06,0,1);
+  col.b=clamp(col.b-cervFactor*0.04,0,1);
+  return col;
 }
 
 function angleRegion(theta){
@@ -216,33 +266,12 @@ function angleRegion(theta){
   return s>0?'buccal':'lingual';
 }
 
-// Crown vertex color: cool white with specular gradient + shadow side
-function crownColor(cc, theta, isOcclusal, q_occ, type){
-  if(isOcclusal){
-    const ao=occlAO(type, theta, q_occ);
-    // fissures dark teal-grey, cusp tips bright white
-    return lerpCol(C_FISSURE, C_HILIGHT, Math.pow(ao, 0.7));
-  }
-  // Wall: base cool white, modulated by specular stripe and side shadowing
-  const spec = specularity(theta, cc);
-  const shadeSide = Math.exp(-Math.pow(angDiff(theta,Math.PI)/0.7,2)); // lingual side shadow
-  const meshSide  = Math.exp(-Math.pow(angDiff(theta,Math.PI*0.5)/0.6,2)) * 0.3; // mesial dimming
-  let col = lerpCol(C_WHITE, C_HILIGHT, spec*0.80);
-  // cervical gradient — slightly cooler/more blue
-  if(cc<0.25) col=lerpCol(C_CERV, col, cc/0.25);
-  // shadow side darkening
-  const shade = clamp(shadeSide*0.45 + meshSide, 0, 0.50);
-  col.r=clamp(col.r-shade*0.12, 0, 1);
-  col.g=clamp(col.g-shade*0.10, 0, 1);
-  col.b=clamp(col.b-shade*0.06, 0, 1);
-  return col;
-}
-
 function buildCrown(type){
-  const T=TYPES[type], SU=160, SVw=80, SVc=56, cTop=0.82;
+  const T=TYPES[type];
+  const SU=160, SVw=84, SVc=60, cTop=0.82;
   const P=[],C=[],R=[],IDX=[];
   let rings=0;
-  function sec(theta){const ct=Math.cos(theta),st=Math.sin(theta);const n=T.nexp;return [Math.sign(ct)*Math.pow(Math.abs(ct),2/n),Math.sign(st)*Math.pow(Math.abs(st),2/n)];}
+
   function addRing(fn, colFn, regFn){
     for(let iu=0;iu<=SU;iu++){
       const theta=iu/SU*Math.PI*2;
@@ -253,31 +282,43 @@ function buildCrown(type){
     }
     rings++;
   }
-  // Crown walls
+
+  // Crown walls: cervix → occlusal rim
   for(let iv=0;iv<=SVw;iv++){
-    const cc=iv/SVw, cy=cc*cTop, w=wallW(cc);
+    const cc=iv/SVw, cy=cc*cTop, w=wallProfile(cc);
     addRing(
-      theta=>{const[sx,sz]=sec(theta);return [sx*T.md*w, T.crownH*cy, sz*T.bl*w];},
-      theta=>crownColor(cc, theta, false, 0, type),
+      theta=>{const[sx,sz]=superEllipse(theta,T.nexp);return [sx*T.crownW*w, T.crownH*cy, sz*T.crownD*w];},
+      theta=>wallColor(cc, theta),
       angleRegion
     );
   }
-  // Occlusal cap
-  const topY=T.crownH*cTop, rimW=wallW(1);
+
+  // Occlusal cap: rim → center
+  const topY=T.crownH*cTop, rimW=wallProfile(1);
+  const h0=theta=>occlH(type,theta,0);
   for(let iv=1;iv<=SVc;iv++){
     const q=iv/SVc;
     addRing(
-      theta=>{const[sx,sz]=sec(theta);const rad=rimW*(1-q);const h=occl(type,theta,q)-occl(type,theta,0);return [sx*T.md*rad, topY+h, sz*T.bl*rad];},
-      theta=>crownColor(1.0, theta, true, q, type),
+      theta=>{
+        const[sx,sz]=superEllipse(theta,T.nexp);
+        const rad=rimW*(1-q);
+        const dh=occlH(type,theta,q)-h0(theta);
+        return [sx*T.crownW*rad, topY+dh, sz*T.crownD*rad];
+      },
+      theta=>occlColor(type, theta, q),
       ()=>'occlusal'
     );
   }
+
   const stride=SU+1;
-  for(let r=0;r<rings-1;r++)for(let iu=0;iu<SU;iu++){const a=r*stride+iu,b=a+1,cc=a+stride,d=cc+1;IDX.push(a,cc,b,b,cc,d);}
+  for(let r=0;r<rings-1;r++)for(let iu=0;iu<SU;iu++){
+    const a=r*stride+iu,b=a+1,cc=a+stride,d=cc+1;IDX.push(a,cc,b,b,cc,d);
+  }
+  // Base cap
   const center=P.length/3;
-  P.push(0,0,0);
-  const bc=colLin(C_CERV); C.push(bc.r,bc.g,bc.b); R.push('_base');
+  const bc=colLin(C_SHADE); P.push(0,0,0); C.push(bc.r,bc.g,bc.b); R.push('_base');
   for(let iu=0;iu<SU;iu++) IDX.push(center, iu+1, iu);
+
   const g=new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));
   g.setAttribute('color',new THREE.Float32BufferAttribute(C,3));
@@ -289,30 +330,35 @@ function densify(samples,n){
   const curve=new THREE.CatmullRomCurve3(samples.map(s=>new THREE.Vector3(s.x,s.y,s.z)),false,'catmullrom',0.5);
   const pts=curve.getPoints(n);
   return pts.map((p,i)=>{
-    const t=i/(pts.length-1), fi=t*(samples.length-1), lo=Math.floor(fi), hi=Math.min(samples.length-1,lo+1), f=fi-lo;
+    const t=i/(pts.length-1),fi=t*(samples.length-1),lo=Math.floor(fi),hi=Math.min(samples.length-1,lo+1),f=fi-lo;
     return {p, rx:samples[lo].rx*(1-f)+samples[hi].rx*f, rz:samples[lo].rz*(1-f)+samples[hi].rz*f};
   });
 }
 
+// Root vertex color matching — same cool-white, slightly more shaded
+function rootColor(theta, depthT){
+  const base=lerpCol(C_BASE, C_SHADE, depthT*0.4);
+  // front face slight brightening
+  const front=clamp(1.0-Math.abs(theta)/(Math.PI*0.6),0,1);
+  const front2=clamp(1.0-Math.abs(theta-Math.PI*2)/(Math.PI*0.6),0,1);
+  const ff=Math.max(front,front2);
+  return lerpCol(base, C_BASE, ff*0.50);
+}
+
 function buildRoots(type){
-  const limbs=ROOTS[type], segs=32;
+  const limbs=ROOTS[type], segs=36;
   const P=[],C=[],IDX=[]; let base=0;
   limbs.forEach(s=>{
     const ring=densify(s,52), start=base;
     for(let i=0;i<ring.length;i++){
       const o=ring[i].p, rx=ring[i].rx, rz=ring[i].rz;
       const depthT=clamp(-o.y/1.8, 0, 1);
-      let rcol;
-      if(depthT<0.50) rcol=lerpCol(C_ROOT_TOP, C_ROOT_MID, depthT/0.50);
-      else rcol=lerpCol(C_ROOT_MID, C_ROOT_BOT, (depthT-0.50)/0.50);
-      // specular stripe on root front face (theta≈0)
-      const wob=1+0.025*Math.sin(o.y*10+0.5);
+      const wob=1+0.018*Math.sin(o.y*11+0.7);
       for(let j=0;j<=segs;j++){
         const a=j/segs*Math.PI*2;
-        const spec=Math.exp(-Math.pow(a/0.8,2))*0.12;
-        const rc=new THREE.Color(clamp(rcol.r+spec,0,1),clamp(rcol.g+spec,0,1),clamp(rcol.b+spec,0,1));
+        const col=rootColor(a, depthT);
         P.push(o.x+Math.cos(a)*rx*wob, o.y, o.z+Math.sin(a)*rz*wob);
-        C.push(rc.r,rc.g,rc.b);
+        C.push(col.r,col.g,col.b);
       }
     }
     for(let i=0;i<ring.length-1;i++)for(let j=0;j<segs;j++){
@@ -327,7 +373,7 @@ function buildRoots(type){
   return g;
 }
 
-// Build synthetic studio env map for clearcoat reflections
+// Synthetic env map for clearcoat reflections
 function buildEnvMap(renderer){
   const pmrem=new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
@@ -337,134 +383,122 @@ function buildEnvMap(renderer){
     side:THREE.BackSide,
     vertexShader:`varying vec3 vPos;void main(){vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
     fragmentShader:`varying vec3 vPos;void main(){
-      vec3 dir=normalize(vPos);
-      float y=dir.y*0.5+0.5;
-      vec3 top=vec3(0.92,0.96,1.00);
-      vec3 mid=vec3(0.60,0.72,0.82);
-      vec3 bot=vec3(0.36,0.50,0.62);
-      vec3 col=y>0.5?mix(mid,top,(y-0.5)*2.0):mix(bot,mid,y*2.0);
-      // key light — upper front-left warm white
-      float key=max(0.0,dot(dir,normalize(vec3(-0.4,1.0,0.8))));
-      col+=vec3(1.0,1.0,0.98)*pow(key,24.0)*0.80;
-      // fill — right cool
-      float fill=max(0.0,dot(dir,normalize(vec3(1.0,0.3,-0.3))));
-      col+=vec3(0.80,0.88,1.0)*pow(fill,10.0)*0.28;
-      // rim — back
-      float rim=max(0.0,dot(dir,normalize(vec3(0.0,0.1,-1.0))));
-      col+=vec3(0.85,0.92,1.0)*pow(rim,22.0)*0.45;
+      vec3 d=normalize(vPos); float y=d.y*0.5+0.5;
+      vec3 col=mix(vec3(0.30,0.55,0.65),vec3(0.85,0.95,1.00),y);
+      float key=max(0.0,dot(d,normalize(vec3(-0.35,1.0,0.75))));
+      col+=vec3(1.0,1.0,1.0)*pow(key,30.0)*1.20;
+      float fill=max(0.0,dot(d,normalize(vec3(1.0,0.2,-0.3))));
+      col+=vec3(0.75,0.85,1.0)*pow(fill,12.0)*0.30;
       gl_FragColor=vec4(col,1.0);
     }`
   });
   envScene.add(new THREE.Mesh(skyGeo,skyMat));
-  const envRT=pmrem.fromScene(envScene, 0.0);
+  const envRT=pmrem.fromScene(envScene,0.0);
   skyMat.dispose(); skyGeo.dispose(); pmrem.dispose();
   return envRT.texture;
 }
 
 let scene,camera,renderer,group,crown,roots,raycaster,enMat,rtMat;
 const vp=document.getElementById('vp');
-const CENTER_Y=0.55;
+const CENTER_Y=0.60;
 
 function init(){
   scene=new THREE.Scene();
-  const W=vp.clientWidth, H=vp.clientHeight;
-  camera=new THREE.PerspectiveCamera(30, W/H, 0.1, 100);
-  camera.position.set(0, 0, 6.8);
-  renderer=new THREE.WebGLRenderer({antialias:true, alpha:false, preserveDrawingBuffer:true});
+  const W=vp.clientWidth,H=vp.clientHeight;
+  camera=new THREE.PerspectiveCamera(28,W/H,0.1,100);
+  camera.position.set(0,0,7.0);
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,preserveDrawingBuffer:true});
   renderer.setSize(W,H);
   renderer.setPixelRatio(Math.min(2,window.devicePixelRatio));
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.20;
+  renderer.toneMappingExposure=1.10;
   vp.appendChild(renderer.domElement);
 
-  // Teal blue background matching the reference
-  scene.background=new THREE.Color(0x4ab8c8);
+  scene.background=new THREE.Color(0x42b8c4); // teal from reference
 
-  // Environment map
   const envMap=buildEnvMap(renderer);
   scene.environment=envMap;
 
-  // Lighting — studio setup for clean white teeth
-  scene.add(new THREE.AmbientLight(0xd0e8f0, 0.40));
+  // Lighting — from upper-left-front matching the reference illustration
+  scene.add(new THREE.AmbientLight(0xcce8f4, 0.50));
 
-  const hemi=new THREE.HemisphereLight(0xe8f4ff, 0x5090a8, 0.50);
-  scene.add(hemi);
-
-  // Main key — slightly upper-left front
-  const key=new THREE.DirectionalLight(0xffffff, 2.60);
-  key.position.set(-2.0, 5.0, 5.0);
+  // Key light — upper-left-front, creates the bright highlight stripe
+  const key=new THREE.DirectionalLight(0xffffff,2.80);
+  key.position.set(-1.5,4.0,5.5);
   key.castShadow=true;
   key.shadow.mapSize.set(2048,2048);
   key.shadow.camera.near=1; key.shadow.camera.far=24;
   key.shadow.bias=-0.0003;
   scene.add(key);
 
-  // Fill — right side, cooler
-  const fill=new THREE.DirectionalLight(0xc8e0ff, 0.70);
-  fill.position.set(4.0, 1.5, 2.0);
+  // Fill right — cool tint
+  const fill=new THREE.DirectionalLight(0xb0d0f0,0.55);
+  fill.position.set(4.0,2.0,1.0);
   scene.add(fill);
 
-  // Rim — behind, adds depth
-  const rim=new THREE.DirectionalLight(0xa0c8e8, 0.80);
-  rim.position.set(0.5, -1.0, -5.0);
+  // Rim behind — blue-teal wrap
+  const rim=new THREE.DirectionalLight(0x70b8d0,0.60);
+  rim.position.set(0,-0.5,-5.0);
   scene.add(rim);
 
-  // Top overhead — brightens occlusal
-  const top=new THREE.DirectionalLight(0xffffff, 0.45);
-  top.position.set(0, 8, 1);
+  // Top — overhead for occlusal
+  const top=new THREE.DirectionalLight(0xffffff,0.40);
+  top.position.set(0,8,2);
   scene.add(top);
 
-  // Enamel material — highly polished, cool white, strong clearcoat
+  // Enamel — highly polished clearcoat, white
   enMat=new THREE.MeshPhysicalMaterial({
     vertexColors:true,
     color:0xffffff,
-    roughness:0.16,           // very polished enamel surface
+    roughness:0.10,           // mirror-like enamel
     metalness:0.0,
     clearcoat:1.0,
-    clearcoatRoughness:0.06,  // mirror-smooth clearcoat
-    transmission:0.08,        // thin SSS / translucency
-    thickness:0.5,
-    ior:1.55,                 // enamel refractive index
-    sheen:0.20,
-    sheenRoughness:0.50,
-    sheenColor:new THREE.Color(0xe8f2ff),
-    reflectivity:0.60,
-    envMapIntensity:1.2,
+    clearcoatRoughness:0.04,  // very smooth clearcoat
+    transmission:0.05,
+    ior:1.55,
+    sheen:0.15,
+    sheenRoughness:0.60,
+    sheenColor:new THREE.Color(0xd8eeff),
+    reflectivity:0.65,
+    envMapIntensity:1.4,
   });
 
-  // Root material — same cool white family, slightly less glossy
+  // Root — same white family, slightly rougher
   rtMat=new THREE.MeshPhysicalMaterial({
     vertexColors:true,
     color:0xffffff,
-    roughness:0.30,
+    roughness:0.22,
     metalness:0.0,
-    clearcoat:0.55,
-    clearcoatRoughness:0.20,
-    reflectivity:0.38,
-    envMapIntensity:0.7,
+    clearcoat:0.60,
+    clearcoatRoughness:0.14,
+    reflectivity:0.40,
+    envMapIntensity:0.9,
   });
 
   group=new THREE.Group();
   scene.add(group);
-  crown=new THREE.Mesh(buildCrown(curType), enMat);
+
+  crown=new THREE.Mesh(buildCrown(curType),enMat);
   crown.castShadow=true; crown.receiveShadow=true;
   crown.position.y=CENTER_Y;
-  roots=new THREE.Mesh(buildRoots(curType), rtMat);
+
+  roots=new THREE.Mesh(buildRoots(curType),rtMat);
   roots.castShadow=true; roots.receiveShadow=true;
   roots.position.y=CENTER_Y;
+
   group.add(crown); group.add(roots);
   applyColors();
 
-  // Shadow ground (invisible, just for shadow)
+  // Shadow ground
   const plane=new THREE.Mesh(
-    new THREE.PlaneGeometry(20,20),
-    new THREE.ShadowMaterial({opacity:0.22})
+    new THREE.PlaneGeometry(22,22),
+    new THREE.ShadowMaterial({opacity:0.18})
   );
   plane.rotation.x=-Math.PI/2;
-  plane.position.y=-1.80;
+  plane.position.y=-2.0;
   plane.receiveShadow=true;
   scene.add(plane);
 
@@ -474,38 +508,32 @@ function init(){
 }
 
 function rebuild(){
-  crown.geometry.dispose();
-  roots.geometry.dispose();
+  crown.geometry.dispose(); roots.geometry.dispose();
   crown.geometry=buildCrown(curType);
   roots.geometry=buildRoots(curType);
   applyColors();
 }
 
 function applyColors(){
-  const g=crown.geometry, reg=g._regions, col=g.attributes.color;
+  const g=crown.geometry,reg=g._regions,col=g.attributes.color;
   for(let i=0;i<reg.length;i++){
     if(reg[i]==='_base') continue;
     const s=state[curType][reg[i]];
-    if(s&&s!=='healthy'){
-      const c=colLin(CONDITIONS[s].color);
-      col.setXYZ(i,c.r,c.g,c.b);
-    }
+    if(s&&s!=='healthy'){const c=colLin(CONDITIONS[s].color);col.setXYZ(i,c.r,c.g,c.b);}
   }
   col.needsUpdate=true;
 }
 
 function resetCrownColors(){
-  crown.geometry.dispose();
-  crown.geometry=buildCrown(curType);
-  applyColors();
+  crown.geometry.dispose(); crown.geometry=buildCrown(curType); applyColors();
 }
 
-const VIEWS={front:[0.08,0],lingual:[0.08,Math.PI],mesial:[0.08,-Math.PI/2],distal:[0.08,Math.PI/2],occlusal:[Math.PI/2-0.10,0],iso:[0.26,0.55]};
-let tgtX=0, tgtY=0;
+const VIEWS={front:[0.06,0],lingual:[0.06,Math.PI],mesial:[0.06,-Math.PI/2],distal:[0.06,Math.PI/2],occlusal:[Math.PI/2-0.08,0],iso:[0.24,0.52]};
+let tgtX=0,tgtY=0;
 function setView(v){const[a,b]=VIEWS[v];tgtX=a;tgtY=b;curView=v;markBtns();}
-function animate(){requestAnimationFrame(animate);if(autoSpin)tgtY+=0.009;group.rotation.x+=(tgtX-group.rotation.x)*0.12;group.rotation.y+=(tgtY-group.rotation.y)*0.12;renderer.render(scene,camera);}
+function animate(){requestAnimationFrame(animate);if(autoSpin)tgtY+=0.008;group.rotation.x+=(tgtX-group.rotation.x)*0.11;group.rotation.y+=(tgtY-group.rotation.y)*0.11;renderer.render(scene,camera);}
 
-let down=false, moved=false, lx=0, ly=0;
+let down=false,moved=false,lx=0,ly=0;
 vp.addEventListener('pointerdown',e=>{down=true;moved=false;lx=e.clientX;ly=e.clientY;vp.setPointerCapture(e.pointerId);});
 vp.addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-lx,dy=e.clientY-ly;if(Math.abs(dx)+Math.abs(dy)>3)moved=true;tgtY+=dx*0.009;tgtX+=dy*0.009;tgtX=Math.max(-1.4,Math.min(1.4,tgtX));lx=e.clientX;ly=e.clientY;});
 vp.addEventListener('pointerup',e=>{down=false;if(!moved)pick(e);});
@@ -515,8 +543,7 @@ function pick(e){
   const r=renderer.domElement.getBoundingClientRect();
   const m=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
   raycaster.setFromCamera(m,camera);
-  const hit=raycaster.intersectObject(crown,false)[0];
-  if(!hit)return;
+  const hit=raycaster.intersectObject(crown,false)[0]; if(!hit)return;
   const region=crown.geometry._regions[hit.face.a];
   if(!region||region==='_base')return;
   selSurf=region; if(curCond)state[curType][region]=curCond; applyColors(); renderPanels();
@@ -546,12 +573,10 @@ Object.entries(TYPES).forEach(([k,v])=>{
   b.onclick=()=>{curType=k;selSurf=null;resetCrownColors();roots.geometry.dispose();roots.geometry=buildRoots(curType);renderPanels();};
   typeBtns.appendChild(b);
 });
-
 const viewBtns=document.getElementById('viewBtns');
 [['front','Front'],['lingual','Back'],['mesial','Mesial'],['distal','Distal'],['occlusal','Top'],['iso','3D']].forEach(([v,l])=>{
   const b=document.createElement('button');b.className='b';b.dataset.v=v;b.textContent=l;b.onclick=()=>setView(v);viewBtns.appendChild(b);
 });
-
 const condPick=document.getElementById('condPick');
 CONDS.forEach(k=>{
   const c=CONDITIONS[k];const b=document.createElement('button');b.className='cp';b.dataset.c=k;
@@ -563,11 +588,11 @@ CONDS.forEach(k=>{
 document.getElementById('spin').addEventListener('change',e=>{autoSpin=e.target.checked;});
 document.getElementById('reset').addEventListener('click',()=>{
   Object.keys(state[curType]).forEach(k=>state[curType][k]='healthy');
-  selSurf=null; resetCrownColors(); roots.geometry.dispose(); roots.geometry=buildRoots(curType); renderPanels();
+  selSurf=null;resetCrownColors();roots.geometry.dispose();roots.geometry=buildRoots(curType);renderPanels();
 });
 window.addEventListener('resize',()=>{const W=vp.clientWidth,H=vp.clientHeight;camera.aspect=W/H;camera.updateProjectionMatrix();renderer.setSize(W,H);});
 
-init(); renderPanels();
+init();renderPanels();
 window.__setView=setView;
 window.__setType=function(t){curType=t;selSurf=null;resetCrownColors();roots.geometry.dispose();roots.geometry=buildRoots(curType);renderPanels();};
 window.__demo=function(){state.molar.occlusal='cavity';state.molar.mesial='filling';applyColors();renderPanels();};
