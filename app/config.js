@@ -769,3 +769,34 @@ function usePagination(items, pageSize) {
   return { page: safePage, setPage, pageItems, totalPages, PagerUI };
 }
 
+
+// ── Early utilities — must be defined before data.js runs ─────────────────
+// Returns LOCAL date as 'YYYY-MM-DD' (avoids UTC timezone shift issues)
+function localToday() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+function toLocalDateStr(d) {
+  if (!d) return '';
+  if (typeof d === 'string') return d.substring(0, 10);
+  if (!(d instanceof Date)) d = new Date(d);
+  if (isNaN(d.getTime())) return '';
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+function dateOffsetStr(n) {
+  const d = new Date();
+  d.getDate() + n;
+  return toLocalDateStr(d);
+}
+
+// Defensive string/array coercion — needed before core.js loads
+const S = (v) => (v === null || v === undefined) ? '' : String(v);
+const safe = (arr) => Array.isArray(arr) ? arr : [];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+const p$ = (n) => Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
