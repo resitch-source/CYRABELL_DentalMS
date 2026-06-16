@@ -6706,7 +6706,10 @@ function toothSpriteBase(fdi){
   const last = Number(String(fdi).slice(-1));
   if (type === 'incisor') return isUpperTooth(fdi) ? 'incisor_upper' : 'incisor_lower';
   if (type === 'canine') return 'canine';
-  if (type === 'premolar') return last === 4 ? 'premolar_1' : 'premolar_2';
+  if (type === 'premolar') {
+    const lo = isUpperTooth(fdi) ? '' : '_lower';
+    return (last === 4 ? 'premolar_1' : 'premolar_2') + lo;
+  }
   // molar: x6 -> 1st, x7 -> 2nd, x8 -> 3rd
   return last === 6 ? 'molar_1' : last === 7 ? 'molar_2' : 'molar_3';
 }
@@ -7345,7 +7348,10 @@ function toothModelUrl(fdi){
   const last = Number(String(fdi).slice(-1));
   if (type === 'incisor') return isUpperTooth(fdi) ? 'assets/teeth/incisor_upper/scene.gltf' : 'assets/teeth/incisor_lower/scene.gltf';
   if (type === 'canine') return 'assets/teeth/canine/scene.gltf';
-  if (type === 'premolar') return last === 4 ? 'assets/teeth/premolar_1/scene.gltf' : 'assets/teeth/premolar_2/scene.gltf';
+  if (type === 'premolar') {
+    const lo = isUpperTooth(fdi) ? '' : '_lower';
+    return 'assets/teeth/' + (last === 4 ? 'premolar_1' : 'premolar_2') + lo + '/scene.gltf';
+  }
   // molar: x6 -> 1st, x7 -> 2nd, x8 -> 3rd
   return last === 6 ? 'assets/teeth/molar_1/scene.gltf' : last === 7 ? 'assets/teeth/molar_2/scene.gltf' : 'assets/teeth/molar_3/scene.gltf';
 }
