@@ -320,18 +320,47 @@ function toothMetadata(fdi){
 //   RED   = pathology / treatment required (caries, extraction indicated)
 //   BLUE  = existing restoration / completed treatment (filling, crown, RCT, implant, bridge, veneer)
 //   GREEN = preventive (sealant)
+// Conditions follow the FDI / ISO 3950 dental chart colour standard:
+//   RED   = pathology / treatment required   (caries, abscess, fracture, mobility)
+//   BLUE  = existing restoration             (filling, composite, amalgam, crown, RCT, implant, bridge, veneer)
+//   GREEN = preventive                       (sealant, fluoride, unerupted-watch)
+//   GREY  = absent                           (extracted, missing)
+// NOTE: existing keys (cavity, filling, crown, root_canal, missing, implant,
+// bridge, veneer, sealant) are preserved so stored charts + PROCEDURE_CONDITION_MAP
+// keep working — only colours were aligned to the FDI families and new keys added.
 const CONDITIONS = {
-  healthy:    {label:'Healthy',     color:'#ffffff', stroke:'#94a3b8', symbol:'',  desc:'No issues'},
-  cavity:     {label:'Cavity',      color:'#dc2626', stroke:'#991b1b', symbol:'●', desc:'Decay/caries — treatment required'},
-  filling:    {label:'Filling',     color:'#2563eb', stroke:'#1d4ed8', symbol:'■', desc:'Existing restoration'},
-  crown:      {label:'Crown',       color:'#2563eb', stroke:'#1d4ed8', symbol:'♛', desc:'Crown placed'},
-  root_canal: {label:'Root Canal',  color:'#2563eb', stroke:'#1d4ed8', symbol:'▲', desc:'Endodontic treatment done'},
-  missing:    {label:'Missing',     color:'#fdeaea', stroke:'#dc2626', symbol:'✕', desc:'Extracted/missing'},
-  implant:    {label:'Implant',     color:'#2563eb', stroke:'#1d4ed8', symbol:'⬢', desc:'Implant placed'},
-  bridge:     {label:'Bridge',      color:'#2563eb', stroke:'#1d4ed8', symbol:'═', desc:'Part of bridge'},
-  veneer:     {label:'Veneer',      color:'#2563eb', stroke:'#1d4ed8', symbol:'◆', desc:'Veneer applied'},
-  sealant:    {label:'Sealant',     color:'#16a34a', stroke:'#15803d', symbol:'◉', desc:'Preventive sealant'},
+  healthy:    {label:'Healthy',         color:'#ffffff', stroke:'#94a3b8', symbol:'',  group:'healthy',     desc:'No issues'},
+
+  // ── RED — Pathology / treatment required ──
+  cavity:     {label:'Caries / Cavity', color:'#e53935', stroke:'#b71c1c', symbol:'●', group:'pathology',   desc:'Decay/caries — treatment required'},
+  abscess:    {label:'Abscess',         color:'#c62828', stroke:'#7f0000', symbol:'⊛', group:'pathology',   desc:'Periapical / periodontal abscess'},
+  fracture:   {label:'Fracture',        color:'#ef5350', stroke:'#c62828', symbol:'⚡', group:'pathology',   desc:'Cracked / fractured tooth'},
+  mobility:   {label:'Mobility',        color:'#e57373', stroke:'#c62828', symbol:'↔', group:'pathology',   desc:'Loose / mobile tooth'},
+
+  // ── BLUE — Existing restorations ──
+  filling:    {label:'Filling',         color:'#1976d2', stroke:'#1565c0', symbol:'■', group:'restoration', desc:'Existing restoration'},
+  composite:  {label:'Composite',       color:'#1e88e5', stroke:'#1565c0', symbol:'▣', group:'restoration', desc:'Tooth-coloured composite'},
+  amalgam:    {label:'Amalgam',         color:'#1565c0', stroke:'#0d47a1', symbol:'◼', group:'restoration', desc:'Amalgam restoration'},
+  crown:      {label:'Crown',           color:'#0d47a1', stroke:'#08306b', symbol:'♛', group:'restoration', desc:'Crown placed'},
+  root_canal: {label:'Root Canal',      color:'#283593', stroke:'#1a237e', symbol:'▲', group:'restoration', desc:'Endodontic treatment done'},
+  implant:    {label:'Implant',         color:'#0277bd', stroke:'#01579b', symbol:'⬢', group:'restoration', desc:'Implant placed'},
+  bridge:     {label:'Bridge',          color:'#1565c0', stroke:'#0d47a1', symbol:'═', group:'restoration', desc:'Part of bridge'},
+  veneer:     {label:'Veneer',          color:'#42a5f5', stroke:'#1565c0', symbol:'◆', group:'restoration', desc:'Veneer applied'},
+
+  // ── GREEN — Preventive ──
+  sealant:    {label:'Sealant',         color:'#2e7d32', stroke:'#1b5e20', symbol:'◉', group:'preventive',  desc:'Preventive sealant'},
+  fluoride:   {label:'Fluoride',        color:'#388e3c', stroke:'#1b5e20', symbol:'✚', group:'preventive',  desc:'Fluoride treatment'},
+  unerupted:  {label:'Unerupted',       color:'#66bb6a', stroke:'#2e7d32', symbol:'◌', group:'preventive',  desc:'Unerupted / impacted — monitor'},
+
+  // ── GREY — Absent ──
+  extracted:  {label:'Extracted',       color:'#9e9e9e', stroke:'#616161', symbol:'✗', group:'absent',      desc:'Extracted'},
+  missing:    {label:'Missing',         color:'#bdbdbd', stroke:'#757575', symbol:'✕', group:'absent',      desc:'Missing / congenitally absent'},
 };
+
+// Conditions whose symbol/text reads better in white on their dark swatch.
+const CONDITION_DARK = new Set(['cavity','abscess','amalgam','crown','root_canal','implant','bridge','sealant','fluoride','unerupted','extracted','mobility','fracture']);
+// Foreground colour for a condition swatch (white on dark families, ink on light).
+function condFg(k){ return CONDITION_DARK.has(k) ? '#fff' : '#1a2332'; }
 const CONDITION_KEYS = Object.keys(CONDITIONS);
 
 // Maps clinical procedure/service names to dental chart conditions.
@@ -342,10 +371,15 @@ const PROCEDURE_CONDITION_MAP = {
   'caries':           'cavity',
   'decay':            'cavity',
   'diagnosis: cavity':'cavity',
+  'abscess':          'abscess',
+  'fracture':         'fracture',
+  'cracked':          'fracture',
+  'mobility':         'mobility',
+  'loose':            'mobility',
   // Restorations
+  'composite':        'composite',
+  'amalgam':          'amalgam',
   'filling':          'filling',
-  'composite':        'filling',
-  'amalgam':          'filling',
   'restoration':      'filling',
   'tooth filling':    'filling',
   'dental filling':   'filling',
@@ -379,6 +413,7 @@ const PROCEDURE_CONDITION_MAP = {
   'sealant':          'sealant',
   'fissure sealant':  'sealant',
   'pit and fissure':  'sealant',
+  'fluoride':         'fluoride',
 };
 
 // Resolve a free-text procedure string to a CONDITIONS key (or null if no match)
