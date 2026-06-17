@@ -796,7 +796,7 @@ function dateOffsetStr(n) {
 }
 
 // Defensive string/array coercion — needed before core.js loads
-const S = (v) => (v === null || v === undefined) ? '' : String(v);
-const safe = (arr) => Array.isArray(arr) ? arr : [];
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-const p$ = (n) => Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+var S = (v) => (v === null || v === undefined) ? '' : String(v);
+var safe = (arr) => Array.isArray(arr) ? arr : [];
+var uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+var p$ = (n) => Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
