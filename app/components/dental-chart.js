@@ -79,6 +79,10 @@ function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMod
     return {left:'50%', top:'50%'};
   };
   const washColor = condition && condition !== 'healthy' && !missing ? cond.color : null;
+  // Anatomical orientation: upper teeth have root at TOP (crown faces bite line below),
+  // lower teeth have root at BOTTOM (crown faces bite line above).
+  // Sprites are stored crown-up/root-down so upper teeth need a vertical flip.
+  const anatomyFlip = (spriteView !== 'top' && isUpper) ? 'scaleY(-1)' : 'none';
   return h('div', {
     className: 'clin-tooth clin-sprite' + (viewMode === 'occlusal' ? ' occlusal-view' : '') + (selected ? ' sel' : '') + (missing ? ' miss' : '') + (hasIssues ? ' issue' : ''),
     onClick: e => { e.stopPropagation(); onSelect(fdi); },
@@ -90,21 +94,23 @@ function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMod
     title: '#' + fdi + ' · ' + toothName(fdi) + ' · ' + cond.label,
     style: {position:'relative', width:42, height: spriteView === 'top' ? 42 : 54}
   },
-    // base sprite (the real scan)
+    // base sprite — flipped vertically for upper teeth so crown faces the bite line
     h('img', {
       src: spriteUrl, alt: '', draggable: false,
       style: {width:'100%', height:'100%', objectFit:'contain', display:'block',
         opacity: missing ? 0.28 : 1,
         filter: selected ? 'drop-shadow(0 0 3px rgba(10,124,110,.9))' : 'none',
+        transform: anatomyFlip,
         pointerEvents:'none', userSelect:'none'}
     }),
-    // whole-tooth condition wash, masked to the tooth silhouette via the sprite itself
+    // whole-tooth condition wash — same flip so mask aligns with the sprite
     washColor && h('div', {
       style: {position:'absolute', inset:0, background: washColor, opacity:0.5,
         WebkitMaskImage:'url('+spriteUrl+')', maskImage:'url('+spriteUrl+')',
         WebkitMaskSize:'contain', maskSize:'contain',
         WebkitMaskPosition:'center', maskPosition:'center',
         WebkitMaskRepeat:'no-repeat', maskRepeat:'no-repeat',
+        transform: anatomyFlip,
         mixBlendMode:'multiply', pointerEvents:'none'}
     }),
     // surface condition markers — sized to be clearly readable in the overview
