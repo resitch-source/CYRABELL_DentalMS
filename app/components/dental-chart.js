@@ -55,7 +55,7 @@ function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMod
   const cond = CONDITIONS[condition || 'healthy'];
   const type = toothType(fdi);
   const isUpper = isUpperTooth(fdi);
-  const missing = condition === 'missing';
+  const missing = condition === 'missing' || condition === 'extracted';
   const hasIssues = (condition && condition !== 'healthy') ||
                     (surfaceData && Object.values(surfaceData).some(v => v && v !== 'healthy'));
 
@@ -118,7 +118,7 @@ function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMod
           border:'1.5px solid '+sCond.stroke,
           boxShadow:'0 0 0 1.5px rgba(255,255,255,.9), 0 1px 4px rgba(0,0,0,.25)',
           display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize:7, fontWeight:800, color: cnd==='cavity'?'#fff':'#1a2332',
+          fontSize:7, fontWeight:800, color: condFg(cnd),
           pointerEvents:'none', padding:'0 2px'}},
         sCond.symbol || ''
       );
@@ -126,7 +126,7 @@ function ClinicalTooth({fdi, condition, surfaceData, selected, onSelect, viewMod
     // condition symbol badge
     !missing && cond.symbol && h('span', {
       style: {position:'absolute', top:1, right:1, fontSize:9, fontWeight:800, lineHeight:1,
-        color: condition === 'cavity' ? '#fff' : '#1a2332',
+        color: condFg(condition),
         background: condition === 'cavity' ? cond.stroke : 'rgba(255,255,255,.85)',
         borderRadius:4, padding:'1px 3px', pointerEvents:'none'}
     }, cond.symbol),
@@ -244,7 +244,7 @@ function ClinicalToothLegacySVG({fdi, condition, surfaceData, selected, onSelect
         !missing && cond.symbol && h('text', {
           x: 0, y: 4,
           fontSize: 11, textAnchor: 'middle',
-          fill: condition === 'cavity' ? '#fff' : '#1a2332',
+          fill: condFg(condition),
           fontWeight: 700,
         }, cond.symbol),
         // Surface markers
@@ -356,7 +356,7 @@ function ClinicalToothLegacySVG({fdi, condition, surfaceData, selected, onSelect
         x: 0, y: -8,
         fontSize: 10,
         textAnchor: 'middle',
-        fill: condition === 'cavity' ? '#fff' : '#1a2332',
+        fill: condFg(condition),
         fontWeight: 700,
         style: { transform: 'scaleY(' + flipY + ')' }
       }, cond.symbol),
@@ -575,7 +575,7 @@ function Tooth5SurfaceView({meta, condition, surfaceData, onSurfaceChange, onCon
       h('span', {style:{fontSize:11, fontWeight:600, color:'var(--md)'}}, 'Whole tooth:'),
       h('span', {style:{width:16,height:16,borderRadius:4,background:cond.color,border:'1.5px solid '+cond.stroke,
         display:'inline-flex',alignItems:'center',justifyContent:'center'}},
-        h('span', {style:{fontSize:9,color:condition==='cavity'?'#fff':'#1a2332',fontWeight:700}}, cond.symbol||'')
+        h('span', {style:{fontSize:9,color:condFg(condition),fontWeight:700}}, cond.symbol||'')
       ),
       h('span', {style:{fontSize:12,fontWeight:700,color:'var(--dk)'}}, cond.label)
     ),
@@ -620,7 +620,7 @@ function Tooth5SurfaceViewLegacy({meta, condition, surfaceData, onSurfaceChange,
       },
         h('span', {style: {width: 14, height: 14, borderRadius: 3, background: c.color, border: '1.5px solid '+c.stroke,
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}},
-          h('span', {style: {fontSize: 8, color: k === 'cavity' ? '#fff' : '#1a2332', fontWeight: 700}}, c.symbol || '')
+          h('span', {style: {fontSize: 8, color: condFg(k), fontWeight: 700}}, c.symbol || '')
         ),
         h('span', {style: {fontSize: 11, fontWeight: surfaceData[surf] === k ? 700 : 500, color: '#1e293b'}}, c.label)
       );
@@ -725,7 +725,7 @@ function Tooth5SurfaceViewLegacy({meta, condition, surfaceData, onSurfaceChange,
         fill:'none', stroke:'#b09070', strokeWidth:.9, opacity:.6}),
       // Condition symbol if applicable
       cond.symbol && condition !== 'healthy' && h('text', {x:0, y:-10, fontSize:12, textAnchor:'middle',
-        fill: condition==='cavity'?'#fff':'#1a2332', fontWeight:700, style:{transform:'scaleY('+flipY+')'}}, cond.symbol)
+        fill: condFg(condition), fontWeight:700, style:{transform:'scaleY('+flipY+')'}}, cond.symbol)
     )
   );
 
@@ -872,7 +872,7 @@ function Tooth5SurfaceViewLegacy({meta, condition, surfaceData, onSurfaceChange,
     h('div', {style:{marginTop:6, padding:'6px 10px', background:'#f0faf8', borderRadius:8, border:'1px solid #d0e8e4', width:'100%', boxSizing:'border-box', display:'flex', alignItems:'center', gap:8}},
       h('span', {style:{fontSize:11, fontWeight:600, color:'var(--md)'}}, 'Whole tooth:'),
       h('span', {style:{width:16, height:16, borderRadius:4, background: cond.color, border:'1.5px solid '+cond.stroke, display:'inline-flex', alignItems:'center', justifyContent:'center'}},
-        h('span', {style:{fontSize:9, color: condition==='cavity'?'#fff':'#1a2332', fontWeight:700}}, cond.symbol || '')
+        h('span', {style:{fontSize:9, color: condFg(condition), fontWeight:700}}, cond.symbol || '')
       ),
       h('span', {style:{fontSize:12, fontWeight:700, color:'var(--dk)'}}, cond.label)
     ),
@@ -1036,7 +1036,7 @@ function ToothDetailModal({fdi, condition, surfaceData, patientHistory, onClose,
         view === 'overview' && h('div', null,
           h('div', {className: 'td-cur-condition'},
             h('div', {className: 'td-cur-swatch', style: {background: baseColor, border: '2px solid ' + cond.stroke}},
-              cond.symbol && h('span', {style: {color: condition==='cavity'?'#fff':'#1a2332', fontSize: 18}}, cond.symbol)
+              cond.symbol && h('span', {style: {color: condFg(condition), fontSize: 18}}, cond.symbol)
             ),
             h('div', null,
               h('div', {style: {fontSize: 11, color: 'var(--md)', textTransform: 'uppercase', letterSpacing: '1px'}}, 'Current Condition'),
@@ -1056,7 +1056,7 @@ function ToothDetailModal({fdi, condition, surfaceData, patientHistory, onClose,
                 title: c.desc
               },
                 h('div', {className: 'te-swatch', style: {background: c.color, border: '1.5px solid ' + c.stroke}},
-                  c.symbol && h('span', {style: {fontSize: 10, color: k==='cavity'?'#fff':'#1a2332'}}, c.symbol)
+                  c.symbol && h('span', {style: {fontSize: 10, color: condFg(k)}}, c.symbol)
                 ),
                 h('div', {className: 'te-lbl'}, c.label)
               );
@@ -1064,123 +1064,17 @@ function ToothDetailModal({fdi, condition, surfaceData, patientHistory, onClose,
           )
         ),
 
-        // SURFACES: 2D unfolded surface map
+        // SURFACES: realistic per-surface 2D tooth drawings (FDI-coloured)
         view === 'surfaces' && h('div', {style: {padding: '0 2px'}},
-            h('div', {style: {fontWeight: 600, fontSize: 12.5, marginBottom: 8, color: 'var(--dk)'}}, '2D Surface Map — click a surface to assign condition'),
-            // 2D unfolded surface diagram
-            h('div', {style: {display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2}},
-              // Buccal/Labial surface (top)
-              h('div', {
-                style: {
-                  width: meta.type === 'molar' ? 120 : 90,
-                  height: 38,
-                  background: (surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'labial' : 'buccal'] && surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'labial' : 'buccal'] !== 'healthy')
-                    ? (CONDITIONS[surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'labial' : 'buccal']] || CONDITIONS.healthy).color
-                    : '#f0f7f5',
-                  border: '2px solid ' + ((surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'labial' : 'buccal'] && surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'labial' : 'buccal'] !== 'healthy')
-                    ? (CONDITIONS[surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'labial' : 'buccal']] || CONDITIONS.healthy).stroke
-                    : '#94a3b8'),
-                  borderRadius: '8px 8px 0 0',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#334155',
-                  transition: 'all .15s'
-                },
-                onClick: () => {
-                  const sk = meta.type === 'incisor' || meta.type === 'canine' ? 'labial' : 'buccal';
-                  const keys = CONDITION_KEYS;
-                  const cur = surfaceData[sk] || 'healthy';
-                  const next = keys[(keys.indexOf(cur) + 1) % keys.length];
-                  onSurfaceChange(fdi, sk, next);
-                },
-                title: 'Click to cycle condition'
-              }, (meta.type === 'incisor' || meta.type === 'canine' ? 'Labial' : 'Buccal') + ' · ' + ((CONDITIONS[surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'labial' : 'buccal']] || CONDITIONS.healthy).label)),
-              // Middle row: Mesial | Occlusal/Incisal | Distal
-              h('div', {style: {display: 'flex', gap: 0}},
-                // Mesial
-                h('div', {
-                  style: {
-                    width: 44, height: meta.type === 'molar' ? 70 : 55,
-                    background: (surfaceData.mesial && surfaceData.mesial !== 'healthy') ? (CONDITIONS[surfaceData.mesial] || CONDITIONS.healthy).color : '#f0f7f5',
-                    border: '2px solid ' + ((surfaceData.mesial && surfaceData.mesial !== 'healthy') ? (CONDITIONS[surfaceData.mesial] || CONDITIONS.healthy).stroke : '#94a3b8'),
-                    borderRadius: '8px 0 0 8px', borderRight: 'none',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', writingMode: 'vertical-rl', fontSize: 10, fontWeight: 600, color: '#334155',
-                    transition: 'all .15s'
-                  },
-                  onClick: () => {
-                    const keys = CONDITION_KEYS; const cur = surfaceData.mesial || 'healthy';
-                    onSurfaceChange(fdi, 'mesial', keys[(keys.indexOf(cur) + 1) % keys.length]);
-                  }
-                }, 'Mesial · ' + ((CONDITIONS[surfaceData.mesial] || CONDITIONS.healthy).label)),
-                // Occlusal/Incisal (center — the big one)
-                h('div', {
-                  style: {
-                    width: meta.type === 'molar' ? 120 : 90,
-                    height: meta.type === 'molar' ? 70 : 55,
-                    background: (surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'incisal' : 'occlusal'] && surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'incisal' : 'occlusal'] !== 'healthy')
-                      ? (CONDITIONS[surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'incisal' : 'occlusal']] || CONDITIONS.healthy).color
-                      : '#e8f4f1',
-                    border: '2px solid ' + ((surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'incisal' : 'occlusal'] && surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'incisal' : 'occlusal'] !== 'healthy')
-                      ? (CONDITIONS[surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'incisal' : 'occlusal']] || CONDITIONS.healthy).stroke
-                      : '#7ea8a0'),
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#1e3a30',
-                    textAlign: 'center', lineHeight: 1.2,
-                    transition: 'all .15s'
-                  },
-                  onClick: () => {
-                    const sk = meta.type === 'incisor' || meta.type === 'canine' ? 'incisal' : 'occlusal';
-                    const keys = CONDITION_KEYS; const cur = surfaceData[sk] || 'healthy';
-                    onSurfaceChange(fdi, sk, keys[(keys.indexOf(cur) + 1) % keys.length]);
-                  }
-                }, (meta.type === 'incisor' || meta.type === 'canine' ? 'Incisal' : 'Occlusal') + '\n' + ((CONDITIONS[surfaceData[meta.type === 'incisor' || meta.type === 'canine' ? 'incisal' : 'occlusal']] || CONDITIONS.healthy).label)),
-                // Distal
-                h('div', {
-                  style: {
-                    width: 44, height: meta.type === 'molar' ? 70 : 55,
-                    background: (surfaceData.distal && surfaceData.distal !== 'healthy') ? (CONDITIONS[surfaceData.distal] || CONDITIONS.healthy).color : '#f0f7f5',
-                    border: '2px solid ' + ((surfaceData.distal && surfaceData.distal !== 'healthy') ? (CONDITIONS[surfaceData.distal] || CONDITIONS.healthy).stroke : '#94a3b8'),
-                    borderRadius: '0 8px 8px 0', borderLeft: 'none',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', writingMode: 'vertical-rl', fontSize: 10, fontWeight: 600, color: '#334155',
-                    transform: 'rotate(180deg)',
-                    transition: 'all .15s'
-                  },
-                  onClick: () => {
-                    const keys = CONDITION_KEYS; const cur = surfaceData.distal || 'healthy';
-                    onSurfaceChange(fdi, 'distal', keys[(keys.indexOf(cur) + 1) % keys.length]);
-                  }
-                }, 'Distal · ' + ((CONDITIONS[surfaceData.distal] || CONDITIONS.healthy).label))
-              ),
-              // Lingual surface (bottom)
-              h('div', {
-                style: {
-                  width: meta.type === 'molar' ? 120 : 90,
-                  height: 38,
-                  background: (surfaceData.lingual && surfaceData.lingual !== 'healthy') ? (CONDITIONS[surfaceData.lingual] || CONDITIONS.healthy).color : '#f0f7f5',
-                  border: '2px solid ' + ((surfaceData.lingual && surfaceData.lingual !== 'healthy') ? (CONDITIONS[surfaceData.lingual] || CONDITIONS.healthy).stroke : '#94a3b8'),
-                  borderRadius: '0 0 8px 8px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#334155',
-                  transition: 'all .15s'
-                },
-                onClick: () => {
-                  const keys = CONDITION_KEYS; const cur = surfaceData.lingual || 'healthy';
-                  onSurfaceChange(fdi, 'lingual', keys[(keys.indexOf(cur) + 1) % keys.length]);
-                }
-              }, 'Lingual · ' + ((CONDITIONS[surfaceData.lingual] || CONDITIONS.healthy).label))
-            ),
-            // Condition cycle key
-            h('div', {style: {marginTop: 10, padding: '6px 8px', background: '#f8fafc', borderRadius: 6, fontSize: 10.5, color: '#64748b'}},
-              '↻ Click any surface to cycle through conditions'
-            ),
-            // Condition color key
-            h('div', {style: {marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4}},
+            h('div', {style: {fontWeight: 600, fontSize: 12.5, marginBottom: 8, color: 'var(--dk)'}}, '2D Surface Map — click any surface drawing to assign a condition'),
+            h(Tooth5SurfaceViewLegacy, {meta, condition, surfaceData, onSurfaceChange, onConditionChange, fdi}),
+            // FDI condition colour key
+            h('div', {style: {marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 4}},
               CONDITION_KEYS.map(k => {
                 const c = CONDITIONS[k];
                 return h('div', {key: k, style: {display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, padding: '2px 5px', borderRadius: 4, border: '1px solid ' + c.stroke, background: c.color}},
-                  h('span', {style: {fontSize: 9, fontWeight: 700, color: k === 'cavity' ? '#fff' : '#1a2332'}}, c.symbol || '○'),
-                  h('span', {style: {color: k === 'cavity' ? '#fff' : '#334155', fontWeight: 500}}, c.label)
+                  h('span', {style: {fontSize: 9, fontWeight: 700, color: condFg(k)}}, c.symbol || '○'),
+                  h('span', {style: {color: condFg(k), fontWeight: 500}}, c.label)
                 );
               })
             )
@@ -1346,7 +1240,7 @@ function SingleTooth3D({meta, condition, baseColor, narrow}){
       x: 0, y: -8,
       fontSize: 14,
       textAnchor: 'middle',
-      fill: condition === 'cavity' ? '#fff' : '#1a2332',
+      fill: condFg(condition),
       fontWeight: 'bold',
       style: {transform: 'scaleY(' + flipY + ')'},
     }, cond.symbol)
@@ -1553,7 +1447,7 @@ function DentalChart3D({teethData, patientHistory, onToothEdit}){
         const c = CONDITIONS[k];
         return h('div', {key: k, className: 'fdi-cstat'},
           h('span', {className: 'fdi-cstat-sw', style: {background: c.color, border: '1.5px solid ' + c.stroke}},
-            c.symbol && h('span', {style: {fontSize: 9, color: k === 'cavity' ? '#fff' : '#1a2332', fontWeight: 700}}, c.symbol)
+            c.symbol && h('span', {style: {fontSize: 9, color: condFg(k), fontWeight: 700}}, c.symbol)
           ),
           h('span', {className: 'fdi-cstat-lbl'}, c.label),
           h('span', {className: 'fdi-cstat-num'}, count)
@@ -1569,7 +1463,7 @@ function DentalChart3D({teethData, patientHistory, onToothEdit}){
           const c = CONDITIONS[k];
           return h('div', {key: k, className: 'fdi-legend-item'},
             h('span', {className: 'fdi-legend-sw', style: {background: c.color, border: '1.5px solid ' + c.stroke}},
-              h('span', {style: {fontSize: 9, color: k === 'cavity' ? '#fff' : '#1a2332', fontWeight: 700}}, c.symbol || '○')
+              h('span', {style: {fontSize: 9, color: condFg(k), fontWeight: 700}}, c.symbol || '○')
             ),
             h('span', {style: {fontWeight: 600}}, c.label),
             h('span', {style: {fontSize: 10, color: '#64748b', marginLeft: 3}}, '— ' + c.desc)
