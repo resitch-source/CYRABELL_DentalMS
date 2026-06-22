@@ -1327,7 +1327,7 @@ function DentalChart3D({teethData, patientHistory, onToothEdit}){
     .filter(([k,v]) => k.includes('_surfaces') && v && typeof v === 'object')
     .reduce((sum,[,v]) => sum + Object.values(v).filter(x => x && x !== 'healthy').length, 0);
 
-  const renderTooth = (fdi) => h(ClinicalTooth, {
+  const renderTooth = (fdi) => h(ClinicalToothLegacySVG, {
     key: fdi,
     fdi,
     condition: teethData[fdi],
